@@ -1,0 +1,151 @@
+{
+  "spec": "NeuraiZK/v1 draft 2026-09-29",
+  "argon2id": {
+    "t": 3,
+    "m": 65536,
+    "p": 1,
+    "dkLen": 64
+  },
+  "vectors": [
+    {
+      "name": "empty ZK passphrase, account 0, receiving 0",
+      "input": {
+        "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+        "passphrase": "TREZOR",
+        "network": "testnet",
+        "zk_passphrase": "",
+        "account": 0,
+        "chain": 0,
+        "index": 0,
+        "pool_identity": "C3TESTX260929A#POOL",
+        "domain": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "asset_id": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
+      },
+      "output": {
+        "seed": "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04",
+        "zk_root": "8980e78387baa71ea79258266f46fa0d43ae30fd20a2172ece7dd744a36d29eb8c718b76ab3a8a88178a9302bc7f3a07a44216b3d1485c265eaa4c608676f8e8",
+        "spend_secret": "ea5976a477a22c819ad2049ebfecd581da0a57a4b21c5038a13401de04dc0d7e",
+        "view_seed": "f813a798d22f33f01d886d7f8dc084439509e275559d9f8a41208007b185aa31",
+        "owner": "2b92125045ef2530a3422a1f2aa0f26322e2431c1ff5a11226101fc52bf3e08a",
+        "view_pub": "c3541251874605cb967133f8724c9cd9db9d32dc1cc27f613541baacdea0f23a",
+        "instance_tag": "62ff5439",
+        "payload": "012b92125045ef2530a3422a1f2aa0f26322e2431c1ff5a11226101fc52bf3e08ac3541251874605cb967133f8724c9cd9db9d32dc1cc27f613541baacdea0f23a62ff5439",
+        "address": "tnzk1qy4eyyjsghhj2v9rgg4p724q7f3j9cjrrs0ltggjycgpl3ft70sg4s65zfgcw3s9ewt8zvlcwfxfekwmn5edc8xz0asn2sd64n02pu36vtl4gwggah8n3",
+        "address_length": 122,
+        "fingerprint": "ce62fe35"
+      }
+    },
+    {
+      "name": "empty ZK passphrase, account 0, receiving 1",
+      "input": {
+        "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+        "passphrase": "TREZOR",
+        "network": "testnet",
+        "zk_passphrase": "",
+        "account": 0,
+        "chain": 0,
+        "index": 1,
+        "pool_identity": "C3TESTX260929A#POOL",
+        "domain": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "asset_id": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
+      },
+      "output": {
+        "seed": "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04",
+        "zk_root": "8980e78387baa71ea79258266f46fa0d43ae30fd20a2172ece7dd744a36d29eb8c718b76ab3a8a88178a9302bc7f3a07a44216b3d1485c265eaa4c608676f8e8",
+        "spend_secret": "ea3def47b163941ce174301d12d3e84d620cb86c46d8ac23809d42ba862b44e9",
+        "view_seed": "9c81466636173364ea5f2a2f718fdff1206049eaa5a1555ef2139f6d06115098",
+        "owner": "19e7a0aa5c7c7eceb9b4a63dcc03a74d95c5bdbb4de5765b1768d622d5ebc835",
+        "view_pub": "6032c05748f17d57de5800f1cd6dbc9f77de6d4e8f6fe208222a51b26d0b262f",
+        "instance_tag": "62ff5439",
+        "payload": "0119e7a0aa5c7c7eceb9b4a63dcc03a74d95c5bdbb4de5765b1768d622d5ebc8356032c05748f17d57de5800f1cd6dbc9f77de6d4e8f6fe208222a51b26d0b262f62ff5439",
+        "address": "tnzk1qyv70g92t378an4ekjnrmnqr5axet3dahdx72ajmza5dvgk4a0yr2cpjcpt53uta2l09sq83e4kme8mhmek5arm0ugyzy2j3kfkskf30vtl4gwg7gfa4c",
+        "address_length": 122,
+        "fingerprint": "ce62fe35"
+      }
+    },
+    {
+      "name": "empty ZK passphrase, account 0, change 0",
+      "input": {
+        "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+        "passphrase": "TREZOR",
+        "network": "testnet",
+        "zk_passphrase": "",
+        "account": 0,
+        "chain": 1,
+        "index": 0,
+        "pool_identity": "C3TESTX260929A#POOL",
+        "domain": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "asset_id": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
+      },
+      "output": {
+        "seed": "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04",
+        "zk_root": "8980e78387baa71ea79258266f46fa0d43ae30fd20a2172ece7dd744a36d29eb8c718b76ab3a8a88178a9302bc7f3a07a44216b3d1485c265eaa4c608676f8e8",
+        "spend_secret": "9039d2b093e2655b32006fb53251cb150207f196fff76a03b205ec13143287c6",
+        "view_seed": "9b0926f2424f94bad4b4cd2616f83bcb3d9a788eb9740c1acaeef8c97f48654d",
+        "owner": "26525b7c368a4c1269193f74c057f4b171b696b85a8bcaf1e8af898185e8d440",
+        "view_pub": "fe4c87d5bf3cfc3790b28992f73171757f2df2358f85f72e39644e8089d41e6e",
+        "instance_tag": "62ff5439",
+        "payload": "0126525b7c368a4c1269193f74c057f4b171b696b85a8bcaf1e8af898185e8d440fe4c87d5bf3cfc3790b28992f73171757f2df2358f85f72e39644e8089d41e6e62ff5439",
+        "address": "tnzk1qyn9ykmux69ycynfrylhfszh7jchrd5khpdghjh3azhcnqv9ar2ypljvsl2m708ux7gt9zvj7uchzatl9hertru97uhrjezwszyag8nwvtl4gwgaaq3zw",
+        "address_length": 122,
+        "fingerprint": "ce62fe35"
+      }
+    },
+    {
+      "name": "empty ZK passphrase, account 1, receiving 0",
+      "input": {
+        "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+        "passphrase": "TREZOR",
+        "network": "testnet",
+        "zk_passphrase": "",
+        "account": 1,
+        "chain": 0,
+        "index": 0,
+        "pool_identity": "C3TESTX260929A#POOL",
+        "domain": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "asset_id": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
+      },
+      "output": {
+        "seed": "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04",
+        "zk_root": "8980e78387baa71ea79258266f46fa0d43ae30fd20a2172ece7dd744a36d29eb8c718b76ab3a8a88178a9302bc7f3a07a44216b3d1485c265eaa4c608676f8e8",
+        "spend_secret": "87a0aedf35b6d9c3692e3aed732770c1e598c93b040cfd098a138c9fbbbb9a35",
+        "view_seed": "3b4db1011691df79ead81c4d689b39f4f987104e2fc8b233c7b6187d739850e0",
+        "owner": "0fc857a1b99859e40ea764afb836b627a08f95552da540bc2939fb3295f04f80",
+        "view_pub": "8ccfff7c88fb4b1d8d271776419a2002f75b835c6309a02bd8211e3fc0268f7e",
+        "instance_tag": "62ff5439",
+        "payload": "010fc857a1b99859e40ea764afb836b627a08f95552da540bc2939fb3295f04f808ccfff7c88fb4b1d8d271776419a2002f75b835c6309a02bd8211e3fc0268f7e62ff5439",
+        "address": "tnzk1qy8us4aphxv9neqw5aj2lwpkkcn6pru425k62s9u9yulkv547p8cprx0la7g376trkxjw9mkgxdzqqhhtwp4cccf5q4asgg78lqzdrm7vtl4gwghruryz",
+        "address_length": 122,
+        "fingerprint": "ce62fe35"
+      }
+    },
+    {
+      "name": "ZK passphrase with NFKD normalisation, account 0, receiving 0",
+      "input": {
+        "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+        "passphrase": "TREZOR",
+        "network": "testnet",
+        "zk_passphrase": "contraseña zk",
+        "account": 0,
+        "chain": 0,
+        "index": 0,
+        "pool_identity": "C3TESTX260929A#POOL",
+        "domain": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "asset_id": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
+      },
+      "output": {
+        "seed": "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04",
+        "zk_root": "0be0ef9838c52a3b630ad5f4c70d19b1125bedae1c8cca0b4552fa8bf4b624f3628462bfdcc11a8ca50348e9c783df5125390f80871c1a9a38a2136812ead8d0",
+        "spend_secret": "ada31525ff0f48d5715832b2199380502a5516ad5e2be4d9faa6ada6d7259ae2",
+        "view_seed": "46173f51a08fd86786d0c23e3f39acd05d428c5ff405b612cabec93ed957e85d",
+        "owner": "0442e3f44b7164c2efe5928ae2122ba2d717f3d53186d7c70377b94e56a7267b",
+        "view_pub": "43f7f2fb507f12dfdfa031ad3d238cae172c363f2baf6232500bfe9d9ba87678",
+        "instance_tag": "62ff5439",
+        "payload": "010442e3f44b7164c2efe5928ae2122ba2d717f3d53186d7c70377b94e56a7267b43f7f2fb507f12dfdfa031ad3d238cae172c363f2baf6232500bfe9d9ba8767862ff5439",
+        "address": "tnzk1qyzy9cl5fdckfsh0ukfg4csj9w3dw9ln65ccd478qdmmjnjk5un8kslh7ta4qlcjml06qvdd853cetsh9smr72a0vge9qzl7nkd6sancvtl4gwgfgysta",
+        "address_length": 122,
+        "fingerprint": "c1a635b7"
+      }
+    }
+  ]
+}

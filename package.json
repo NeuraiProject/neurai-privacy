@@ -1,0 +1,82 @@
+{
+  "name": "@neuraiproject/neurai-privacy",
+  "version": "0.1.0",
+  "description": "Private XNA payments on Neurai: private wallets from the wallet words, nzk addresses and zero-knowledge proofs built on the device",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NeuraiProject/neurai-privacy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NeuraiProject/neurai-privacy/issues"
+  },
+  "homepage": "https://github.com/NeuraiProject/neurai-privacy#readme",
+  "keywords": [
+    "neurai",
+    "privacy",
+    "zero-knowledge",
+    "wallet",
+    "xna"
+  ],
+  "author": "Neurai Project",
+  "license": "MIT",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "browser": "./src/browser.js",
+      "default": "./src/index.js"
+    },
+    "./browser": {
+      "types": "./src/browser.d.ts",
+      "default": "./src/browser.js"
+    },
+    "./node": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./client": {
+      "types": "./src/client.d.ts",
+      "default": "./src/client.js"
+    },
+    "./worker": {
+      "types": "./src/worker.d.ts",
+      "default": "./src/worker.js"
+    }
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:types": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm test && npm run test:types"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.27",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "@neuraiproject/neurai-rpc": "^0.7.0"
+  },
+  "peerDependenciesMeta": {
+    "@neuraiproject/neurai-rpc": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@noble/hashes": "2.2.0",
+    "@noble/ciphers": "2.2.0",
+    "@noble/curves": "2.2.0"
+  }
+}

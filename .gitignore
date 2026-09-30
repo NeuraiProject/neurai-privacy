@@ -1,0 +1,15 @@
+node_modules/
+.parcel-cache/
+tmp/
+.env
+.env.*
+!.env.example
+*.log
+coverage/
+.DS_Store
+password.test
+password-bob.test
+secrets.json.enc
+flow-journal.json
+*.zkey
+*.wasm

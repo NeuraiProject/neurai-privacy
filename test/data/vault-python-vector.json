@@ -1,0 +1,18 @@
+{
+  "source": "Python cryptography Argon2id + ChaCha20Poly1305; public TEST secrets only",
+  "password": "TEST-only-password",
+  "payload": {
+    "spend_key": "1111111111111111111111111111111111111111111111111111111111111111",
+    "view_seed": "2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "envelope": {
+    "version": 1,
+    "kdf": "argon2id",
+    "memory_kib": 65536,
+    "passes": 3,
+    "lanes": 1,
+    "salt": "000102030405060708090a0b0c0d0e0f",
+    "nonce": "101112131415161718191a1b",
+    "ciphertext": "81af2af4a32929f3479e1af0496a2f79b76b7f5e9376c8fd8cff269c6bde5b164b80401e07f5a0e9c8bc05411ec96bcaf4176e2285558a778b71a360bb4ea91a661c5b8a3f5ff3cd9e10fa1e677c618e81a840803dbcc3a615b9a796ff7b31f8226979eedb1b0e839ad35a6c8f3efa104bffeea408a2617e5190cf570a5df413d555702731ebbd6686a6b29b8126402718d0ba6b7545597554e9943e5e0013ff7f8f95e63c3e8ee3c9206765c70f56"
+  }
+}

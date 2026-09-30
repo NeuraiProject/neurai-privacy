@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Neurai privacy browser benchmark</title>
+  <script type="importmap">
+    {"imports":{"@noble/hashes/":"/node_modules/@noble/hashes/","@noble/ciphers/":"/node_modules/@noble/ciphers/","@noble/curves/":"/node_modules/@noble/curves/"}}
+  </script>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 50rem; margin: 2rem auto; padding: 0 1rem; }
+    button { font: inherit; padding: .5rem 1rem; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f2f2f2; padding: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Neurai privacy browser benchmark</h1>
+  <p>Runs only local TEST cryptography. No RPC, funds, seed phrase, or proof keys are used. The measurements below exclude Groth16 witness and proof generation.</p>
+  <button id="run" type="button">Run benchmark</button>
+  <p id="status" role="status">Ready</p>
+  <pre id="results"></pre>
+  <script type="module" src="./browser-benchmark.js"></script>
+</body>
+</html>

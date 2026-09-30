@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Neurai privacy browser smoke test</title>
+<script type="importmap">
+{"imports":{"@noble/hashes/":"/node_modules/@noble/hashes/","@noble/ciphers/":"/node_modules/@noble/ciphers/","@noble/curves/":"/node_modules/@noble/curves/"}}
+</script>
+<pre id="result">PENDING</pre>
+<script type="module">
+  import { poseidonBytes, encodeNote, deriveOwner, noteCommitment, openVault, openNoteRecord, BrowserTestIdentity } from '../src/browser.js';
+  try {
+    const bytes = poseidonBytes(new Uint8Array());
+    const actual = Array.from(bytes, x => x.toString(16).padStart(2, '0')).join('');
+    if (actual !== '067761295e881eec953a764e4d72bbccedf07472b57b9a3f754dcb5012441956') {
+      throw new Error('Poseidon vector mismatch');
+    }
+    if (typeof encodeNote !== 'function' || typeof deriveOwner !== 'function' ||
+        typeof noteCommitment !== 'function') {
+      throw new Error('browser exports missing');
+    }
+    const fixture = await (await fetch('/test/data/vault-python-vector.json')).json();
+    const payload = await openVault(JSON.stringify(fixture.envelope), fixture.password);
+    if (payload.spend_key !== fixture.payload.spend_key) throw new Error('vault mismatch');
+    const hpke = await (await fetch('/test/data/hpke-python-vector.json')).json();
+    const unhex = value => Uint8Array.from(value.match(/../g), byte => parseInt(byte, 16));
+    const opened = openNoteRecord({ record: unhex(hpke.record), cm: unhex(hpke.cm),
+      domain: unhex(hpke.domain), assetId: unhex(hpke.asset_id),
+      viewSeed: unhex(hpke.view_seed), spendSecret: unhex(hpke.spend_secret) });
+    if (opened.amountAtomic !== 100000000n) throw new Error('HPKE note mismatch');
+    const wallet = await BrowserTestIdentity.fromBackup({
+      backup: JSON.stringify(hpke.wallet_envelope), password: hpke.wallet_password,
+      domain: hpke.domain, assetId: hpke.asset_id });
+    if (wallet.openRecord(unhex(hpke.record), unhex(hpke.cm)).amountAtomic !== 100000000n) {
+      throw new Error('wallet recovery mismatch');
+    }
+    wallet.lock();
+    document.getElementById('result').textContent = 'PASS';
+  } catch (error) {
+    document.getElementById('result').textContent = 'FAIL: ' + error.message;
+  }
+</script>
