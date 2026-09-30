@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 
 await rm('dist', { recursive: true, force: true });
 await mkdir('dist/licenses', { recursive: true });
@@ -12,21 +12,30 @@ const options = {
   logLevel: 'warning'
 };
 
-for (const [entry, output, platform, format] of [
-  ['index', 'index.js', 'node', 'esm'],
-  ['index', 'index.cjs', 'node', 'cjs'],
-  ['browser', 'browser.js', 'browser', 'esm'],
-  ['client', 'client.js', 'browser', 'esm'],
-  ['worker', 'worker.js', 'browser', 'esm']
-]) {
-  await build({ ...options, entryPoints: [`src/${entry}.js`], outfile: `dist/${output}`,
-    platform, format });
+// Node entry: one self-contained ESM file and one CommonJS file.
+for (const [output, format] of [['index.js', 'esm'], ['index.cjs', 'cjs']]) {
+  await build({ ...options, entryPoints: ['src/index.js'], outfile: `dist/${output}`,
+    platform: 'node', format });
 }
 
+// Browser entries share their common modules through dist/chunks, so an
+// application that imports two of them gets a single copy of that code.
+await build({ ...options, entryPoints: ['src/browser.js', 'src/client.js', 'src/worker.js'],
+  outdir: 'dist', entryNames: '[name]', chunkNames: 'chunks/[name]-[hash]',
+  platform: 'browser', format: 'esm', splitting: true });
+
+// Declarations. The .d.cts copies point their relative imports at .cjs
+// names, so a CommonJS consumer never imports an ES module declaration.
+const RELATIVE_ENTRY = /(['"])\.\/(index|browser|client|worker)\.js\1/g;
 for (const entry of ['index', 'browser', 'client', 'worker']) {
-  await copyFile(`src/${entry}.d.ts`, `dist/${entry}.d.ts`);
+  const declarations = await readFile(`src/${entry}.d.ts`, 'utf8');
+  const commonjs = declarations.replace(RELATIVE_ENTRY, '$1./$2.cjs$1');
+  if (/(['"])\.\.?\/[^'"]*\.js\1/.test(commonjs)) {
+    throw new Error(`src/${entry}.d.ts imports a file without a CommonJS declaration`);
+  }
+  await writeFile(`dist/${entry}.d.ts`, declarations);
+  await writeFile(`dist/${entry}.d.cts`, commonjs);
 }
-await copyFile('src/index.d.ts', 'dist/index.d.cts');
 
 for (const packageName of ['hashes', 'ciphers', 'curves']) {
   await copyFile(`node_modules/@noble/${packageName}/LICENSE`,

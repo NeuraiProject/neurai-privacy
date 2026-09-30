@@ -230,9 +230,9 @@ export declare class BrowserTestIdentity {
   createNote(recipient: RecipientDescriptor, amountAtomic: bigint | string): { note: Uint8Array; cm: Uint8Array; record: Uint8Array };
   openRecord(record: Uint8Array, commitment: Uint8Array): { note: Uint8Array; cm: Uint8Array; amountAtomic: bigint; nf: Uint8Array };
   /** Local worker only: returned witness contains private circuit inputs. */
-  prepareC3(options: import('./browser.js').C3PrepareOptions): import('./browser.js').C3Prepared;
-  sealCheckpoint(checkpoint: import('./browser.js').PoolScanCheckpoint): string;
-  openCheckpoint(encoded: string): import('./browser.js').PoolScanCheckpoint;
+  prepareC3(options: import('./browser.cjs').C3PrepareOptions): import('./browser.cjs').C3Prepared;
+  sealCheckpoint(checkpoint: import('./browser.cjs').PoolScanCheckpoint): string;
+  openCheckpoint(encoded: string): import('./browser.cjs').PoolScanCheckpoint;
   lock(): void;
 }
 
@@ -280,12 +280,12 @@ export declare class ZkWalletIdentity {
   createNote(recipient: RecipientDescriptor, amountAtomic: bigint | string): { note: Uint8Array; cm: Uint8Array; record: Uint8Array };
   spendingIdentity(consumed?: { address?: NzkAddressRef }): BrowserTestIdentity;
   /** Local worker only: returned witness contains private circuit inputs. */
-  prepareC3(options: import('./browser.js').C3PrepareOptions): import('./browser.js').C3Prepared;
+  prepareC3(options: import('./browser.cjs').C3PrepareOptions): import('./browser.cjs').C3Prepared;
   backupJson(): null;
-  sealCheckpoint(checkpoint: import('./browser.js').PoolScanCheckpoint): string;
-  openCheckpoint(encoded: string): import('./browser.js').PoolScanCheckpoint;
+  sealCheckpoint(checkpoint: import('./browser.cjs').PoolScanCheckpoint): string;
+  openCheckpoint(encoded: string): import('./browser.cjs').PoolScanCheckpoint;
   lock(): void;
 }
 
-export * from './client.js';
-export * from './worker.js';
+export * from './client.cjs';
+export * from './worker.cjs';

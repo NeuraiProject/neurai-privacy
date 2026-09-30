@@ -63,6 +63,11 @@ dependency because snarkjs is GPL-3.0 licensed.
 Keep every secret inside the worker. The page only handles public data:
 recipient descriptors, `nzk` addresses, balances and unsigned transactions.
 
+The `client`, `worker` and `browser` entries are ES modules. From CommonJS,
+`require('@neuraiproject/neurai-privacy')` loads the Node build with its own
+declarations. Node 20.19 and later can also `require()` the three ES module
+entries; TypeScript accepts that with `module` set to `node20` or `nodenext`.
+
 ## Using it in a web app
 
 The worker file holds the private wallet:
@@ -248,7 +253,7 @@ npm run test:types  # TypeScript declarations
 npm run test:build  # Check bundled entry points
 ```
 
-The build writes standalone ESM files for the browser, client and worker, and ESM/CJS files for Node. It also copies declarations and bundled dependency licenses into `dist/`. `npm pack` builds these files automatically.
+The build writes ESM files for the browser, client and worker, which share their common code through `dist/chunks`, and ESM/CJS files for Node. It also writes ESM and CommonJS declarations and the bundled dependency licenses into `dist/`. `npm pack` builds these files automatically. `npm run test:types` checks the published declarations with TypeScript `NodeNext` and `Node16` settings.
 
 The browser pages in `test/` load the library without a bundler. Run
 `npm install` first, then serve the package root with any static server,
