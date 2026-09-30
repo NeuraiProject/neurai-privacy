@@ -5,8 +5,15 @@
     "moduleResolution": "NodeNext",
     "strict": true,
     "noEmit": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "skipLibCheck": false
   },
-  "include": ["src/index.d.ts", "test/types.test.ts"]
+  "include": [
+    "src/index.d.ts",
+    "test/types.test.ts",
+    "test/package-types.test.ts",
+    "test/package-types.test.cts"
+  ]
 }

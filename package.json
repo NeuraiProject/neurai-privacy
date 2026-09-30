@@ -1,6 +1,6 @@
 {
   "name": "@neuraiproject/neurai-privacy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Private XNA payments on Neurai: private wallets from the wallet words, nzk addresses and zero-knowledge proofs built on the device",
   "repository": {
     "type": "git",
@@ -24,33 +24,50 @@
     "access": "public"
   },
   "type": "module",
-  "main": "./src/index.js",
-  "types": "./src/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "browser": "./dist/browser.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.d.ts",
-      "browser": "./src/browser.js",
-      "default": "./src/index.js"
+      "browser": {
+        "types": "./dist/browser.d.ts",
+        "default": "./dist/browser.js"
+      },
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./browser": {
-      "types": "./src/browser.d.ts",
-      "default": "./src/browser.js"
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
     },
     "./node": {
-      "types": "./src/index.d.ts",
-      "default": "./src/index.js"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./client": {
-      "types": "./src/client.d.ts",
-      "default": "./src/client.js"
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
     },
     "./worker": {
-      "types": "./src/worker.d.ts",
-      "default": "./src/worker.js"
+      "types": "./dist/worker.d.ts",
+      "default": "./dist/worker.js"
     }
   },
   "files": [
-    "src",
+    "dist",
     "README.md",
     "LICENSE"
   ],
@@ -58,13 +75,20 @@
     "node": ">=20.19.0"
   },
   "scripts": {
+    "build": "node scripts/build.mjs",
     "test": "node --test test/*.test.js",
     "test:types": "tsc -p tsconfig.json",
-    "prepublishOnly": "npm test && npm run test:types"
+    "test:build": "node scripts/check-build.mjs",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run build && npm test && npm run test:types && npm run test:build"
   },
   "devDependencies": {
     "@types/node": "^20.19.27",
-    "typescript": "^5.9.3"
+    "esbuild": "0.28.2",
+    "typescript": "^5.9.3",
+    "@noble/ciphers": "2.2.0",
+    "@noble/curves": "2.2.0",
+    "@noble/hashes": "2.2.0"
   },
   "peerDependencies": {
     "@neuraiproject/neurai-rpc": "^0.7.0"
@@ -73,10 +97,5 @@
     "@neuraiproject/neurai-rpc": {
       "optional": true
     }
-  },
-  "dependencies": {
-    "@noble/hashes": "2.2.0",
-    "@noble/ciphers": "2.2.0",
-    "@noble/curves": "2.2.0"
   }
 }

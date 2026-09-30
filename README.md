@@ -43,9 +43,11 @@ published yet. After publication, install it with:
 npm install @neuraiproject/neurai-privacy
 ```
 
-For local development before publication, use `npm install /path/to/neurai-privacy`.
-The runtime dependencies are `@noble/hashes`, `@noble/ciphers` and
-`@noble/curves` 2.2.0. Node use needs Node 20.19 or later. Proving needs
+For local development before publication, run `npm ci && npm run build`
+in this directory, then use `npm install /path/to/neurai-privacy` in the app.
+The bundles include `@noble/hashes`, `@noble/ciphers` and `@noble/curves`
+2.2.0, so the published package has no runtime dependencies on them.
+Node use needs Node 20.19 or later. Proving needs
 snarkjs 0.7.6, which the application passes to the worker. It is not a
 dependency because snarkjs is GPL-3.0 licensed.
 
@@ -240,9 +242,13 @@ it against a node.
 
 ```sh
 npm ci              # Install the locked development dependencies
+npm run build       # Generate Node and browser bundles in dist/
 npm test            # Node test runner
 npm run test:types  # TypeScript declarations
+npm run test:build  # Check bundled entry points
 ```
+
+The build writes standalone ESM files for the browser, client and worker, and ESM/CJS files for Node. It also copies declarations and bundled dependency licenses into `dist/`. `npm pack` builds these files automatically.
 
 The browser pages in `test/` load the library without a bundler. Run
 `npm install` first, then serve the package root with any static server,
