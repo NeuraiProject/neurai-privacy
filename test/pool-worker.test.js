@@ -24,10 +24,12 @@ function workerPair() {
 test('worker and client: derive from wallet words, scan the C3 chain and rotate addresses', async () => {
   const chain = c3Chain();
   const { worker, scope } = workerPair();
-  const handle = startPoolWorker({ scope, artifactBaseUrl: 'http://artifacts.test/', singleThread: false });
+  assert.throws(() => startPoolWorker({ scope: workerPair().scope, artifactBaseUrl: 'http://artifacts.test/', depositLimitAtomic: 5 }), /positive bigint/);
+  const handle = startPoolWorker({ scope, artifactBaseUrl: 'http://artifacts.test/', singleThread: false, depositLimitAtomic: 100000000000n });
   const stages = [];
   const client = new PoolWorkerClient({ worker, rpc: chain.rpc, onStage: m => stages.push(m) });
-  const derived = await client.derive({ mnemonic: words.mnemonic, passphrase: words.passphrase, zkPassphrase: '', account: 0 });
+  await assert.rejects(client.derive({ mnemonic: words.mnemonic }), /family/);
+  const derived = await client.derive({ family: 'legacy', mnemonic: words.mnemonic, passphrase: words.passphrase, zkPassphrase: '', account: 0 });
   assert.equal(derived.addresses.kind, 'derived');
   assert.equal(derived.addresses.fingerprint, vectors[0].output.fingerprint);
   assert.equal(derived.addresses.current.address, vectors[0].output.address);
@@ -83,7 +85,7 @@ test('client forwards only read-only RPC and runs one operation at a time', asyn
   // A crash stops the client: pending work fails, later requests fail fast and nothing more is sent.
   let terminated = 0;
   fake.terminate = () => { terminated++; };
-  const pending = client.derive({ mnemonic: 'words' });
+  const pending = client.derive({ family: 'legacy', mnemonic: 'words' });
   fake.onerror({ message: 'out of memory', preventDefault() {} });
   await assert.rejects(pending, /out of memory/);
   assert.deepEqual([client.stopped, terminated, crashes], [true, 1, ['out of memory']]);
@@ -96,8 +98,8 @@ test('client forwards only read-only RPC and runs one operation at a time', asyn
 
 test('planning chooses the C3 form, sends own notes to the change address and parses nzk recipients', async () => {
   const root = await deriveZkRoot(await walletSeedFromMnemonic(words.mnemonic, words.passphrase), '');
-  const identity = ZkWalletIdentity.fromRoot({ root, account: 0, ...pool });
-  const other = ZkWalletIdentity.fromRoot({ root, account: 1, ...pool });
+  const identity = ZkWalletIdentity.fromRoot({ root, family: 'legacy', account: 0, ...pool });
+  const other = ZkWalletIdentity.fromRoot({ root, family: 'legacy', account: 1, ...pool });
   const note = { cm: 'aa'.repeat(32), amountAtomic: 500n, spent: false, address: { chain: 0, index: 2 } };
   const scan = reserve => ({ reserveAtomic: reserve, notes: [note, { ...note, cm: 'bb'.repeat(32), spent: true }] });
   const own = identity.selfRecipient();
@@ -106,7 +108,11 @@ test('planning chooses the C3 form, sends own notes to the change address and pa
   assert.equal(d0.form, 'D0');
   assert.equal(opened(d0.created[0]).amountAtomic, 100n);
   assert.equal(planC3Operation({ identity, scan: scan(5n), action: 'deposit', amountAtomic: 100n, pool }).form, 'D1');
-  assert.throws(() => planC3Operation({ identity, scan: scan(0n), action: 'deposit', amountAtomic: 100000000001n, pool }), /at most 1000 XNA/);
+  // The default limit is the money range: a 1,000,000 XNA deposit is built, a larger total is rejected.
+  assert.equal(planC3Operation({ identity, scan: scan(0n), action: 'deposit', amountAtomic: 100000000000000n, pool }).amountAtomic, '100000000000000');
+  assert.throws(() => planC3Operation({ identity, scan: scan(0n), action: 'deposit', amountAtomic: 2100000000000000001n, pool }), /at most 21000000000 XNA/);
+  assert.throws(() => planC3Operation({ identity, scan: scan(0n), action: 'deposit', amountAtomic: 100000000001n, pool,
+    depositLimitAtomic: 100000000000n }), /at most 1000 XNA/);
   const to = other.addressAt(0, 0);
   const t2 = planC3Operation({ identity, scan: scan(900n), action: 'transfer', amountAtomic: '200', note: note.cm, recipient: to, pool });
   assert.equal(t2.form, 'T2');
@@ -126,7 +132,7 @@ test('planning chooses the C3 form, sends own notes to the change address and pa
 
 test('receiving summary lists used addresses with received totals', async () => {
   const root = await deriveZkRoot(await walletSeedFromMnemonic(words.mnemonic, words.passphrase), '');
-  const identity = ZkWalletIdentity.fromRoot({ root, account: 0, ...pool, gap: 4 });
+  const identity = ZkWalletIdentity.fromRoot({ root, family: 'legacy', account: 0, ...pool, gap: 4 });
   const entries = [0, 2, 2].map((index, i) => { const s = sealNote({ descriptor: identity.descriptorAt(0, index), amountAtomic: String(100 + i) }); return { record: s.record, cm: s.cm }; });
   const found = identity.scanRecords(entries);
   const scan = { notes: found.map(f => ({ amountAtomic: f.owned.amountAtomic, address: f.address })) };

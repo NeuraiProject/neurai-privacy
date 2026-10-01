@@ -1,4 +1,6 @@
 import { validateC3Manifest, c3StateScript } from './c3.js';
+import { validateC4Manifest, c4StateScript, C4_FORMS } from './c4.js';
+import { decodeC4Publication } from './c4-publication.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { decodeField } from './poseidon.js';
 import { emptyPoolState, poolIndexedInsert, poolStateDigest } from './pool-state.js';
@@ -56,7 +58,7 @@ function parseRecord(identity, record, cm) {
 function walletCheckpointTag(identity) {
   if (!identity) return null;
   return identity.fingerprint === undefined ? identity.recipient().owner
-    : `${identity.fingerprint}:${identity.account}`;
+    : `${identity.derivation}:${identity.storageId}`;
 }
 
 function checkpointFor({ manifest, height, blockhash, birth, state, reserve, stateOutpoint,
@@ -123,20 +125,25 @@ function restoreCheckpoint(saved, manifest, limit) {
  * stay unchanged; it is the only mode for manifests without a birth txid.
  */
 export async function scanBrowserPool({ rpc, manifest, identity, stopHeight, onProgress = () => {},
-  strategy, checkpoint }) {
+  strategy, checkpoint, expectedGenesis, expectedCommitment }) {
   const c3 = manifest?.schema === 'neurai-c3-xna-test-v1';
+  const c4 = manifest?.schema === 'neurai-c4-xna-test-v1';
+  const pinned = c3 || c4;
   if (c3) validateC3Manifest(manifest);
-  const mode = strategy ?? (c3 ? 'spent-index' : 'blocks');
-  demand(mode === 'blocks' || (mode === 'spent-index' && c3),
-    'spent-index scan requires a C3 manifest with its birth transaction');
-  const makeStateScript = digest => c3 ? c3StateScript(manifest, digest) : stateScript(commitment, digest);
+  if (c4) validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  const forms = c4 ? C4_FORMS : FORMS;
+  const vkHashes = c4 ? Object.fromEntries(forms.map(f => [f, manifest.forms[f].vkHash])) : manifest.vkHashes;
+  const mode = strategy ?? (pinned ? 'spent-index' : 'blocks');
+  demand(mode === 'blocks' || (mode === 'spent-index' && pinned),
+    'spent-index scan requires a C3 manifest or an independently pinned C4 manifest with its birth transaction');
+  const makeStateScript = digest => c4 ? c4StateScript(manifest, digest) : c3 ? c3StateScript(manifest, digest) : stateScript(commitment, digest);
   demand(typeof rpc === 'function', 'RPC function required');
   demand(manifest?.profile === 'xna' && HEX32.test(manifest.genesis) &&
     HEX32.test(manifest.commitment) && HEX32.test(manifest.reserveCommitment) &&
     HEX32.test(manifest.domain) && HEX32.test(manifest.assetId), 'invalid XNA TEST manifest');
-  demand(FORMS.every(form => HEX32.test(manifest.vkHashes?.[form])) &&
-    Object.keys(manifest.vkHashes).length === FORMS.length &&
-    new Set(Object.values(manifest.vkHashes)).size === FORMS.length,
+  demand(forms.every(form => HEX32.test(vkHashes?.[form])) &&
+    Object.keys(vkHashes).length === forms.length &&
+    new Set(Object.values(vkHashes)).size === forms.length,
     'incomplete or duplicate VK registry');
   const call = (method, ...params) => rpc(method, params);
   demand(await call('getblockhash', 0) === manifest.genesis, 'wrong genesis');
@@ -175,7 +182,7 @@ export async function scanBrowserPool({ rpc, manifest, identity, stopHeight, onP
       if (!vin.txid) continue;
       const parent = await call('getrawtransaction', vin.txid, true);
       const script = parent?.vout?.[vin.vout]?.scriptPubKey?.hex;
-      if (typeof script === 'string' && script.includes(hex(utf8.encode(c3 ? manifest.identity : 'XNAP#POOL')))) {
+      if (typeof script === 'string' && script.includes(hex(utf8.encode(pinned ? manifest.identity : 'XNAP#POOL')))) {
         uniqueConsumed = true; break;
       }
     }
@@ -189,14 +196,14 @@ export async function scanBrowserPool({ rpc, manifest, identity, stopHeight, onP
     demand(Array.isArray(witness) && witness.length >= 5 && witness[0] === '10',
       'state spend is not MAST');
     const vkHash = hex(sha256(unhex(witness[2], 'VK')));
-    const form = FORMS.find(name => manifest.vkHashes[name] === vkHash);
+    const form = forms.find(name => vkHashes[name] === vkHash);
     demand(form, 'unknown pool VK');
-    if (c3) {
+    if (pinned) {
       const expected = manifest.forms[form];
       demand(witness.length === (form.startsWith('W') ? 7 : 8) &&
         witness[witness.length - 2] === expected.script &&
         witness[witness.length - 1] === expected.control && witness[2] === expected.vk,
-        'unexpected C3 leaf, control or VK');
+        'unexpected C3/C4 leaf, control or VK');
     }
     const expectReserve = form !== 'D0';
     demand((reserve > 0n) === expectReserve, 'unexpected reserve/form combination');
@@ -208,7 +215,15 @@ export async function scanBrowserPool({ rpc, manifest, identity, stopHeight, onP
         unhex(witness[4], 'blob second half'));
       demand(blob.length === 4096, 'bad publication size');
       let entries;
-      if (form.startsWith('D')) {
+      if (c4) {
+        const publication = decodeC4Publication(form, blob);
+        if (publication.nf) {
+          const nf = decodeField(publication.nf);
+          state.nfs = poolIndexedInsert('nf', state.nfs, nf);
+          spentBy.set(nf, { txid: tx.txid, height: blockHeight });
+        }
+        entries = publication.cms.map((cm, i) => [cm, publication.records[i]]);
+      } else if (form.startsWith('D')) {
         demand(blob[0] === 1 && blob[4] === 1, 'bad deposit publication');
         entries = [[blob.slice(6, 38), blob.slice(198, 1222)]];
       } else {
@@ -274,7 +289,7 @@ export async function scanBrowserPool({ rpc, manifest, identity, stopHeight, onP
   let scannedHeight = height;
   let finalTip = tip;
   if (mode === 'blocks') {
-    for (let blockHeight = c3 ? manifest.birthHeight : 1; blockHeight <= height; blockHeight++) {
+    for (let blockHeight = pinned ? manifest.birthHeight : 1; blockHeight <= height; blockHeight++) {
       onProgress({ height: blockHeight, total: height });
       const blockHash = await call('getblockhash', blockHeight);
       const block = await call('getblock', blockHash, 2);
@@ -282,7 +297,7 @@ export async function scanBrowserPool({ rpc, manifest, identity, stopHeight, onP
         Array.isArray(block.tx), 'block RPC mismatch');
       for (const tx of block.tx) {
         if (!stateOutpoint) {
-          if (c3 && tx.txid !== manifest.birth) continue;
+          if (pinned && tx.txid !== manifest.birth) continue;
           if (tx.vout?.[0]?.scriptPubKey?.hex !== initialScript) continue;
           await applyBirth(tx, blockHeight);
           continue;

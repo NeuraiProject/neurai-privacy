@@ -41,6 +41,11 @@ function formatXna(satoshis) {
 }
 
 // src/pool-client.js
+var strictScript = /^(?:52|53)20[0-9a-f]{64}$/;
+function accepts(script, profile) {
+  if (profile !== "C3" && profile !== "C4") throw new Error("Unknown pool profile");
+  return LEGACY_P2PKH.test(script) || profile === "C4" && strictScript.test(script);
+}
 var LEGACY_P2PKH = /^76a914[0-9a-f]{40}88ac$/;
 var MIN_SPONSOR_CHANGE_ATOMIC = 546n;
 var POOL_READ_RPC_METHODS = Object.freeze([
@@ -63,39 +68,41 @@ function message(error) {
 async function assertPoolChain(rpc, manifest) {
   if (await rpc("getblockhash", [0]) !== manifest.genesis) throw new Error("RPC node is not on the network of this pool");
 }
-async function confirmedPoolCoins(rpc, utxos, { baseCurrency }) {
+async function confirmedPoolCoins(rpc, utxos, { baseCurrency, profile = "C3" }) {
   const coins = [];
   for (const row of utxos) {
-    if (!LEGACY_P2PKH.test(row.script) || row.assetName !== baseCurrency) continue;
+    if (!accepts(row.script, profile) || row.assetName !== baseCurrency) continue;
     const live = await rpc("gettxout", [row.txid, row.outputIndex, true]);
     if (!live || live.confirmations < 1) continue;
-    coins.push({ ...row, vout: row.outputIndex, valueSats: String(row.satoshis), scriptHex: row.script });
+    const coin = { ...row, vout: row.outputIndex, valueSats: String(row.satoshis), scriptHex: row.script };
+    coins.push(coin);
   }
   return coins;
 }
-function selectPoolCoins(coins, { action, amountAtomic, feeAtomic }) {
+function selectPoolCoins(coins, { action, amountAtomic, feeAtomic, profile = "C3" }) {
   const fee = BigInt(feeAtomic);
   if (fee < 0n) throw new Error("Fee must not be negative");
+  coins = coins.filter((c) => accepts(c.scriptHex, profile));
   let funding;
   if (action === "deposit") {
     const wanted = String(BigInt(amountAtomic));
     funding = coins.find((c) => c.valueSats === wanted);
     if (!funding) throw new Error("No confirmed coin matches this deposit. Prepare an exact deposit coin, wait for its confirmation and retry.");
   }
-  const sponsor = coins.find((c) => c !== funding && BigInt(c.valueSats) >= fee + MIN_SPONSOR_CHANGE_ATOMIC);
-  if (!sponsor) throw new Error("A separate confirmed Legacy XNA coin is needed for the fee");
+  const sponsor = coins.find((c) => c !== funding && BigInt(c.valueSats) >= fee + (profile === "C4" ? c.scriptHex.startsWith("5220") ? 3060n : c.scriptHex.startsWith("5320") ? 336n : 546n : MIN_SPONSOR_CHANGE_ATOMIC));
+  if (!sponsor) throw new Error("A separate confirmed supported XNA coin is needed for the fee");
   return { funding, sponsor };
 }
-async function checkPoolCoin(rpc, coin) {
+async function checkPoolCoin(rpc, coin, { profile = "C3" } = {}) {
   const live = await rpc("gettxout", [coin.txid, coin.vout, true]);
-  if (!live || live.confirmations < 1 || live.scriptPubKey?.hex !== coin.scriptHex || !LEGACY_P2PKH.test(coin.scriptHex)) {
+  if (!live || live.confirmations < 1 || live.scriptPubKey?.hex !== coin.scriptHex || !accepts(coin.scriptHex, profile)) {
     throw new Error("Funding coin is spent, unconfirmed or unsupported");
   }
   if (rpcAmountToSatoshis(live.value).toString() !== String(coin.valueSats)) throw new Error("Funding value mismatch");
 }
-async function withdrawalScript(rpc, address) {
+async function withdrawalScript(rpc, address, { profile = "C3" } = {}) {
   const result = await rpc("validateaddress", [String(address ?? "").trim()]);
-  if (!result?.isvalid || !LEGACY_P2PKH.test(result.scriptPubKey ?? "")) throw new Error("Withdrawals from this pool require a Legacy address");
+  if (!result?.isvalid || !accepts(result.scriptPubKey ?? "", profile)) throw new Error(profile === "C3" ? "Withdrawals from this pool require a Legacy address" : "Withdrawals from this pool require a Legacy, PQ or ECDSA address");
   return result.scriptPubKey;
 }
 async function recheckInputs(rpc, manifest, points) {
@@ -167,7 +174,7 @@ function deepFreeze(value) {
   return value;
 }
 var C3_TESTNET_NETWORK = "testnet";
-var C3_TEST_DEPOSIT_LIMIT_ATOMIC = 100000000000n;
+var C3_TEST_DEPOSIT_LIMIT_ATOMIC = 2100000000000000000n;
 var C3_TESTNET_MANIFEST = deepFreeze({
   "schema": "neurai-c3-xna-test-v1",
   "profile": "xna",
@@ -426,4 +433,4 @@ export {
   C3_TESTNET_MANIFEST,
   C3_TESTNET_ARTIFACTS
 };
-//# sourceMappingURL=chunk-NEMIRDB4.js.map
+//# sourceMappingURL=chunk-J5ZWOXUV.js.map

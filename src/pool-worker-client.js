@@ -82,9 +82,9 @@ export class PoolWorkerClient {
   /** New random identity protected by an encrypted JSON backup. */
   async create({ password }) { return (await this.#request('create', { password })).identity; }
   async restore({ backup, password }) { return (await this.#request('restore', { backup, password })).identity; }
-  /** Identity derived from the wallet words (NeuraiZK/v1 draft). */
-  async derive({ mnemonic, passphrase = '', zkPassphrase = '', account = 0, gap, issued }) {
-    return (await this.#request('derive', { mnemonic, passphrase, zkPassphrase, account, gap, issued })).identity;
+  /** Identity derived from the wallet words (NeuraiZK/v2). */
+  async derive({ family, mnemonic, passphrase = '', zkPassphrase = '', account = 0, gap, issued }) {
+    return (await this.#request('derive', { family, mnemonic, passphrase, zkPassphrase, account, gap, issued })).identity;
   }
   /** Rebuild pool state and own notes; returns {result, recipient, addresses}. */
   async scan({ gap, issued, checkpoint } = {}) { return (await this.#request('scan', { gap, issued, checkpoint })).scan; }

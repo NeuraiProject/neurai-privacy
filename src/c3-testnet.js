@@ -8,8 +8,12 @@ function deepFreeze(value) {
   return value;
 }
 export const C3_TESTNET_NETWORK = 'testnet';
-/** TEST deposit limit enforced by wallets: 1,000 XNA. */
-export const C3_TEST_DEPOSIT_LIMIT_ATOMIC = 100000000000n;
+/**
+ * Largest deposit wallets build by default: the money range, which the pool
+ * contract and circuits also enforce. startPoolWorker({ depositLimitAtomic })
+ * sets a lower limit for an application.
+ */
+export const C3_TEST_DEPOSIT_LIMIT_ATOMIC = 2100000000000000000n;
 export const C3_TESTNET_MANIFEST = deepFreeze({
   "schema": "neurai-c3-xna-test-v1",
   "profile": "xna",

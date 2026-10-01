@@ -22,16 +22,16 @@ async function rootFor(input) {
   return roots.get(key);
 }
 
-test('NeuraiZK/v1 draft vectors: seed, root, keys, public data, fingerprint and address', async () => {
+test('NeuraiZK/v2 vectors: seed, root, keys, public data, fingerprint and address', async () => {
   for (const { name, input, output } of vectors) {
     const root = await rootFor(input);
     assert.equal(hex(root), output.zk_root, name + ' root');
-    assert.equal(zkFingerprint(root), output.fingerprint, name + ' fingerprint');
-    const keys = deriveZkAddressKeys(root, { account: input.account, chain: input.chain, index: input.index,
+    assert.equal(zkFingerprint(root, { family: input.family, account: input.account, domain: input.domain, assetId: input.asset_id }), output.fingerprint, name + ' fingerprint');
+    const keys = deriveZkAddressKeys(root, { family: input.family, account: input.account, chain: input.chain, index: input.index,
       domain: input.domain, assetId: input.asset_id });
     assert.equal(hex(keys.spendSecret), output.spend_secret, name + ' spend');
     assert.equal(hex(keys.viewSeed), output.view_seed, name + ' view');
-    const wallet = ZkWalletIdentity.fromRoot({ root, account: input.account, domain: input.domain,
+    const wallet = ZkWalletIdentity.fromRoot({ root, family: input.family, account: input.account, domain: input.domain,
       assetId: input.asset_id, network: 'testnet' });
     const descriptor = wallet.descriptorAt(input.chain, input.index);
     assert.equal(descriptor.owner, output.owner, name + ' owner');
@@ -42,6 +42,8 @@ test('NeuraiZK/v1 draft vectors: seed, root, keys, public data, fingerprint and 
     assert.deepEqual(decodeNzkAddress(output.address, scope), descriptor);
     assert.deepEqual(decodeNzkAddress(output.address.toUpperCase(), scope), descriptor);
     assert.equal(wallet.fingerprint, output.fingerprint);
+    assert.equal(wallet.storageId, output.storage_id);
+    assert.equal(wallet.family, input.family);
     wallet.lock();
   }
 });
@@ -107,7 +109,7 @@ test('recipients may be nzk addresses or JSON descriptors, validated the same wa
 
 test('receiving addresses rotate and recovery honours the gap limit in any record order', async () => {
   const root = await rootFor(vectors[0].input);
-  const options = { root, account: 0, domain: scope.domain, assetId: scope.assetId, network: 'testnet', gap: 3 };
+  const options = { root, family: 'legacy', account: 0, domain: scope.domain, assetId: scope.assetId, network: 'testnet', gap: 3 };
   const sender = ZkWalletIdentity.fromRoot({ ...options, account: 9 });
   const note = (descriptor, amount) => { const s = sealNote({ descriptor, amountAtomic: amount }); return { record: s.record, cm: s.cm }; };
   const wallet = ZkWalletIdentity.fromRoot(options);
@@ -146,14 +148,76 @@ test('receiving addresses rotate and recovery honours the gap limit in any recor
 
 test('derivation rejects invalid account, chain, index and gap values', async () => {
   const root = await rootFor(vectors[0].input);
-  const base = { domain: scope.domain, assetId: scope.assetId };
+  const base = { family: 'legacy', domain: scope.domain, assetId: scope.assetId };
   for (const bad of [{ account: -1, chain: 0, index: 0 }, { account: 2 ** 31, chain: 0, index: 0 },
-    { account: 0, chain: 2, index: 0 }, { account: 0, chain: 0, index: 1.5 }]) {
+    { family: 'legacy', account: 0, chain: 2, index: 0 }, { family: 'legacy', account: 0, chain: 0, index: 1.5 }]) {
     assert.throws(() => deriveZkAddressKeys(root, { ...base, ...bad }), /account|chain|index/);
   }
-  const wallet = ZkWalletIdentity.fromRoot({ root, account: 0, ...base, network: 'testnet' });
+  const wallet = ZkWalletIdentity.fromRoot({ root, family: 'legacy', account: 0, ...base, network: 'testnet' });
   assert.throws(() => wallet.setGap(0), /gap/);
   assert.throws(() => wallet.setGap(1001), /gap/);
-  assert.throws(() => ZkWalletIdentity.fromRoot({ root, account: 0, ...base, network: 'signet' }), /network/);
+  assert.throws(() => ZkWalletIdentity.fromRoot({ root, family: 'legacy', account: 0, ...base, network: 'signet' }), /network/);
   wallet.lock();
+});
+
+test('v2 separates all families, accounts and pools, including checkpoints and storage', async () => {
+  const root = await rootFor(vectors[0].input);
+  const make = extra => ZkWalletIdentity.fromRoot({ root, account: 0, family: 'legacy', ...scope, ...extra });
+  const wallets = ['legacy', 'ecdsa', 'pq'].map(family => make({family}));
+  wallets.push(make({account:1}),make({domain:'11'.repeat(32)}),make({assetId:'22'.repeat(32)}));
+  assert.equal(new Set(wallets.map(w=>w.addressAt(0,0))).size, wallets.length);
+  assert.equal(new Set(wallets.map(w=>w.storageId)).size, wallets.length);
+  const encrypted=wallets[0].sealCheckpoint({test:true});
+  for(const wallet of wallets.slice(1)) assert.throws(()=>wallet.openCheckpoint(encrypted));
+  const restored=make({});
+  assert.deepEqual(restored.openCheckpoint(encrypted),{test:true});
+  assert.equal(restored.storageId,wallets[0].storageId);
+  assert.equal(restored.family,'legacy');assert.equal(restored.derivation,'NeuraiZK/v2');
+  for(const invalid of [undefined,null,'PQ','authscript','toString',0]) {
+    assert.throws(()=>make({family:invalid}),/family/);
+    await assert.rejects(ZkWalletIdentity.fromSeed({seed:new Uint8Array(64),...scope,family:invalid}),/family/);
+  }
+  for(const w of [...wallets,restored]) w.lock();
+});
+
+test('all nine sender/receiver family pairs recover notes with a fresh wallet', async () => {
+  const root=await rootFor(vectors[0].input);
+  for(const from of ['legacy','ecdsa','pq']) for(const to of ['legacy','ecdsa','pq']) {
+    const sender=ZkWalletIdentity.fromRoot({root,...scope,family:from});
+    const receiver=ZkWalletIdentity.fromRoot({root,...scope,family:to});
+    const record=sender.createNote(receiver.descriptorAt(0,1),'1000000000');
+    receiver.lock();
+    const fresh=ZkWalletIdentity.fromRoot({root,...scope,family:to});
+    const [found]=fresh.scanRecords([record]);
+    assert.equal(found.owned.amountAtomic,1000000000n,`${from} -> ${to}`);
+    assert.deepEqual(found.address,{chain:0,index:1});
+    const keys=deriveZkAddressKeys(root,{...scope,family:to,chain:0,index:1});
+    const independent=new (await import('../src/browser-wallet.js')).BrowserTestIdentity(keys.spendSecret,keys.viewSeed,bytes(scope.domain),bytes(scope.assetId),null);
+    assert.deepEqual(independent.openRecord(record.record,record.cm).nf,found.owned.nf);
+    if(from!==to) assert.equal(sender.scanRecords([record]).length,0);
+    sender.lock();fresh.lock();independent.lock();keys.spendSecret.fill(0);keys.viewSeed.fill(0);
+  }
+});
+
+test('mnemonic validation, Unicode normalization and passphrase spaces are deterministic', async () => {
+  const mnemonic=vectors[0].input.mnemonic;
+  await assert.rejects(walletSeedFromMnemonic('abandon '.repeat(12)),/mnemonic/);
+  await assert.rejects(walletSeedFromMnemonic('unknown words'),/mnemonic/);
+  const a=await walletSeedFromMnemonic(mnemonic,'café 🛡 ');
+  const b=await walletSeedFromMnemonic('  '+mnemonic.replaceAll(' ','  ')+'  ','cafe\u0301 🛡 ');
+  assert.deepEqual(a,b);
+  assert.notDeepEqual(a,await walletSeedFromMnemonic(mnemonic,'café 🛡'));
+  const r=await deriveZkRoot(a,'café');
+  assert.deepEqual(r,await deriveZkRoot(a,'cafe\u0301'));
+  assert.notDeepEqual(r,await deriveZkRoot(a,'café '));
+});
+
+test('v2 frozen storage and checkpoint keys use full account scope', async () => {
+  const { sealScanCheckpoint }=await import('../src/checkpoint-crypto.js');
+  for(const {input,output} of vectors) {
+    const wallet=ZkWalletIdentity.fromRoot({root:await rootFor(input),family:input.family,account:input.account,domain:input.domain,assetId:input.asset_id,network:input.network});
+    assert.equal(wallet.storageId,output.storage_id);
+    assert.deepEqual(wallet.openCheckpoint(sealScanCheckpoint({vector:input.family},bytes(output.checkpoint_key))),{vector:input.family});
+    wallet.lock();
+  }
 });

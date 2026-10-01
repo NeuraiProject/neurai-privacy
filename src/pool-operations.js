@@ -4,6 +4,7 @@
  */
 import { sha256 } from '@noble/hashes/sha2.js';
 import { finishC3 } from './c3.js';
+import { finishC4 } from './c4.js';
 import { ZkWalletIdentity, encodeNzkAddress, parseRecipient } from './zk-wallet.js';
 import { C3_TEST_DEPOSIT_LIMIT_ATOMIC } from './c3-testnet.js';
 import { formatXna } from './amounts.js';
@@ -35,7 +36,7 @@ export function describeReceiving(identity, scan, { network }) {
   }
   const current = identity.currentIndex();
   return {
-    kind: 'derived', fingerprint: identity.fingerprint, account: identity.account, gap: identity.gap,
+    kind: 'derived', derivation: identity.derivation, family: identity.family, storageId: identity.storageId, fingerprint: identity.fingerprint, account: identity.account, gap: identity.gap,
     issued: identity.issued, maxUsed: identity.maxUsed,
     current: { index: current, address: identity.addressAt(0, current) },
     used: identity.usedIndexes.map(index => ({ index, address: identity.addressAt(0, index), receivedAtomic: String(received.get(index) ?? 0n) })),
@@ -127,13 +128,59 @@ export async function proveC3({ form, prepared, artifacts, loadArtifact, snarkjs
  * Plan, prepare, prove and serialize one pool transaction. Funding and fee
  * inputs are left for the wallet to sign; the result contains no secrets.
  */
-export async function buildC3Transaction({ identity, scan, manifest, artifacts, loadArtifact, snarkjs, pool, request, onStage = () => {} }) {
+export async function buildC3Transaction({ identity, scan, manifest, artifacts, loadArtifact, snarkjs, pool, request,
+  depositLimitAtomic, onStage = () => {} }) {
   const { action, amountAtomic, feeAtomic, funding, sponsor, payout, note, recipient } = request;
-  const plan = planC3Operation({ identity, scan, action, amountAtomic, note, recipient, pool });
+  const plan = planC3Operation({ identity, scan, action, amountAtomic, note, recipient, pool,
+    ...(depositLimitAtomic === undefined ? {} : { depositLimitAtomic }) });
   onStage('Building note paths and transaction witness');
   const prepared = identity.prepareC3({ manifest, scan, form: plan.form, created: plan.created, consumed: plan.consumed,
     funding, sponsor, payout, feeAtomic });
   const { proof, publicSignals } = await proveC3({ form: plan.form, prepared, artifacts, loadArtifact, snarkjs, onStage });
   return { raw: finishC3(prepared, proof, publicSignals), form: plan.form, feeAtomic, stateOutpoint: scan.state.stateOutpoint,
     inputPoints: prepared.inputs.map(x => ({ txid: x.txid, vout: x.vout })), amountAtomic: plan.amountAtomic };
+}
+
+/** Plan a C4 transfer from one note to up to four notes, including change.
+ * Recipients are private descriptors/nzk addresses, never transparent addresses.
+ */
+export function planC4Operation(options) {
+  const { identity, scan, action, note, pool, recipients } = options;
+  if (action !== 'transfer') return planC3Operation(options);
+  if (!identity) throw new Error('Unlock the private wallet first');
+  const consumed = scan.notes.find(n => n.cm === note && !n.spent);
+  if (!consumed) throw new Error('Selected note is no longer spendable');
+  const targets = recipients ?? [{ recipient: options.recipient, amountAtomic: options.amountAtomic }];
+  if (!Array.isArray(targets) || targets.length < 1 || targets.length > 4) {
+    throw new Error('C4 requires between one and four private recipients');
+  }
+  const validated = targets.map(target => {
+    if (typeof target?.amountAtomic !== 'string' || !/^[1-9][0-9]*$/.test(target.amountAtomic)) {
+      throw new Error('Recipient amounts must be exact positive atomic strings');
+    }
+    return { descriptor: parseRecipient(target.recipient, pool), amount: BigInt(target.amountAtomic) };
+  });
+  const amount = validated.reduce((sum, x) => sum + x.amount, 0n);
+  const total = BigInt(consumed.amountAtomic);
+  if (amount > total) throw new Error('Recipient total exceeds the selected note');
+  if (amount < total && targets.length === 4) throw new Error('C4 supports at most four notes including change');
+  const created = validated.map(x => identity.createNote(x.descriptor, String(x.amount)));
+  if (amount < total) created.push(identity.createNote(selfRecipient(identity), String(total - amount)));
+  return { form: `T${created.length}`, created, consumed, amountAtomic: String(amount) };
+}
+
+/** Build C4 with an independently pinned deployment; secrets remain in the worker. */
+export async function buildC4Transaction({ identity, scan, manifest, artifacts, loadArtifact, snarkjs, pool, request,
+  expectedGenesis, expectedCommitment, depositLimitAtomic, onStage = () => {} }) {
+  const plan = planC4Operation({ identity, scan, pool, action: request.action,
+    amountAtomic: request.amountAtomic, note: request.note, recipient: request.recipient, recipients: request.recipients,
+    ...(depositLimitAtomic === undefined ? {} : { depositLimitAtomic }) });
+  onStage('Building C4 note paths and transaction witness');
+  const prepared = identity.prepareC4({ manifest, scan, form: plan.form, created: plan.created, consumed: plan.consumed,
+    funding: request.funding, sponsor: request.sponsor, payout: request.payout, feeAtomic: request.feeAtomic,
+    expectedGenesis, expectedCommitment });
+  const { proof, publicSignals } = await proveC3({ form: plan.form, prepared, artifacts, loadArtifact, snarkjs, onStage });
+  return { raw: finishC4(prepared, proof, publicSignals), form: plan.form, feeAtomic: request.feeAtomic,
+    stateOutpoint: scan.state.stateOutpoint, inputPoints: prepared.inputs.map(x => ({ txid: x.txid, vout: x.vout })),
+    amountAtomic: plan.amountAtomic };
 }

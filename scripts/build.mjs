@@ -41,3 +41,6 @@ for (const packageName of ['hashes', 'ciphers', 'curves']) {
   await copyFile(`node_modules/@noble/${packageName}/LICENSE`,
     `dist/licenses/noble-${packageName}.LICENSE`);
 }
+
+await copyFile('node_modules/@scure/bip39/LICENSE', 'dist/licenses/scure-bip39.LICENSE');
+await copyFile('node_modules/@scure/base/LICENSE', 'dist/licenses/scure-base.LICENSE');

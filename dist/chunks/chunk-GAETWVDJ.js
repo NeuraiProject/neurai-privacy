@@ -1,13 +1,15 @@
 import {
   isPoolReadRpc
-} from "./chunk-NEMIRDB4.js";
+} from "./chunk-J5ZWOXUV.js";
 
 // src/rotation-store.js
 var ROTATION_MAX_GAP = 1e3;
-function rotationStorageKey({ network, walletId = "", fingerprint, account }) {
-  if (typeof fingerprint !== "string" || !/^[0-9a-f]{8}$/.test(fingerprint)) throw new Error("fingerprint must be 8 hex characters");
-  if (!Number.isInteger(account) || account < 0) throw new Error("account must be a non-negative integer");
-  return `neurai-privacy-zk:${network}:${walletId}:${fingerprint}:${account}`;
+function rotationStorageKey({ network, walletId = "", derivation, family, storageId, account }) {
+  if (derivation !== "NeuraiZK/v2") throw new Error("unsupported derivation");
+  if (!["legacy", "ecdsa", "pq"].includes(family)) throw new Error("invalid family");
+  if (typeof storageId !== "string" || !/^[0-9a-f]{64}$/.test(storageId)) throw new Error("storageId must be 32 bytes in hex");
+  if (!Number.isInteger(account) || account < 0 || account >= 2 ** 31) throw new Error("invalid account");
+  return "neurai-privacy-zk:v2:" + JSON.stringify([network, walletId, family, account, storageId]);
 }
 function loadRotation(storage, key) {
   try {
@@ -114,9 +116,9 @@ var PoolWorkerClient = class {
   async restore({ backup, password }) {
     return (await this.#request("restore", { backup, password })).identity;
   }
-  /** Identity derived from the wallet words (NeuraiZK/v1 draft). */
-  async derive({ mnemonic, passphrase = "", zkPassphrase = "", account = 0, gap, issued }) {
-    return (await this.#request("derive", { mnemonic, passphrase, zkPassphrase, account, gap, issued })).identity;
+  /** Identity derived from the wallet words (NeuraiZK/v2). */
+  async derive({ family, mnemonic, passphrase = "", zkPassphrase = "", account = 0, gap, issued }) {
+    return (await this.#request("derive", { family, mnemonic, passphrase, zkPassphrase, account, gap, issued })).identity;
   }
   /** Rebuild pool state and own notes; returns {result, recipient, addresses}. */
   async scan({ gap, issued, checkpoint } = {}) {
@@ -148,4 +150,4 @@ export {
   saveRotation,
   PoolWorkerClient
 };
-//# sourceMappingURL=chunk-KTGTCIS5.js.map
+//# sourceMappingURL=chunk-GAETWVDJ.js.map

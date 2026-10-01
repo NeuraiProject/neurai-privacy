@@ -2,7 +2,7 @@
  * main thread talks to it with PoolWorkerClient or the raw message protocol:
  *
  *   in:  create {password} · restore {backup, password}
- *        derive {mnemonic, passphrase, zkPassphrase, account, gap?, issued?}
+ *        derive {family, mnemonic, passphrase, zkPassphrase, account, gap?, issued?}
  *        scan {gap?, issued?} · new-address {force?} · prepare {request fields}
  *        rpc-result {id, result | error}
  *   out: stage {message} · rpc {id, method, params} · identity {recipient, backup, addresses}
@@ -12,17 +12,26 @@
  * Only public data leaves the worker. RPC calls go through the main thread,
  * which must forward read-only methods only (see isPoolReadRpc).
  */
+import { validateC4Manifest } from './c4.js';
 import { BrowserTestIdentity } from './browser-wallet.js';
 import { ZkWalletIdentity } from './zk-wallet.js';
 import { scanBrowserPool } from './browser-chain.js';
 import { checkPoolCoin } from './pool-client.js';
 import { C3_TESTNET_MANIFEST, C3_TESTNET_ARTIFACTS, C3_TESTNET_NETWORK } from './c3-testnet.js';
-import { summarizeScan, describeReceiving, buildC3Transaction, loadVerifiedArtifact } from './pool-operations.js';
+import { summarizeScan, describeReceiving, buildC3Transaction, buildC4Transaction, loadVerifiedArtifact, MAX_ARTIFACT_BYTES } from './pool-operations.js';
 
 export function startPoolWorker({ scope = globalThis, snarkjs, artifactBaseUrl, fetchArtifact, manifest = C3_TESTNET_MANIFEST,
   artifacts = C3_TESTNET_ARTIFACTS, network = C3_TESTNET_NETWORK, singleThread = true,
-  missingArtifactMessage } = {}) {
+  missingArtifactMessage, depositLimitAtomic, expectedGenesis, expectedCommitment, maxArtifactBytes = MAX_ARTIFACT_BYTES } = {}) {
   if (!fetchArtifact && !artifactBaseUrl) throw new Error('startPoolWorker needs artifactBaseUrl or fetchArtifact');
+  if (depositLimitAtomic !== undefined && (typeof depositLimitAtomic !== 'bigint' || depositLimitAtomic <= 0n)) {
+    throw new Error('depositLimitAtomic must be a positive bigint');
+  }
+  const c4 = manifest?.schema === 'neurai-c4-xna-test-v1';
+  if (c4) validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  if (!Number.isSafeInteger(maxArtifactBytes) || maxArtifactBytes <= 0 || maxArtifactBytes > 256 * 1048576) {
+    throw new Error('Artifact limit must be a positive integer of at most 256 MiB');
+  }
   const missing = missingArtifactMessage ?? (artifactBaseUrl ? 'C3 TEST parameters are not available at ' + artifactBaseUrl
     : 'C3 TEST parameters are not available');
   const pool = { network, domain: manifest.domain, assetId: manifest.assetId };
@@ -42,7 +51,7 @@ export function startPoolWorker({ scope = globalThis, snarkjs, artifactBaseUrl, 
   const loadArtifact = path => {
     const name = path.split('/').slice(-1)[0];
     stage(`Loading ${name}`);
-    return loadVerifiedArtifact({ path, artifacts, fetchArtifact: fetcher, missingMessage: missing,
+    return loadVerifiedArtifact({ path, artifacts, fetchArtifact: fetcher, missingMessage: missing, maxBytes: maxArtifactBytes,
       onProgress: percent => stage(`Loading ${name} · ${percent}%`) });
   };
   const receiving = () => describeReceiving(identity, scan, { network });
@@ -56,7 +65,7 @@ export function startPoolWorker({ scope = globalThis, snarkjs, artifactBaseUrl, 
     }
     stage('Reading confirmed pool state');
     // Follows the pool state through the node spent index; one step per pool operation.
-    scan = await scanBrowserPool({ rpc, manifest, identity, checkpoint: previous, onProgress: ({ height }) => stage(`Reading pool operation at block ${height}`) });
+    scan = await scanBrowserPool({ rpc, manifest, identity, expectedGenesis, expectedCommitment, checkpoint: previous, onProgress: ({ height }) => stage(`Reading pool operation at block ${height}`) });
     let checkpoint = null;
     try { checkpoint = identity.sealCheckpoint(scan.checkpoint); }
     catch { /* A cache failure must never prevent a verified scan. */ }
@@ -67,9 +76,9 @@ export function startPoolWorker({ scope = globalThis, snarkjs, artifactBaseUrl, 
     if (!identity) throw new Error('Unlock the private wallet first');
     if (!snarkjs) throw new Error('This worker was started without snarkjs, so it cannot prove');
     await refresh();
-    for (const coin of [data.sponsor, data.funding].filter(Boolean)) await checkPoolCoin(rpc, coin);
-    const result = await buildC3Transaction({ identity, scan, manifest, artifacts, loadArtifact, snarkjs, pool,
-      request: data, onStage: stage });
+    for (const coin of [data.sponsor, data.funding].filter(Boolean)) await checkPoolCoin(rpc, coin, { profile: c4 ? 'C4' : 'C3' });
+    const result = await (c4 ? buildC4Transaction : buildC3Transaction)({ identity, scan, manifest, artifacts, loadArtifact, snarkjs, pool,
+      request: data, depositLimitAtomic, expectedGenesis, expectedCommitment, onStage: stage });
     post({ type: 'prepared', result });
   }
 
@@ -98,7 +107,7 @@ export function startPoolWorker({ scope = globalThis, snarkjs, artifactBaseUrl, 
         identity?.lock(); identity = null; scan = null;
         stage('Deriving the private wallet from the wallet words');
         identity = await ZkWalletIdentity.fromMnemonic({ mnemonic: data.mnemonic, passphrase: data.passphrase ?? '',
-          zkPassphrase: data.zkPassphrase ?? '', account: data.account, gap: data.gap, issued: data.issued, ...pool });
+          family: data.family, zkPassphrase: data.zkPassphrase ?? '', account: data.account, gap: data.gap, issued: data.issued, ...pool });
         post(identityMessage());
       } else if (data.type === 'scan') {
         if (!identity) throw new Error('Unlock the private wallet first');

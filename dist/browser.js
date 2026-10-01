@@ -4,14 +4,17 @@ import {
   loadRotation,
   rotationStorageKey,
   saveRotation
-} from "./chunks/chunk-KTGTCIS5.js";
+} from "./chunks/chunk-GAETWVDJ.js";
 import {
   BN254_SCALAR_FIELD,
   BrowserTestIdentity,
+  C4_FORMS,
   HEX32,
   MAX_ARTIFACT_BYTES,
   NZK_ARGON2ID,
   NZK_DEFAULT_GAP,
+  NZK_DERIVATION,
+  NZK_FAMILIES,
   NZK_HRP,
   NZK_MAX_GAP,
   RESET_TESTNET_GENESIS,
@@ -20,6 +23,8 @@ import {
   bech32mDecode,
   bech32mEncode,
   buildC3Transaction,
+  buildC4Transaction,
+  c4DustAtomic,
   decodeField,
   decodeNote,
   decodeNzkAddress,
@@ -34,6 +39,7 @@ import {
   encodeNote,
   encodeNzkAddress,
   finishC3,
+  finishC4,
   loadVerifiedArtifact,
   noteCmText,
   noteCommitment,
@@ -43,9 +49,11 @@ import {
   openVault,
   parseRecipient,
   planC3Operation,
+  planC4Operation,
   poseidonBytes,
   poseidonPermutation,
   prepareC3,
+  prepareC4,
   proveC3,
   scanBrowserPool,
   sealNote,
@@ -53,9 +61,10 @@ import {
   startPoolWorker,
   summarizeScan,
   validateC3Manifest,
+  validateC4Manifest,
   walletSeedFromMnemonic,
   zkFingerprint
-} from "./chunks/chunk-CQXLD5NS.js";
+} from "./chunks/chunk-AHYUVOYP.js";
 import {
   ATOMIC_PER_XNA,
   C3_TESTNET_ARTIFACTS,
@@ -80,7 +89,7 @@ import {
   rpcAmountToSatoshis,
   selectPoolCoins,
   withdrawalScript
-} from "./chunks/chunk-NEMIRDB4.js";
+} from "./chunks/chunk-J5ZWOXUV.js";
 
 // src/core.js
 var NeuraiPrivacy = class {
@@ -315,12 +324,15 @@ export {
   C3_TESTNET_MANIFEST,
   C3_TESTNET_NETWORK,
   C3_TEST_DEPOSIT_LIMIT_ATOMIC,
+  C4_FORMS,
   LEGACY_P2PKH,
   MAX_ARTIFACT_BYTES,
   MAX_ATOMIC,
   MIN_SPONSOR_CHANGE_ATOMIC,
   NZK_ARGON2ID,
   NZK_DEFAULT_GAP,
+  NZK_DERIVATION,
+  NZK_FAMILIES,
   NZK_HRP,
   NZK_MAX_GAP,
   NeuraiPrivacy,
@@ -334,6 +346,8 @@ export {
   bech32mDecode,
   bech32mEncode,
   buildC3Transaction,
+  buildC4Transaction,
+  c4DustAtomic,
   checkPoolCoin,
   confirmedPoolCoins,
   decodeField,
@@ -349,6 +363,7 @@ export {
   encodeNote,
   encodeNzkAddress,
   finishC3,
+  finishC4,
   formatXna,
   inspectFundingTransaction,
   isPoolReadRpc,
@@ -362,9 +377,11 @@ export {
   parseRecipient,
   parseXna,
   planC3Operation,
+  planC4Operation,
   poseidonBytes,
   poseidonPermutation,
   prepareC3,
+  prepareC4,
   proveC3,
   publicationStatus,
   publishTransaction,
@@ -379,6 +396,7 @@ export {
   startPoolWorker,
   summarizeScan,
   validateC3Manifest,
+  validateC4Manifest,
   walletSeedFromMnemonic,
   withdrawalScript,
   zkFingerprint

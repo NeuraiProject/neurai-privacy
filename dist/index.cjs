@@ -27,6 +27,7 @@ __export(index_exports, {
   C3_TESTNET_MANIFEST: () => C3_TESTNET_MANIFEST,
   C3_TESTNET_NETWORK: () => C3_TESTNET_NETWORK,
   C3_TEST_DEPOSIT_LIMIT_ATOMIC: () => C3_TEST_DEPOSIT_LIMIT_ATOMIC,
+  C4_FORMS: () => C4_FORMS,
   CliTestBackend: () => CliTestBackend,
   LEGACY_P2PKH: () => LEGACY_P2PKH,
   MAX_ARTIFACT_BYTES: () => MAX_ARTIFACT_BYTES,
@@ -34,6 +35,8 @@ __export(index_exports, {
   MIN_SPONSOR_CHANGE_ATOMIC: () => MIN_SPONSOR_CHANGE_ATOMIC,
   NZK_ARGON2ID: () => NZK_ARGON2ID,
   NZK_DEFAULT_GAP: () => NZK_DEFAULT_GAP,
+  NZK_DERIVATION: () => NZK_DERIVATION,
+  NZK_FAMILIES: () => NZK_FAMILIES,
   NZK_HRP: () => NZK_HRP,
   NZK_MAX_GAP: () => NZK_MAX_GAP,
   NeuraiPrivacy: () => NeuraiPrivacy,
@@ -47,6 +50,8 @@ __export(index_exports, {
   bech32mDecode: () => bech32mDecode,
   bech32mEncode: () => bech32mEncode,
   buildC3Transaction: () => buildC3Transaction,
+  buildC4Transaction: () => buildC4Transaction,
+  c4DustAtomic: () => c4DustAtomic,
   checkPoolCoin: () => checkPoolCoin,
   confirmedPoolCoins: () => confirmedPoolCoins,
   decodeField: () => decodeField,
@@ -61,6 +66,7 @@ __export(index_exports, {
   encodeField: () => encodeField,
   encodeNote: () => encodeNote,
   encodeNzkAddress: () => encodeNzkAddress,
+  finishC4: () => finishC4,
   formatXna: () => formatXna,
   inspectFundingTransaction: () => inspectFundingTransaction,
   isPoolReadRpc: () => isPoolReadRpc,
@@ -74,8 +80,10 @@ __export(index_exports, {
   parseRecipient: () => parseRecipient,
   parseXna: () => parseXna,
   planC3Operation: () => planC3Operation,
+  planC4Operation: () => planC4Operation,
   poseidonBytes: () => poseidonBytes,
   poseidonPermutation: () => poseidonPermutation,
+  prepareC4: () => prepareC4,
   proveC3: () => proveC3,
   publicationStatus: () => publicationStatus,
   publishTransaction: () => publishTransaction,
@@ -88,6 +96,7 @@ __export(index_exports, {
   selectPoolCoins: () => selectPoolCoins,
   startPoolWorker: () => startPoolWorker,
   summarizeScan: () => summarizeScan,
+  validateC4Manifest: () => validateC4Manifest,
   walletSeedFromMnemonic: () => walletSeedFromMnemonic,
   withdrawalScript: () => withdrawalScript,
   zkFingerprint: () => zkFingerprint
@@ -901,19 +910,19 @@ function canonical(value) {
 }
 function encodeField(value) {
   let remaining = canonical(value);
-  const bytes3 = new Uint8Array(32);
+  const bytes4 = new Uint8Array(32);
   for (let index = 31; index >= 0; index--) {
-    bytes3[index] = Number(remaining & 255n);
+    bytes4[index] = Number(remaining & 255n);
     remaining >>= 8n;
   }
-  return bytes3;
+  return bytes4;
 }
-function decodeField(bytes3) {
-  if (!(bytes3 instanceof Uint8Array) || bytes3.length !== 32) {
+function decodeField(bytes4) {
+  if (!(bytes4 instanceof Uint8Array) || bytes4.length !== 32) {
     throw new TypeError("field element must contain 32 bytes");
   }
   let value = 0n;
-  for (const byte of bytes3) value = value * 256n + BigInt(byte);
+  for (const byte of bytes4) value = value * 256n + BigInt(byte);
   return canonical(value);
 }
 function poseidonPermutation(input) {
@@ -1062,17 +1071,17 @@ function noteNullifier(note, spendSecret) {
 // node_modules/@noble/hashes/_u64.js
 var U32_MASK64 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
 var _32n = /* @__PURE__ */ BigInt(32);
-function fromBig(n, le2 = false) {
-  if (le2)
+function fromBig(n, le3 = false) {
+  if (le3)
     return { h: Number(n & U32_MASK64), l: Number(n >> _32n & U32_MASK64) };
   return { h: Number(n >> _32n & U32_MASK64) | 0, l: Number(n & U32_MASK64) | 0 };
 }
-function split(lst, le2 = false) {
+function split(lst, le3 = false) {
   const len = lst.length;
   let Ah = new Uint32Array(len);
   let Al = new Uint32Array(len);
   for (let i = 0; i < len; i++) {
-    const { h, l } = fromBig(lst[i], le2);
+    const { h, l } = fromBig(lst[i], le3);
     [Ah[i], Al[i]] = [h, l];
   }
   return [Ah, Al];
@@ -1111,15 +1120,15 @@ function anumber(n, title = "") {
   }
 }
 function abytes(value, length, title = "") {
-  const bytes3 = isBytes(value);
+  const bytes4 = isBytes(value);
   const len = value?.length;
   const needsLen = length !== void 0;
-  if (!bytes3 || needsLen && len !== length) {
+  if (!bytes4 || needsLen && len !== length) {
     const prefix = title && `"${title}" `;
     const ofLen = needsLen ? ` of length ${length}` : "";
-    const got = bytes3 ? `length=${len}` : `type=${typeof value}`;
+    const got = bytes4 ? `length=${len}` : `type=${typeof value}`;
     const message2 = prefix + "expected Uint8Array" + ofLen + ", got " + got;
-    if (!bytes3)
+    if (!bytes4)
       throw new TypeError(message2);
     throw new RangeError(message2);
   }
@@ -1182,15 +1191,15 @@ var hasHexBuiltin = /* @__PURE__ */ (() => (
   typeof Uint8Array.from([]).toHex === "function" && typeof Uint8Array.fromHex === "function"
 ))();
 var hexes = /* @__PURE__ */ Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
-function bytesToHex(bytes3) {
-  abytes(bytes3);
+function bytesToHex(bytes4) {
+  abytes(bytes4);
   if (hasHexBuiltin)
-    return bytes3.toHex();
-  let hex7 = "";
-  for (let i = 0; i < bytes3.length; i++) {
-    hex7 += hexes[bytes3[i]];
+    return bytes4.toHex();
+  let hex8 = "";
+  for (let i = 0; i < bytes4.length; i++) {
+    hex8 += hexes[bytes4[i]];
   }
-  return hex7;
+  return hex8;
 }
 var asciis = { _0: 48, _9: 57, A: 65, F: 70, a: 97, f: 102 };
 function asciiToBase16(ch) {
@@ -1202,28 +1211,28 @@ function asciiToBase16(ch) {
     return ch - (asciis.a - 10);
   return;
 }
-function hexToBytes(hex7) {
-  if (typeof hex7 !== "string")
-    throw new TypeError("hex string expected, got " + typeof hex7);
+function hexToBytes(hex8) {
+  if (typeof hex8 !== "string")
+    throw new TypeError("hex string expected, got " + typeof hex8);
   if (hasHexBuiltin) {
     try {
-      return Uint8Array.fromHex(hex7);
+      return Uint8Array.fromHex(hex8);
     } catch (error) {
       if (error instanceof SyntaxError)
         throw new RangeError(error.message);
       throw error;
     }
   }
-  const hl = hex7.length;
+  const hl = hex8.length;
   const al = hl / 2;
   if (hl % 2)
     throw new RangeError("hex string expected, got unpadded hex of length " + hl);
   const array = new Uint8Array(al);
   for (let ai = 0, hi = 0; ai < al; ai++, hi += 2) {
-    const n1 = asciiToBase16(hex7.charCodeAt(hi));
-    const n2 = asciiToBase16(hex7.charCodeAt(hi + 1));
+    const n1 = asciiToBase16(hex8.charCodeAt(hi));
+    const n2 = asciiToBase16(hex8.charCodeAt(hi + 1));
     if (n1 === void 0 || n2 === void 0) {
-      const char = hex7[hi] + hex7[hi + 1];
+      const char = hex8[hi] + hex8[hi + 1];
       throw new RangeError('hex string expected, got non-hex character "' + char + '" at index ' + hi);
     }
     array[ai] = n1 * 16 + n2;
@@ -2293,15 +2302,15 @@ function anumber2(n) {
     throw new RangeError("positive integer expected, got " + n);
 }
 function abytes2(value, length, title = "") {
-  const bytes3 = isBytes2(value);
+  const bytes4 = isBytes2(value);
   const len = value?.length;
   const needsLen = length !== void 0;
-  if (!bytes3 || needsLen && len !== length) {
+  if (!bytes4 || needsLen && len !== length) {
     const prefix = title && `"${title}" `;
     const ofLen = needsLen ? ` of length ${length}` : "";
-    const got = bytes3 ? `length=${len}` : `type=${typeof value}`;
+    const got = bytes4 ? `length=${len}` : `type=${typeof value}`;
     const message2 = prefix + "expected Uint8Array" + ofLen + ", got " + got;
-    if (!bytes3)
+    if (!bytes4)
       throw new TypeError(message2);
     throw new RangeError(message2);
   }
@@ -2426,11 +2435,11 @@ function u64Lengths(dataLength, aadLength, isLE3) {
   view.setBigUint64(8, BigInt(dataLength), isLE3);
   return num;
 }
-function isAligned32(bytes3) {
-  return bytes3.byteOffset % 4 === 0;
+function isAligned32(bytes4) {
+  return bytes4.byteOffset % 4 === 0;
 }
-function copyBytes(bytes3) {
-  return Uint8Array.from(abytes2(bytes3));
+function copyBytes(bytes4) {
+  return Uint8Array.from(abytes2(bytes4));
 }
 
 // node_modules/@noble/ciphers/_arx.js
@@ -2967,21 +2976,21 @@ var decoder = new TextDecoder("utf-8", { fatal: true });
 var VAULT_AAD = utf8.encode(NEURAI_TEST_VAULT_AAD_V1);
 var MEMORY_KIB = 64 * 1024;
 var MAX_CIPHERTEXT = 16 * 1024 * 1024;
-function bytesToHex3(bytes3) {
-  return Array.from(bytes3, (byte) => byte.toString(16).padStart(2, "0")).join("");
+function bytesToHex3(bytes4) {
+  return Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
-function hexToBytes2(hex7, length, name) {
-  if (typeof hex7 !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(hex7) || length !== null && hex7.length !== length * 2) {
+function hexToBytes2(hex8, length, name) {
+  if (typeof hex8 !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(hex8) || length !== null && hex8.length !== length * 2) {
     throw new TypeError(`invalid wallet vault ${name}`);
   }
-  return Uint8Array.from(hex7.match(/../g), (pair2) => parseInt(pair2, 16));
+  return Uint8Array.from(hex8.match(/../g), (pair2) => parseInt(pair2, 16));
 }
 function passwordBytes(password) {
-  const bytes3 = typeof password === "string" ? utf8.encode(password) : password;
-  if (!(bytes3 instanceof Uint8Array) || bytes3.length === 0) {
+  const bytes4 = typeof password === "string" ? utf8.encode(password) : password;
+  if (!(bytes4 instanceof Uint8Array) || bytes4.length === 0) {
     throw new TypeError("nonempty wallet password required");
   }
-  return bytes3;
+  return bytes4;
 }
 function canonicalJson(value) {
   if (Array.isArray(value)) return value.map(canonicalJson);
@@ -3420,7 +3429,7 @@ var abytes3 = (value, length, title) => abytes(value, length, title);
 var anumber3 = anumber;
 var bytesToHex4 = bytesToHex;
 var concatBytes3 = (...arrays) => concatBytes(...arrays);
-var hexToBytes3 = (hex7) => hexToBytes(hex7);
+var hexToBytes3 = (hex8) => hexToBytes(hex8);
 var isBytes3 = isBytes;
 var randomBytes3 = (bytesLength) => randomBytes(bytesLength);
 var _0n = /* @__PURE__ */ BigInt(0);
@@ -3450,26 +3459,26 @@ function asafenumber(value, title = "") {
     throw new RangeError(prefix + "expected safe integer, got " + value);
   }
 }
-function hexToNumber2(hex7) {
-  if (typeof hex7 !== "string")
-    throw new TypeError("hex string expected, got " + typeof hex7);
-  return hex7 === "" ? _0n : BigInt("0x" + hex7);
+function hexToNumber2(hex8) {
+  if (typeof hex8 !== "string")
+    throw new TypeError("hex string expected, got " + typeof hex8);
+  return hex8 === "" ? _0n : BigInt("0x" + hex8);
 }
-function bytesToNumberBE(bytes3) {
-  return hexToNumber2(bytesToHex(bytes3));
+function bytesToNumberBE(bytes4) {
+  return hexToNumber2(bytesToHex(bytes4));
 }
-function bytesToNumberLE(bytes3) {
-  return hexToNumber2(bytesToHex(copyBytes2(abytes(bytes3)).reverse()));
+function bytesToNumberLE(bytes4) {
+  return hexToNumber2(bytesToHex(copyBytes2(abytes(bytes4)).reverse()));
 }
 function numberToBytesBE2(n, len) {
   anumber(len);
   if (len === 0)
     throw new RangeError("zero length");
   n = abignumber(n);
-  const hex7 = n.toString(16);
-  if (hex7.length > len * 2)
+  const hex8 = n.toString(16);
+  if (hex8.length > len * 2)
     throw new RangeError("number too large");
-  return hexToBytes(hex7.padStart(len * 2, "0"));
+  return hexToBytes(hex8.padStart(len * 2, "0"));
 }
 function numberToBytesLE(n, len) {
   return numberToBytesBE2(n, len).reverse();
@@ -3484,8 +3493,8 @@ function equalBytes2(a, b) {
     diff |= a[i] ^ b[i];
   return diff === 0;
 }
-function copyBytes2(bytes3) {
-  return Uint8Array.from(abytes3(bytes3));
+function copyBytes2(bytes4) {
+  return Uint8Array.from(abytes3(bytes4));
 }
 function asciiToBytes(ascii) {
   if (typeof ascii !== "string")
@@ -3578,8 +3587,8 @@ function invert(number, modulo) {
     const n = y - v * q;
     b = a, a = r, x = u, y = v, u = m, v = n;
   }
-  const gcd = b;
-  if (gcd !== _1n2)
+  const gcd2 = b;
+  if (gcd2 !== _1n2)
     throw new Error("invert: does not exist");
   return mod(x, modulo);
 }
@@ -3890,20 +3899,20 @@ var _Field = class {
   toBytes(num) {
     return this.isLE ? numberToBytesLE(num, this.BYTES) : numberToBytesBE2(num, this.BYTES);
   }
-  fromBytes(bytes3, skipValidation = false) {
-    abytes3(bytes3);
+  fromBytes(bytes4, skipValidation = false) {
+    abytes3(bytes4);
     const { _lengths: allowedLengths, BYTES, isLE: isLE3, ORDER, _mod: modFromBytes } = this;
     if (allowedLengths) {
-      if (bytes3.length < 1 || !allowedLengths.includes(bytes3.length) || bytes3.length > BYTES) {
-        throw new Error("Field.fromBytes: expected " + allowedLengths + " bytes, got " + bytes3.length);
+      if (bytes4.length < 1 || !allowedLengths.includes(bytes4.length) || bytes4.length > BYTES) {
+        throw new Error("Field.fromBytes: expected " + allowedLengths + " bytes, got " + bytes4.length);
       }
       const padded = new Uint8Array(BYTES);
-      padded.set(bytes3, isLE3 ? 0 : padded.length - bytes3.length);
-      bytes3 = padded;
+      padded.set(bytes4, isLE3 ? 0 : padded.length - bytes4.length);
+      bytes4 = padded;
     }
-    if (bytes3.length !== BYTES)
-      throw new Error("Field.fromBytes: expected " + BYTES + " bytes, got " + bytes3.length);
-    let scalar = isLE3 ? bytesToNumberLE(bytes3) : bytesToNumberBE(bytes3);
+    if (bytes4.length !== BYTES)
+      throw new Error("Field.fromBytes: expected " + BYTES + " bytes, got " + bytes4.length);
+    let scalar = isLE3 ? bytesToNumberLE(bytes4) : bytesToNumberBE(bytes4);
     if (modFromBytes)
       scalar = mod(scalar, ORDER);
     if (!skipValidation) {
@@ -4224,13 +4233,13 @@ function edwards(params, extraOpts = {}) {
       return new Point(x, y, _1n4, modP(x * y));
     }
     // Uses algo from RFC8032 5.1.3.
-    static fromBytes(bytes3, zip215 = false) {
+    static fromBytes(bytes4, zip215 = false) {
       const len = Fp2.BYTES;
       const { a, d } = CURVE;
-      bytes3 = copyBytes2(abytes3(bytes3, len, "point"));
+      bytes4 = copyBytes2(abytes3(bytes4, len, "point"));
       abool2(zip215, "zip215");
-      const normed = copyBytes2(bytes3);
-      const lastByte = bytes3[len - 1];
+      const normed = copyBytes2(bytes4);
+      const lastByte = bytes4[len - 1];
       normed[len - 1] = lastByte & ~128;
       const y = bytesToNumberLE(normed);
       const max = zip215 ? MASK : Fp2.ORDER;
@@ -4249,8 +4258,8 @@ function edwards(params, extraOpts = {}) {
         x = modP(-x);
       return Point.fromAffine({ x, y });
     }
-    static fromHex(hex7, zip215 = false) {
-      return Point.fromBytes(hexToBytes3(hex7), zip215);
+    static fromHex(hex8, zip215 = false) {
+      return Point.fromBytes(hexToBytes3(hex8), zip215);
     }
     get x() {
       return this.toAffine().x;
@@ -4407,9 +4416,9 @@ function edwards(params, extraOpts = {}) {
     }
     toBytes() {
       const { x, y } = this.toAffine();
-      const bytes3 = Fp2.toBytes(y);
-      bytes3[bytes3.length - 1] |= x & _1n4 ? 128 : 0;
-      return bytes3;
+      const bytes4 = Fp2.toBytes(y);
+      bytes4[bytes4.length - 1] |= x & _1n4 ? 128 : 0;
+      return bytes4;
     }
     toHex() {
       return bytesToHex4(this.toBytes());
@@ -4668,16 +4677,16 @@ function montgomery(curveDef) {
     abytes3(seed, lengths.seed, "seed");
     return seed;
   };
-  const utils = { randomSecretKey };
+  const utils2 = { randomSecretKey };
   Object.freeze(lengths);
-  Object.freeze(utils);
+  Object.freeze(utils2);
   return Object.freeze({
     keygen: createKeygen(randomSecretKey, getPublicKey),
     getSharedSecret,
     getPublicKey,
     scalarMult,
     scalarMultBase,
-    utils,
+    utils: utils2,
     GuBytes: GuBytes.slice(),
     lengths
   });
@@ -4717,11 +4726,11 @@ function ed25519_pow_2_252_3(x) {
   const pow_p_5_8 = pow2(b250, _2n4, P2) * x % P2;
   return { pow_p_5_8, b2 };
 }
-function adjustScalarBytes(bytes3) {
-  bytes3[0] &= 248;
-  bytes3[31] &= 127;
-  bytes3[31] |= 64;
-  return bytes3;
+function adjustScalarBytes(bytes4) {
+  bytes4[0] &= 248;
+  bytes4[31] &= 127;
+  bytes4[31] |= 64;
+  return bytes4;
 }
 var ED25519_SQRT_M1 = /* @__PURE__ */ BigInt("19681161376707505956807079304988542015446066515923890162744021073123829784752");
 function uvRatio(u, v) {
@@ -4766,7 +4775,7 @@ var ONE_MINUS_D_SQ = /* @__PURE__ */ BigInt("11598430216687798791937755218555866
 var D_MINUS_ONE_SQ = /* @__PURE__ */ BigInt("40440834346308536858101042469323190826248399146238708352240133220865137265952");
 var invertSqrt = (number) => uvRatio(_1n6, number);
 var MAX_255B = /* @__PURE__ */ BigInt("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-var bytes255ToNumberLE = (bytes3) => Fp.create(bytesToNumberLE(bytes3) & MAX_255B);
+var bytes255ToNumberLE = (bytes4) => Fp.create(bytesToNumberLE(bytes4) & MAX_255B);
 function calcElligatorRistrettoMap(r0) {
   const { d } = ed25519_CURVE;
   const P2 = ed25519_CURVE_p;
@@ -4821,13 +4830,13 @@ var _RistrettoPoint = class __RistrettoPoint extends PrimeEdwardsPoint {
   init(ep) {
     return new __RistrettoPoint(ep);
   }
-  static fromBytes(bytes3) {
-    abytes(bytes3, 32);
+  static fromBytes(bytes4) {
+    abytes(bytes4, 32);
     const { a, d } = ed25519_CURVE;
     const P2 = ed25519_CURVE_p;
     const mod2 = (n) => Fp.create(n);
-    const s = bytes255ToNumberLE(bytes3);
-    if (!equalBytes2(Fp.toBytes(s), bytes3) || isNegativeLE(s, P2))
+    const s = bytes255ToNumberLE(bytes4);
+    if (!equalBytes2(Fp.toBytes(s), bytes4) || isNegativeLE(s, P2))
       throw new Error("invalid ristretto255 encoding 1");
     const s2 = mod2(s * s);
     const u1 = mod2(_1n6 + a * s2);
@@ -4852,8 +4861,8 @@ var _RistrettoPoint = class __RistrettoPoint extends PrimeEdwardsPoint {
    * Described in [RFC9496](https://www.rfc-editor.org/rfc/rfc9496#name-decode).
    * @param hex - Ristretto-encoded 32 bytes. Not every 32-byte string is valid ristretto encoding
    */
-  static fromHex(hex7) {
-    return __RistrettoPoint.fromBytes(hexToBytes(hex7));
+  static fromHex(hex8) {
+    return __RistrettoPoint.fromBytes(hexToBytes(hex8));
   }
   /**
    * Encodes ristretto point to Uint8Array.
@@ -4942,11 +4951,11 @@ var ristretto255_hasher = Object.freeze({
    * It was later reused as a component in the newer
    * `hash_to_ristretto255` function defined in RFC 9380.
    */
-  deriveToCurve(bytes3) {
-    abytes(bytes3, 64);
-    const r1 = bytes255ToNumberLE(bytes3.subarray(0, 32));
+  deriveToCurve(bytes4) {
+    abytes(bytes4, 64);
+    const r1 = bytes255ToNumberLE(bytes4.subarray(0, 32));
     const R1 = calcElligatorRistrettoMap(r1);
-    const r2 = bytes255ToNumberLE(bytes3.subarray(32, 64));
+    const r2 = bytes255ToNumberLE(bytes4.subarray(32, 64));
     const R2 = calcElligatorRistrettoMap(r2);
     return new _RistrettoPoint(R1.add(R2));
   }
@@ -5359,11 +5368,11 @@ function poolTxAnchor(fields) {
 
 // src/pool-transaction.js
 var MAX_MONEY = 2100000000000000000n;
-function bytes2(hex7, name) {
-  if (typeof hex7 !== "string" || hex7.length % 2 || !/^[0-9a-f]*$/i.test(hex7)) {
+function bytes2(hex8, name) {
+  if (typeof hex8 !== "string" || hex8.length % 2 || !/^[0-9a-f]*$/i.test(hex8)) {
     throw new TypeError(`${name} must be even-length hex`);
   }
-  return Uint8Array.from(hex7.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
+  return Uint8Array.from(hex8.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
 }
 function concat3(...parts) {
   const result = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
@@ -5672,13 +5681,358 @@ function finishC3(prepared, proof, publicSignals) {
   return hex(cat(le(3, 4), unhex("0001"), compact(inputs.length), ...inputs.map((x) => cat(unhex(x.txid).reverse(), le(x.vout, 4), le(0, 1), unhex("ffffffff"))), compact(outputs.length), template.outputs, le(0, 1), ...witnesses.map((w) => cat(compact(w.length), ...w.map(variable))), le(0, 4)));
 }
 
+// src/c4-publication.js
+var utf84 = (value) => new TextEncoder().encode(value);
+var demand2 = (condition, message2) => {
+  if (!condition) throw new Error(message2);
+};
+function bytes3(value, size, label2) {
+  demand2(value instanceof Uint8Array && value.length === size, `${label2} must be ${size} bytes`);
+  return value;
+}
+function concat4(...items) {
+  const result = new Uint8Array(items.reduce((n, x) => n + x.length, 0));
+  let offset = 0;
+  for (const item of items) {
+    result.set(item, offset);
+    offset += item.length;
+  }
+  return result;
+}
+function le64(value) {
+  demand2(typeof value === "bigint" && value >= 0n && value < 1n << 64n, "Expected unsigned 64-bit bigint");
+  const result = new Uint8Array(8);
+  for (let i = 0; i < 8; i++, value >>= 8n) result[i] = Number(value & 255n);
+  return result;
+}
+var same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+function layout(form) {
+  const deposit = form === "D0" || form === "D1";
+  demand2(deposit || /^T[1-4]$/.test(form), "Unsupported C4 publication form");
+  const count = deposit ? 1 : Number(form[1]);
+  return { deposit, count, recordsAt: 34 + count * 32, end: 34 + count * 252 };
+}
+function compactRecord(record) {
+  bytes3(record, 1024, "HPKE record");
+  demand2(same(record.slice(0, 3), Uint8Array.of(1, 217, 0)) && record.slice(220).every((x) => x === 0), "Noncanonical HPKE record");
+  return record.slice(0, 220);
+}
+function c4Context({ domain, assetId, unit: unit2, registryRoot = new Uint8Array(32) }) {
+  bytes3(domain, 32, "Domain");
+  bytes3(assetId, 32, "Asset ID");
+  bytes3(registryRoot, 32, "Registry root");
+  decodeField(registryRoot);
+  demand2(typeof unit2 === "bigint" && Array.from({ length: 9 }, (_, i) => 10n ** BigInt(i)).includes(unit2), "Invalid asset quantum");
+  return poseidonBytes(concat4(utf84("NeuraiPoolCtx"), Uint8Array.of(1), domain, assetId, le64(unit2), registryRoot));
+}
+function decodeC4Publication(form, blob) {
+  bytes3(blob, 4096, "C4 publication");
+  const spec = layout(form);
+  demand2(blob[0] === 2 && blob[1] === spec.count, "C4 version/count mismatch");
+  demand2(blob.slice(spec.end).every((x) => x === 0), "Noncanonical C4 padding");
+  const nf = spec.deposit ? null : blob.slice(2, 34);
+  if (spec.deposit) demand2(blob.slice(2, 34).every((x) => x === 0), "Deposit cannot carry a nullifier");
+  else demand2(decodeField(nf) !== 0n, "Zero nullifier");
+  const cms = [], records = [];
+  for (let i = 0; i < spec.count; i++) {
+    const cm = blob.slice(34 + i * 32, 66 + i * 32);
+    demand2(decodeField(cm) !== 0n && !cms.some((other) => same(other, cm)), "Zero or duplicate commitment");
+    cms.push(cm);
+    const record = new Uint8Array(1024);
+    record.set(blob.slice(spec.recordsAt + i * 220, spec.recordsAt + (i + 1) * 220));
+    compactRecord(record);
+    records.push(record);
+  }
+  return { cms, records, nf };
+}
+function encodeC4Publication(form, { cms, records, nf = null }) {
+  const spec = layout(form);
+  demand2(Array.isArray(cms) && Array.isArray(records) && cms.length === spec.count && records.length === spec.count, "Wrong note count");
+  demand2(spec.deposit ? nf === null : nf instanceof Uint8Array, "Wrong nullifier presence");
+  const result = new Uint8Array(4096);
+  result.set([2, spec.count]);
+  if (!spec.deposit) result.set(bytes3(nf, 32, "Nullifier"), 2);
+  cms.forEach((cm, i) => result.set(bytes3(cm, 32, "Commitment"), 34 + i * 32));
+  records.forEach((record, i) => result.set(compactRecord(record), spec.recordsAt + i * 220));
+  decodeC4Publication(form, result);
+  return result;
+}
+function c4PublicationHash(form, blob) {
+  decodeC4Publication(form, blob);
+  const seed = poseidonBytes(utf84("NIP045/dat"));
+  return poseidonBytes(concat4(poseidonBytes(concat4(seed, blob.slice(0, 2048))), blob.slice(2048)));
+}
+
+// src/c4.js
+var C4_FORMS = ["D0", "D1", "T1", "T2", "T3", "T4", "W_partial", "W_full"];
+var hex2 = (x) => Array.from(x, (b) => b.toString(16).padStart(2, "0")).join("");
+function unhex2(x) {
+  if (typeof x !== "string" || !/^(?:[0-9a-f]{2})*$/i.test(x)) throw new Error("Invalid hex");
+  return Uint8Array.from(x.match(/../g) ?? [], (b) => parseInt(b, 16));
+}
+function cat2(...xs) {
+  const r = new Uint8Array(xs.reduce((n, x) => n + x.length, 0));
+  let i = 0;
+  for (const x of xs) {
+    r.set(x, i);
+    i += x.length;
+  }
+  return r;
+}
+var utf85 = (x) => new TextEncoder().encode(x);
+var demand3 = (ok, why) => {
+  if (!ok) throw new Error(why);
+};
+function le2(x, size) {
+  let n = BigInt(x);
+  demand3(n >= 0n && n < 1n << BigInt(size * 8), "Integer overflow");
+  const b = new Uint8Array(size);
+  for (let i = 0; i < size; i++) {
+    b[i] = Number(n & 255n);
+    n >>= 8n;
+  }
+  return b;
+}
+function compact2(n) {
+  return n < 253 ? le2(n, 1) : n <= 65535 ? cat2(le2(253, 1), le2(n, 2)) : cat2(le2(254, 1), le2(n, 4));
+}
+var variable2 = (b) => cat2(compact2(b.length), b);
+function push2(b) {
+  return cat2(b.length < 76 ? le2(b.length, 1) : b.length <= 255 ? cat2(le2(76, 1), le2(b.length, 1)) : cat2(le2(77, 1), le2(b.length, 2)), b);
+}
+function tagged2(tag2, data) {
+  const t = sha256(utf85(tag2));
+  return sha256(cat2(t, t, data));
+}
+var p2pkh2 = (x) => /^76a914[0-9a-f]{40}88ac$/.test(x);
+var transparent = (x) => p2pkh2(x) || /^(?:52|53)20[0-9a-f]{64}$/.test(x);
+function c4DustAtomic(scriptHex, feePerKb = "3000") {
+  demand3((transparent(scriptHex) || /^5120[0-9a-f]{64}$/.test(scriptHex)) && typeof feePerKb === "string" && /^(0|[1-9][0-9]*)$/.test(feePerKb), "Invalid dust policy input");
+  const size = p2pkh2(scriptHex) ? 182n : /^(?:51|52)/.test(scriptHex) ? 1020n : 112n;
+  const rate = BigInt(feePerKb), fee = size * rate / 1000n;
+  return fee === 0n && rate > 0n ? 1n : fee;
+}
+var decimal2 = (x) => typeof x === "bigint" ? x.toString() : Array.isArray(x) ? x.map(decimal2) : x && typeof x === "object" ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, decimal2(v)])) : x;
+function validateC4Manifest(m, { expectedGenesis = RESET_TESTNET_GENESIS, expectedCommitment } = {}) {
+  demand3(typeof expectedCommitment === "string" && /^[0-9a-f]{64}$/.test(expectedCommitment) && m?.commitment === expectedCommitment, "An independently pinned pool commitment is required");
+  demand3(m?.schema === "neurai-c4-xna-test-v1" && m.testOnly === true && m.profile === "xna", "Only experimental C4 XNA is supported");
+  demand3(/^[0-9a-f]{64}$/.test(expectedGenesis) && m.genesis === expectedGenesis, "Unexpected chain genesis");
+  demand3(m.unit === "1" && m.registryRoot === "00".repeat(32), "XNA context must have unit one and no registry");
+  demand3(/^[A-Z0-9_]+#POOL$/.test(m.identity) && m.identity.length <= 30, "Invalid UNIQUE identity");
+  demand3(/^[0-9a-f]{64}$/.test(m.issuance?.txid) && Number.isSafeInteger(m.issuance?.vout) && m.issuance.vout >= 0 && m.issuance.vout <= 4294967295, "Pinned issuance outpoint required");
+  const domain = sha256(cat2(utf85("NIP043/instance/v3"), unhex2(m.genesis).reverse(), unhex2(m.issuance.txid).reverse(), le2(m.issuance.vout, 4), variable2(utf85(m.identity))));
+  const assetId = sha256(cat2(utf85("NeuraiPoolAsset/v2"), Uint8Array.of(0, 0)));
+  demand3(hex2(domain) === m.domain && hex2(assetId) === m.assetId, "Wrong instance domain or native asset ID");
+  demand3(hex2(c4Context({ domain, assetId, unit: 1n })) === m.context, "Context mismatch");
+  demand3(/^[0-9a-f]{64}$/.test(m.birth) && Number.isSafeInteger(m.birthHeight) && m.birthHeight > 0, "Pinned birth required");
+  demand3(/^[0-9a-f]{64}$/.test(m.commitment) && /^[0-9a-f]{64}$/.test(m.reserveCommitment), "Bad commitments");
+  demand3(C4_FORMS.every((f) => m.forms?.[f]) && Object.keys(m.forms).length === 8, "Eight circuit forms required");
+  for (const f of C4_FORMS) {
+    const entry = m.forms[f], script = unhex2(entry.script), control = unhex2(entry.control), vk = unhex2(entry.vk);
+    demand3(script.length > 0 && script.length <= 1e4 && control[0] === 1 && (control.length - 1) % 32 === 0, "Invalid MAST leaf");
+    let root = tagged2("NeuraiAuthLeaf", cat2(le2(1, 1), variable2(script)));
+    for (let at = 1; at < control.length; at += 32) {
+      const sibling = control.slice(at, at + 32);
+      root = tagged2("NeuraiAuthBranch", hex2(root) < hex2(sibling) ? cat2(root, sibling) : cat2(sibling, root));
+    }
+    demand3(hex2(tagged2("NeuraiAuthScript", cat2(le2(4, 1), le2(0, 1), root))) === m.commitment, "MAST commitment mismatch");
+    demand3(hex2(sha256(vk)) === entry.vkHash && entry.script.includes(entry.vkHash), "VK commitment mismatch");
+    demand3(entry.script.includes(m.context), "Missing pinned context in leaf");
+  }
+  demand3(hex2(tagged2("NeuraiAuthScript", cat2(le2(1, 1), le2(0, 1), sha256(unhex2(m.guard))))) === m.reserveCommitment, "Reserve commitment mismatch");
+  return m;
+}
+function c4StateScript(m, digest) {
+  const payload = cat2(utf85("xnat"), variable2(utf85(m.identity)), le2(1e8, 8), unhex2("5420"), digest);
+  return hex2(cat2(unhex2("5120" + m.commitment + "c0"), push2(payload), unhex2("75")));
+}
+function c4Path(slots, index) {
+  let empty2 = new Uint8Array(32), layer = new Map(slots);
+  const siblings = [];
+  for (let d = 0; d < 32; d++) {
+    siblings.push(decodeField(layer.get(index ^ 1) ?? empty2));
+    layer = new Map([...new Set([...layer.keys()].map((i) => Math.floor(i / 2)))].map((i) => [i, poolTreeNode(layer.get(i * 2) ?? empty2, layer.get(i * 2 + 1) ?? empty2)]));
+    empty2 = poolTreeNode(empty2, empty2);
+    index = Math.floor(index / 2);
+  }
+  return siblings;
+}
+function insert2(kind, entries, value) {
+  const updated = poolIndexedInsert(kind, entries, value);
+  const index = entries.size;
+  let pred = -1, pv = -1n;
+  for (const [i, e] of entries) if (e[0] < value && e[0] > pv) {
+    pred = i;
+    pv = e[0];
+  }
+  const [predValue, predNextValue, predNextIndex] = entries.get(pred);
+  const slots = new Map([...entries].map(([i, e]) => [i, poolIndexedLeaf(kind, ...e)]));
+  const predPath = c4Path(slots, pred);
+  slots.set(pred, poolIndexedLeaf(kind, predValue, value, index));
+  return [{ predIndex: pred, predValue, predNextValue, predNextIndex, predPath, emptyPath: c4Path(slots, index) }, updated];
+}
+function add3(state, note) {
+  const cm = noteCommitment(note), notePath = c4Path(state.slots, state.slots.size);
+  const [fields, seen] = insert2("cm", state.seen, decodeField(cm));
+  state.seen = seen;
+  state.slots.set(state.slots.size, cm);
+  state.mode = 1;
+  return { notePath, ...fields };
+}
+function spend2(state, note, secret) {
+  const cm = hex2(noteCommitment(note));
+  const noteIndex = [...state.slots].find(([, c]) => hex2(c) === cm)?.[0];
+  demand3(noteIndex !== void 0, "Note is not in the confirmed pool");
+  const nf = decodeField(noteNullifier(note, secret));
+  const notePath = c4Path(state.slots, noteIndex);
+  const [fields, nfs] = insert2("nf", state.nfs, nf);
+  state.nfs = nfs;
+  return { noteIndex, notePath, nf, ...fields };
+}
+function states2(old, state) {
+  return { oldState: Array.from(poolStateOpening(old)), newState: Array.from(poolStateOpening(state)), S_old: decodeField(poolStateDigest(old)), S_new: decodeField(poolStateDigest(state)) };
+}
+function c4Publication(form, created, nf) {
+  return encodeC4Publication(form, { cms: created.map((x) => x.cm), records: created.map((x) => x.record), nf: form[0] === "D" ? null : encodeField(nf) });
+}
+function coin2(u) {
+  demand3(u && /^[0-9a-f]{64}$/.test(u.txid) && Number.isSafeInteger(u.vout) && u.vout >= 0 && u.vout <= 4294967295 && transparent(u.scriptHex), "A confirmed Legacy/PQ/ECDSA XNA coin is required");
+  demand3(typeof u.valueSats === "string" && /^[1-9][0-9]*$/.test(u.valueSats), "Exact coin value required");
+  return u;
+}
+function prepareC4({ manifest, scan, form, created = [], consumed, secret, funding, sponsor, payout, feeAtomic, dustRelayFeePerKb = "3000", expectedGenesis = RESET_TESTNET_GENESIS, expectedCommitment }) {
+  const m = validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  demand3(C4_FORMS.includes(form), "Unknown form");
+  const old = scan.state, state = { slots: new Map(old.slots), seen: new Map(old.seen), nfs: new Map(old.nfs), mode: old.mode };
+  const reserve = BigInt(scan.reserveAtomic);
+  let nextReserve = reserve, amount = 0n, data;
+  demand3(form === "D0" === (reserve === 0n), "Pool state changed: rescan required");
+  demand3(form !== "D0" || old.mode === 0, "Pool mode mismatch");
+  for (const fresh of created) {
+    demand3(hex2(noteCommitment(fresh.note)) === hex2(fresh.cm), "Note commitment mismatch");
+    const p = decodeNote(fresh.note);
+    demand3(hex2(p.domain) === m.domain && hex2(p.assetId) === m.assetId, "Note belongs to another domain");
+  }
+  if (form[0] === "D") {
+    demand3(created.length === 1 && !consumed, "Invalid deposit notes");
+    const x = created[0];
+    amount = decodeNote(x.note).amountAtomic;
+    data = {
+      ...add3(state, x.note),
+      ...states2(old, state),
+      note: Array.from(x.note),
+      cm: decodeField(x.cm),
+      amount,
+      dep: decodeField(poseidonBytes(cat2(utf85(NEURAI_POOL_HASH_LABELS.deposit), le2(amount, 8), x.cm))),
+      wdr: decodeField(poseidonBytes(utf85(NEURAI_POOL_HASH_LABELS.withdrawal))),
+      req: decodeField(poseidonBytes(utf85(NEURAI_POOL_HASH_LABELS.request)))
+    };
+    coin2(funding);
+    demand3(BigInt(funding.valueSats) === amount, "Deposit input must match the note amount exactly");
+    nextReserve += amount;
+  } else {
+    demand3(consumed?.note && !consumed.spent, "Select an unspent owned note");
+    const note = typeof consumed.note === "string" ? unhex2(consumed.note) : consumed.note;
+    const parsed = decodeNote(note);
+    demand3(hex2(parsed.domain) === m.domain && hex2(parsed.assetId) === m.assetId, "Consumed note domain mismatch");
+    const spent = spend2(state, note, secret);
+    amount = parsed.amountAtomic;
+    if (form[0] === "T") {
+      demand3(created.length === Number(form[1]) && created.reduce((sum, x) => sum + decodeNote(x.note).amountAtomic, 0n) === amount, "Transfer amounts must conserve the selected note");
+      data = { oldState: Array.from(poolStateOpening(old)), S_old: decodeField(poolStateDigest(old)), states: [Array.from(poolStateOpening(state))], sk: Array.from(secret), spentNote: Array.from(note), spentCm: decodeField(noteCommitment(note)), spentIndex: spent.noteIndex, spentPath: spent.notePath, nf: spent.nf, cms: [], notes: [], amounts: [], notePaths: [], predIndices: [], predValues: [], predNextValues: [], predNextIndices: [], predPaths: [], emptyPaths: [] };
+      for (const k of ["predIndex", "predValue", "predNextValue", "predNextIndex", "predPath", "emptyPath"]) data["nf" + k[0].toUpperCase() + k.slice(1)] = spent[k];
+      const mapping = { notePath: "notePaths", predIndex: "predIndices", predValue: "predValues", predNextValue: "predNextValues", predNextIndex: "predNextIndices", predPath: "predPaths", emptyPath: "emptyPaths" };
+      for (const fresh of created) {
+        const fields = add3(state, fresh.note);
+        for (const [k, v] of Object.entries(fields)) data[mapping[k]].push(v);
+        data.cms.push(decodeField(fresh.cm));
+        data.notes.push(Array.from(fresh.note));
+        data.amounts.push(decodeNote(fresh.note).amountAtomic);
+        data.states.push(Array.from(poolStateOpening(state)));
+      }
+      data.S_new = decodeField(poolStateDigest(state));
+    } else {
+      demand3(created.length === 0 && transparent(payout), "Withdrawal requires a Legacy/PQ/ECDSA destination");
+      nextReserve -= amount;
+      demand3(nextReserve >= 0n && form === "W_full" === (nextReserve === 0n), "Wrong withdrawal form");
+      if (form === "W_full") state.mode = 0;
+      data = { ...spent, ...states2(old, state), note: Array.from(note), sk: Array.from(secret), cm: decodeField(noteCommitment(note)), amount, reserve_in: reserve, reserve_out: nextReserve };
+    }
+  }
+  demand3(nextReserve <= 2100000000000000000n, "Reserve exceeds money range");
+  data.ctx = decodeField(unhex2(m.context));
+  data.D = Array.from(unhex2(m.domain));
+  data.AID = Array.from(unhex2(m.assetId));
+  data.unit = 1n;
+  data.registryRoot = Array(32).fill(0);
+  let blob;
+  if ("DT".includes(form[0])) {
+    blob = c4Publication(form, created, data.nf);
+    data.data_hash = decodeField(c4PublicationHash(form, blob));
+  }
+  coin2(sponsor);
+  demand3(typeof feeAtomic === "string" && /^[1-9][0-9]*$/.test(feeAtomic), "Exact positive fee required");
+  const fee = BigInt(feeAtomic);
+  demand3(fee <= 100000000n && BigInt(sponsor.valueSats) - fee >= c4DustAtomic(sponsor.scriptHex, dustRelayFeePerKb), "Fee must be at most 1 XNA and leave non-dust sponsor change");
+  const inputs = [{ txid: old.stateOutpoint[0], vout: 0 }];
+  if (form !== "D0") {
+    demand3(old.reserveOutpoint?.[0] === old.stateOutpoint[0] && old.reserveOutpoint[1] === 1, "Noncanonical reserve");
+    inputs.push({ txid: old.reserveOutpoint[0], vout: 1 });
+  }
+  if (form[0] === "D") inputs.push(funding);
+  inputs.push(sponsor);
+  demand3(new Set(inputs.map((x) => x.txid + ":" + x.vout)).size === inputs.length, "Duplicate transaction input");
+  const outputs = [{ valueSats: 0n, scriptHex: c4StateScript(m, encodeField(data.S_new)) }];
+  if (form !== "W_full") {
+    demand3(nextReserve >= c4DustAtomic("5120" + m.reserveCommitment, dustRelayFeePerKb), "Reserve output would be dust under the selected policy");
+    outputs.push({ valueSats: nextReserve, scriptHex: "5120" + m.reserveCommitment });
+  }
+  if (form[0] === "W") {
+    demand3(amount >= c4DustAtomic(payout, dustRelayFeePerKb), "Withdrawal would be dust under the selected policy");
+    outputs.push({ valueSats: amount, scriptHex: payout });
+  }
+  outputs.push({ valueSats: BigInt(sponsor.valueSats) - fee, scriptHex: sponsor.scriptHex });
+  const template = serializePoolTemplate({ inputs, outputs });
+  data.anchor = decodeField(template.anchor);
+  const publics = [data.ctx, data.S_old, data.S_new];
+  if (form[0] === "D") publics.push(data.dep, data.wdr, data.req, data.data_hash, data.anchor, amount);
+  else if (form[0] === "T") publics.push(data.nf, data.data_hash, data.anchor, ...created.map((x) => decodeField(x.cm)));
+  else publics.push(data.nf, data.anchor, amount, reserve, nextReserve);
+  return { state, form, inputs, outputs, template, input: decimal2(data), publicSignals: publics.map(String), blob, nf: data.nf === void 0 ? void 0 : encodeField(data.nf), feeAtomic, manifest: m };
+}
+var FP2 = 21888242871839275222246405745257275088696311157297823662689037894645226208583n;
+function g12(p) {
+  const [x, y] = p.map(BigInt);
+  demand3(x >= 0n && x < FP2 && y >= 0n && y < FP2 && y * y % FP2 === (x * x % FP2 * x + 3n) % FP2, "Invalid G1 proof point");
+  return le2(x | (y > FP2 - y ? 1n << 255n : 0n), 32);
+}
+function g22(p) {
+  const [x, y] = p.map((q) => q.map(BigInt));
+  demand3([...x, ...y].every((v) => v >= 0n && v < FP2), "Invalid G2 coordinate");
+  const n = y.map((v) => (FP2 - v) % FP2);
+  const sign = y[1] > n[1] || y[1] === n[1] && y[0] > n[0];
+  return cat2(le2(x[0], 32), le2(x[1] | (sign ? 1n << 255n : 0n), 32));
+}
+function c4ProofBytes(proof) {
+  return cat2(g12(proof.pi_a), g22(proof.pi_b), g12(proof.pi_c));
+}
+function finishC4(prepared, proof, publicSignals) {
+  demand3(JSON.stringify(publicSignals.map(String)) === JSON.stringify(prepared.publicSignals), "Proof public inputs differ from the transaction");
+  const { form, inputs, outputs, template, manifest: m } = prepared, entry = m.forms[form];
+  const args = prepared.blob ? [prepared.blob.slice(0, 2048), prepared.blob.slice(2048)] : [prepared.nf];
+  const own = [unhex2("10"), c4ProofBytes(proof), unhex2(entry.vk), ...args, template.prevouts, unhex2(entry.script), unhex2(entry.control)];
+  const witnesses = [own, ...form === "D0" ? [] : [[unhex2("00"), unhex2(m.guard)]], ...form[0] === "D" ? [[]] : [], []];
+  demand3(witnesses.length === inputs.length, "Witness count mismatch");
+  return hex2(cat2(le2(3, 4), unhex2("0001"), compact2(inputs.length), ...inputs.map((x) => cat2(unhex2(x.txid).reverse(), le2(x.vout, 4), le2(0, 1), unhex2("ffffffff"))), compact2(outputs.length), template.outputs, le2(0, 1), ...witnesses.map((w) => cat2(compact2(w.length), ...w.map(variable2))), le2(0, 4)));
+}
+
 // src/checkpoint-crypto.js
 var encoder2 = new TextEncoder();
 var decoder2 = new TextDecoder("utf-8", { fatal: true });
 var AAD2 = encoder2.encode("Neurai/privacy/scan-checkpoint/v1");
 var MAX_BYTES = 32 * 1024 * 1024;
-var hex2 = (bytes3) => Array.from(bytes3, (byte) => byte.toString(16).padStart(2, "0")).join("");
-function unhex2(value) {
+var hex3 = (bytes4) => Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
+function unhex3(value) {
   if (typeof value !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(value)) throw new Error("Invalid scan checkpoint");
   return Uint8Array.from(value.match(/../g), (pair2) => parseInt(pair2, 16));
 }
@@ -5688,7 +6042,7 @@ function sealScanCheckpoint(checkpoint, key) {
   if (plaintext.length > MAX_BYTES) throw new RangeError("Scan checkpoint is too large");
   const nonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
   try {
-    return JSON.stringify({ version: 1, nonce: hex2(nonce), ciphertext: hex2(chacha20poly1305(key, nonce, AAD2).encrypt(plaintext)) });
+    return JSON.stringify({ version: 1, nonce: hex3(nonce), ciphertext: hex3(chacha20poly1305(key, nonce, AAD2).encrypt(plaintext)) });
   } finally {
     plaintext.fill(0);
   }
@@ -5697,8 +6051,8 @@ function openScanCheckpoint(encoded, key) {
   if (typeof encoded !== "string" || encoded.length > (MAX_BYTES + 16) * 2 + 100) throw new Error("Invalid scan checkpoint");
   const envelope = JSON.parse(encoded);
   if (envelope?.version !== 1) throw new Error("Unsupported scan checkpoint");
-  const nonce = unhex2(envelope.nonce);
-  const ciphertext = unhex2(envelope.ciphertext);
+  const nonce = unhex3(envelope.nonce);
+  const ciphertext = unhex3(envelope.ciphertext);
   if (nonce.length !== 12 || ciphertext.length < 16 || ciphertext.length > MAX_BYTES + 16) throw new Error("Invalid scan checkpoint");
   const plaintext = chacha20poly1305(key, nonce, AAD2).decrypt(ciphertext);
   try {
@@ -5715,8 +6069,8 @@ function bytesFromHex(value, name) {
   }
   return Uint8Array.from(value.match(/../g), (byte) => parseInt(byte, 16));
 }
-function hex3(bytes3) {
-  return Array.from(bytes3, (byte) => byte.toString(16).padStart(2, "0")).join("");
+function hex4(bytes4) {
+  return Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 function equal2(a, b) {
   if (a.length !== b.length) return false;
@@ -5744,7 +6098,7 @@ var BrowserTestIdentity = class _BrowserTestIdentity {
     const spendSecret = globalThis.crypto.getRandomValues(new Uint8Array(32));
     const viewSeed = globalThis.crypto.getRandomValues(new Uint8Array(32));
     try {
-      const backup = await sealVault({ spend_key: hex3(spendSecret), view_seed: hex3(viewSeed) }, password);
+      const backup = await sealVault({ spend_key: hex4(spendSecret), view_seed: hex4(viewSeed) }, password);
       return new _BrowserTestIdentity(spendSecret, viewSeed, d, asset, backup);
     } finally {
       spendSecret.fill(0);
@@ -5770,10 +6124,10 @@ var BrowserTestIdentity = class _BrowserTestIdentity {
   recipient() {
     this.#assertOpen();
     return {
-      domain: hex3(this.#domain),
-      asset_id: hex3(this.#assetId),
-      owner: hex3(deriveOwner(this.#domain, this.#spendSecret)),
-      view_pub: hex3(deriveViewPublic(this.#viewSeed))
+      domain: hex4(this.#domain),
+      asset_id: hex4(this.#assetId),
+      owner: hex4(deriveOwner(this.#domain, this.#spendSecret)),
+      view_pub: hex4(deriveViewPublic(this.#viewSeed))
     };
   }
   /** Return the existing encrypted JSON backup; the plaintext keys never leave this class. */
@@ -5804,10 +6158,18 @@ var BrowserTestIdentity = class _BrowserTestIdentity {
   /** Build private circuit inputs locally; call only from the dedicated wallet worker. */
   prepareC3(options) {
     this.#assertOpen();
-    if (options.manifest.domain !== hex3(this.#domain) || options.manifest.assetId !== hex3(this.#assetId)) {
+    if (options.manifest.domain !== hex4(this.#domain) || options.manifest.assetId !== hex4(this.#assetId)) {
       throw new Error("wallet belongs to another pool instance");
     }
     return prepareC3({ ...options, secret: this.#spendSecret });
+  }
+  /** Build private circuit inputs locally; call only from the dedicated wallet worker. */
+  prepareC4(options) {
+    this.#assertOpen();
+    if (options.manifest.domain !== hex4(this.#domain) || options.manifest.assetId !== hex4(this.#assetId)) {
+      throw new Error("wallet belongs to another pool instance");
+    }
+    return prepareC4({ ...options, secret: this.#spendSecret });
   }
   #checkpointKey() {
     this.#assertOpen();
@@ -5848,6 +6210,2701 @@ var BrowserTestIdentity = class _BrowserTestIdentity {
     this.#backup = null;
   }
 };
+
+// node_modules/@scure/bip39/node_modules/@noble/hashes/utils.js
+function isBytes4(a) {
+  return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array";
+}
+function abytes4(value, length, title = "") {
+  const bytes4 = isBytes4(value);
+  const len = value?.length;
+  const needsLen = length !== void 0;
+  if (!bytes4 || needsLen && len !== length) {
+    const prefix = title && `"${title}" `;
+    const ofLen = needsLen ? ` of length ${length}` : "";
+    const got = bytes4 ? `length=${len}` : `type=${typeof value}`;
+    throw new Error(prefix + "expected Uint8Array" + ofLen + ", got " + got);
+  }
+  return value;
+}
+function aexists3(instance, checkFinished = true) {
+  if (instance.destroyed)
+    throw new Error("Hash instance has been destroyed");
+  if (checkFinished && instance.finished)
+    throw new Error("Hash#digest() has already been called");
+}
+function aoutput3(out, instance) {
+  abytes4(out, void 0, "digestInto() output");
+  const min = instance.outputLen;
+  if (out.length < min) {
+    throw new Error('"digestInto() output" expected to be of length >=' + min);
+  }
+}
+function clean3(...arrays) {
+  for (let i = 0; i < arrays.length; i++) {
+    arrays[i].fill(0);
+  }
+}
+function createView3(arr) {
+  return new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
+}
+function rotr2(word, shift) {
+  return word << 32 - shift | word >>> shift;
+}
+function createHasher3(hashCons, info = {}) {
+  const hashC = (msg, opts) => hashCons(opts).update(msg).digest();
+  const tmp = hashCons(void 0);
+  hashC.outputLen = tmp.outputLen;
+  hashC.blockLen = tmp.blockLen;
+  hashC.create = (opts) => hashCons(opts);
+  Object.assign(hashC, info);
+  return Object.freeze(hashC);
+}
+var oidNist2 = (suffix) => ({
+  oid: Uint8Array.from([6, 9, 96, 134, 72, 1, 101, 3, 4, 2, suffix])
+});
+
+// node_modules/@scure/bip39/node_modules/@noble/hashes/_md.js
+function Chi2(a, b, c) {
+  return a & b ^ ~a & c;
+}
+function Maj2(a, b, c) {
+  return a & b ^ a & c ^ b & c;
+}
+var HashMD2 = class {
+  blockLen;
+  outputLen;
+  padOffset;
+  isLE;
+  // For partial updates less than block size
+  buffer;
+  view;
+  finished = false;
+  length = 0;
+  pos = 0;
+  destroyed = false;
+  constructor(blockLen, outputLen, padOffset, isLE3) {
+    this.blockLen = blockLen;
+    this.outputLen = outputLen;
+    this.padOffset = padOffset;
+    this.isLE = isLE3;
+    this.buffer = new Uint8Array(blockLen);
+    this.view = createView3(this.buffer);
+  }
+  update(data) {
+    aexists3(this);
+    abytes4(data);
+    const { view, buffer, blockLen } = this;
+    const len = data.length;
+    for (let pos = 0; pos < len; ) {
+      const take = Math.min(blockLen - this.pos, len - pos);
+      if (take === blockLen) {
+        const dataView = createView3(data);
+        for (; blockLen <= len - pos; pos += blockLen)
+          this.process(dataView, pos);
+        continue;
+      }
+      buffer.set(data.subarray(pos, pos + take), this.pos);
+      this.pos += take;
+      pos += take;
+      if (this.pos === blockLen) {
+        this.process(view, 0);
+        this.pos = 0;
+      }
+    }
+    this.length += data.length;
+    this.roundClean();
+    return this;
+  }
+  digestInto(out) {
+    aexists3(this);
+    aoutput3(out, this);
+    this.finished = true;
+    const { buffer, view, blockLen, isLE: isLE3 } = this;
+    let { pos } = this;
+    buffer[pos++] = 128;
+    clean3(this.buffer.subarray(pos));
+    if (this.padOffset > blockLen - pos) {
+      this.process(view, 0);
+      pos = 0;
+    }
+    for (let i = pos; i < blockLen; i++)
+      buffer[i] = 0;
+    view.setBigUint64(blockLen - 8, BigInt(this.length * 8), isLE3);
+    this.process(view, 0);
+    const oview = createView3(out);
+    const len = this.outputLen;
+    if (len % 4)
+      throw new Error("_sha2: outputLen must be aligned to 32bit");
+    const outLen = len / 4;
+    const state = this.get();
+    if (outLen > state.length)
+      throw new Error("_sha2: outputLen bigger than state");
+    for (let i = 0; i < outLen; i++)
+      oview.setUint32(4 * i, state[i], isLE3);
+  }
+  digest() {
+    const { buffer, outputLen } = this;
+    this.digestInto(buffer);
+    const res = buffer.slice(0, outputLen);
+    this.destroy();
+    return res;
+  }
+  _cloneInto(to) {
+    to ||= new this.constructor();
+    to.set(...this.get());
+    const { blockLen, buffer, length, finished, destroyed, pos } = this;
+    to.destroyed = destroyed;
+    to.finished = finished;
+    to.length = length;
+    to.pos = pos;
+    if (length % blockLen)
+      to.buffer.set(buffer);
+    return to;
+  }
+  clone() {
+    return this._cloneInto();
+  }
+};
+var SHA256_IV2 = /* @__PURE__ */ Uint32Array.from([
+  1779033703,
+  3144134277,
+  1013904242,
+  2773480762,
+  1359893119,
+  2600822924,
+  528734635,
+  1541459225
+]);
+
+// node_modules/@scure/bip39/node_modules/@noble/hashes/sha2.js
+var SHA256_K2 = /* @__PURE__ */ Uint32Array.from([
+  1116352408,
+  1899447441,
+  3049323471,
+  3921009573,
+  961987163,
+  1508970993,
+  2453635748,
+  2870763221,
+  3624381080,
+  310598401,
+  607225278,
+  1426881987,
+  1925078388,
+  2162078206,
+  2614888103,
+  3248222580,
+  3835390401,
+  4022224774,
+  264347078,
+  604807628,
+  770255983,
+  1249150122,
+  1555081692,
+  1996064986,
+  2554220882,
+  2821834349,
+  2952996808,
+  3210313671,
+  3336571891,
+  3584528711,
+  113926993,
+  338241895,
+  666307205,
+  773529912,
+  1294757372,
+  1396182291,
+  1695183700,
+  1986661051,
+  2177026350,
+  2456956037,
+  2730485921,
+  2820302411,
+  3259730800,
+  3345764771,
+  3516065817,
+  3600352804,
+  4094571909,
+  275423344,
+  430227734,
+  506948616,
+  659060556,
+  883997877,
+  958139571,
+  1322822218,
+  1537002063,
+  1747873779,
+  1955562222,
+  2024104815,
+  2227730452,
+  2361852424,
+  2428436474,
+  2756734187,
+  3204031479,
+  3329325298
+]);
+var SHA256_W2 = /* @__PURE__ */ new Uint32Array(64);
+var SHA2_32B2 = class extends HashMD2 {
+  constructor(outputLen) {
+    super(64, outputLen, 8, false);
+  }
+  get() {
+    const { A, B, C, D, E, F, G: G2, H } = this;
+    return [A, B, C, D, E, F, G2, H];
+  }
+  // prettier-ignore
+  set(A, B, C, D, E, F, G2, H) {
+    this.A = A | 0;
+    this.B = B | 0;
+    this.C = C | 0;
+    this.D = D | 0;
+    this.E = E | 0;
+    this.F = F | 0;
+    this.G = G2 | 0;
+    this.H = H | 0;
+  }
+  process(view, offset) {
+    for (let i = 0; i < 16; i++, offset += 4)
+      SHA256_W2[i] = view.getUint32(offset, false);
+    for (let i = 16; i < 64; i++) {
+      const W15 = SHA256_W2[i - 15];
+      const W2 = SHA256_W2[i - 2];
+      const s0 = rotr2(W15, 7) ^ rotr2(W15, 18) ^ W15 >>> 3;
+      const s1 = rotr2(W2, 17) ^ rotr2(W2, 19) ^ W2 >>> 10;
+      SHA256_W2[i] = s1 + SHA256_W2[i - 7] + s0 + SHA256_W2[i - 16] | 0;
+    }
+    let { A, B, C, D, E, F, G: G2, H } = this;
+    for (let i = 0; i < 64; i++) {
+      const sigma1 = rotr2(E, 6) ^ rotr2(E, 11) ^ rotr2(E, 25);
+      const T1 = H + sigma1 + Chi2(E, F, G2) + SHA256_K2[i] + SHA256_W2[i] | 0;
+      const sigma0 = rotr2(A, 2) ^ rotr2(A, 13) ^ rotr2(A, 22);
+      const T2 = sigma0 + Maj2(A, B, C) | 0;
+      H = G2;
+      G2 = F;
+      F = E;
+      E = D + T1 | 0;
+      D = C;
+      C = B;
+      B = A;
+      A = T1 + T2 | 0;
+    }
+    A = A + this.A | 0;
+    B = B + this.B | 0;
+    C = C + this.C | 0;
+    D = D + this.D | 0;
+    E = E + this.E | 0;
+    F = F + this.F | 0;
+    G2 = G2 + this.G | 0;
+    H = H + this.H | 0;
+    this.set(A, B, C, D, E, F, G2, H);
+  }
+  roundClean() {
+    clean3(SHA256_W2);
+  }
+  destroy() {
+    this.set(0, 0, 0, 0, 0, 0, 0, 0);
+    clean3(this.buffer);
+  }
+};
+var _SHA2562 = class extends SHA2_32B2 {
+  // We cannot use array here since array allows indexing by variable
+  // which means optimizer/compiler cannot use registers.
+  A = SHA256_IV2[0] | 0;
+  B = SHA256_IV2[1] | 0;
+  C = SHA256_IV2[2] | 0;
+  D = SHA256_IV2[3] | 0;
+  E = SHA256_IV2[4] | 0;
+  F = SHA256_IV2[5] | 0;
+  G = SHA256_IV2[6] | 0;
+  H = SHA256_IV2[7] | 0;
+  constructor() {
+    super(32);
+  }
+};
+var sha2562 = /* @__PURE__ */ createHasher3(
+  () => new _SHA2562(),
+  /* @__PURE__ */ oidNist2(1)
+);
+
+// node_modules/@scure/base/index.js
+function isBytes5(a) {
+  return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array";
+}
+function isArrayOf(isString, arr) {
+  if (!Array.isArray(arr))
+    return false;
+  if (arr.length === 0)
+    return true;
+  if (isString) {
+    return arr.every((item) => typeof item === "string");
+  } else {
+    return arr.every((item) => Number.isSafeInteger(item));
+  }
+}
+function afn(input) {
+  if (typeof input !== "function")
+    throw new Error("function expected");
+  return true;
+}
+function astr(label2, input) {
+  if (typeof input !== "string")
+    throw new Error(`${label2}: string expected`);
+  return true;
+}
+function anumber4(n) {
+  if (!Number.isSafeInteger(n))
+    throw new Error(`invalid integer: ${n}`);
+}
+function aArr(input) {
+  if (!Array.isArray(input))
+    throw new Error("array expected");
+}
+function astrArr(label2, input) {
+  if (!isArrayOf(true, input))
+    throw new Error(`${label2}: array of strings expected`);
+}
+function anumArr(label2, input) {
+  if (!isArrayOf(false, input))
+    throw new Error(`${label2}: array of numbers expected`);
+}
+// @__NO_SIDE_EFFECTS__
+function chain(...args) {
+  const id = (a) => a;
+  const wrap = (a, b) => (c) => a(b(c));
+  const encode = args.map((x) => x.encode).reduceRight(wrap, id);
+  const decode = args.map((x) => x.decode).reduce(wrap, id);
+  return { encode, decode };
+}
+// @__NO_SIDE_EFFECTS__
+function alphabet(letters) {
+  const lettersA = typeof letters === "string" ? letters.split("") : letters;
+  const len = lettersA.length;
+  astrArr("alphabet", lettersA);
+  const indexes = new Map(lettersA.map((l, i) => [l, i]));
+  return {
+    encode: (digits) => {
+      aArr(digits);
+      return digits.map((i) => {
+        if (!Number.isSafeInteger(i) || i < 0 || i >= len)
+          throw new Error(`alphabet.encode: digit index outside alphabet "${i}". Allowed: ${letters}`);
+        return lettersA[i];
+      });
+    },
+    decode: (input) => {
+      aArr(input);
+      return input.map((letter) => {
+        astr("alphabet.decode", letter);
+        const i = indexes.get(letter);
+        if (i === void 0)
+          throw new Error(`Unknown letter: "${letter}". Allowed: ${letters}`);
+        return i;
+      });
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function join4(separator = "") {
+  astr("join", separator);
+  return {
+    encode: (from) => {
+      astrArr("join.decode", from);
+      return from.join(separator);
+    },
+    decode: (to) => {
+      astr("join.decode", to);
+      return to.split(separator);
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function padding(bits, chr = "=") {
+  anumber4(bits);
+  astr("padding", chr);
+  return {
+    encode(data) {
+      astrArr("padding.encode", data);
+      while (data.length * bits % 8)
+        data.push(chr);
+      return data;
+    },
+    decode(input) {
+      astrArr("padding.decode", input);
+      let end = input.length;
+      if (end * bits % 8)
+        throw new Error("padding: invalid, string should have whole number of bytes");
+      for (; end > 0 && input[end - 1] === chr; end--) {
+        const last = end - 1;
+        const byte = last * bits;
+        if (byte % 8 === 0)
+          throw new Error("padding: invalid, string has too much padding");
+      }
+      return input.slice(0, end);
+    }
+  };
+}
+function convertRadix(data, from, to) {
+  if (from < 2)
+    throw new Error(`convertRadix: invalid from=${from}, base cannot be less than 2`);
+  if (to < 2)
+    throw new Error(`convertRadix: invalid to=${to}, base cannot be less than 2`);
+  aArr(data);
+  if (!data.length)
+    return [];
+  let pos = 0;
+  const res = [];
+  const digits = Array.from(data, (d) => {
+    anumber4(d);
+    if (d < 0 || d >= from)
+      throw new Error(`invalid integer: ${d}`);
+    return d;
+  });
+  const dlen = digits.length;
+  while (true) {
+    let carry = 0;
+    let done = true;
+    for (let i = pos; i < dlen; i++) {
+      const digit = digits[i];
+      const fromCarry = from * carry;
+      const digitBase = fromCarry + digit;
+      if (!Number.isSafeInteger(digitBase) || fromCarry / from !== carry || digitBase - digit !== fromCarry) {
+        throw new Error("convertRadix: carry overflow");
+      }
+      const div = digitBase / to;
+      carry = digitBase % to;
+      const rounded = Math.floor(div);
+      digits[i] = rounded;
+      if (!Number.isSafeInteger(rounded) || rounded * to + carry !== digitBase)
+        throw new Error("convertRadix: carry overflow");
+      if (!done)
+        continue;
+      else if (!rounded)
+        pos = i;
+      else
+        done = false;
+    }
+    res.push(carry);
+    if (done)
+      break;
+  }
+  for (let i = 0; i < data.length - 1 && data[i] === 0; i++)
+    res.push(0);
+  return res.reverse();
+}
+var gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+var radix2carry = /* @__NO_SIDE_EFFECTS__ */ (from, to) => from + (to - gcd(from, to));
+var powers = /* @__PURE__ */ (() => {
+  let res = [];
+  for (let i = 0; i < 40; i++)
+    res.push(2 ** i);
+  return res;
+})();
+function convertRadix2(data, from, to, padding2) {
+  aArr(data);
+  if (from <= 0 || from > 32)
+    throw new Error(`convertRadix2: wrong from=${from}`);
+  if (to <= 0 || to > 32)
+    throw new Error(`convertRadix2: wrong to=${to}`);
+  if (/* @__PURE__ */ radix2carry(from, to) > 32) {
+    throw new Error(`convertRadix2: carry overflow from=${from} to=${to} carryBits=${/* @__PURE__ */ radix2carry(from, to)}`);
+  }
+  let carry = 0;
+  let pos = 0;
+  const max = powers[from];
+  const mask2 = powers[to] - 1;
+  const res = [];
+  for (const n of data) {
+    anumber4(n);
+    if (n >= max)
+      throw new Error(`convertRadix2: invalid data word=${n} from=${from}`);
+    carry = carry << from | n;
+    if (pos + from > 32)
+      throw new Error(`convertRadix2: carry overflow pos=${pos} from=${from}`);
+    pos += from;
+    for (; pos >= to; pos -= to)
+      res.push((carry >> pos - to & mask2) >>> 0);
+    const pow = powers[pos];
+    if (pow === void 0)
+      throw new Error("invalid carry");
+    carry &= pow - 1;
+  }
+  carry = carry << to - pos & mask2;
+  if (!padding2 && pos >= from)
+    throw new Error("Excess padding");
+  if (!padding2 && carry > 0)
+    throw new Error(`Non-zero padding: ${carry}`);
+  if (padding2 && pos > 0)
+    res.push(carry >>> 0);
+  return res;
+}
+// @__NO_SIDE_EFFECTS__
+function radix(num) {
+  anumber4(num);
+  const _256 = 2 ** 8;
+  return {
+    encode: (bytes4) => {
+      if (!isBytes5(bytes4))
+        throw new Error("radix.encode input should be Uint8Array");
+      return convertRadix(Array.from(bytes4), _256, num);
+    },
+    decode: (digits) => {
+      anumArr("radix.decode", digits);
+      return Uint8Array.from(convertRadix(digits, num, _256));
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function radix2(bits, revPadding = false) {
+  anumber4(bits);
+  if (bits <= 0 || bits > 32)
+    throw new Error("radix2: bits should be in (0..32]");
+  if (/* @__PURE__ */ radix2carry(8, bits) > 32 || /* @__PURE__ */ radix2carry(bits, 8) > 32)
+    throw new Error("radix2: carry overflow");
+  return {
+    encode: (bytes4) => {
+      if (!isBytes5(bytes4))
+        throw new Error("radix2.encode input should be Uint8Array");
+      return convertRadix2(Array.from(bytes4), 8, bits, !revPadding);
+    },
+    decode: (digits) => {
+      anumArr("radix2.decode", digits);
+      return Uint8Array.from(convertRadix2(digits, bits, 8, revPadding));
+    }
+  };
+}
+function checksum(len, fn) {
+  anumber4(len);
+  afn(fn);
+  return {
+    encode(data) {
+      if (!isBytes5(data))
+        throw new Error("checksum.encode: input should be Uint8Array");
+      const sum = fn(data).slice(0, len);
+      const res = new Uint8Array(data.length + len);
+      res.set(data);
+      res.set(sum, data.length);
+      return res;
+    },
+    decode(data) {
+      if (!isBytes5(data))
+        throw new Error("checksum.decode: input should be Uint8Array");
+      const payload = data.slice(0, -len);
+      const oldChecksum = data.slice(-len);
+      const newChecksum = fn(payload).slice(0, len);
+      for (let i = 0; i < len; i++)
+        if (newChecksum[i] !== oldChecksum[i])
+          throw new Error("Invalid checksum");
+      return payload;
+    }
+  };
+}
+var utils = {
+  alphabet,
+  chain,
+  checksum,
+  convertRadix,
+  convertRadix2,
+  radix,
+  radix2,
+  join: join4,
+  padding
+};
+
+// node_modules/@scure/bip39/index.js
+function nfkd(str) {
+  if (typeof str !== "string")
+    throw new TypeError("invalid mnemonic type: " + typeof str);
+  return str.normalize("NFKD");
+}
+function normalize(str) {
+  const norm = nfkd(str);
+  const words = norm.split(" ");
+  if (![12, 15, 18, 21, 24].includes(words.length))
+    throw new Error("Invalid mnemonic");
+  return { nfkd: norm, words };
+}
+function aentropy(ent) {
+  abytes4(ent);
+  if (![16, 20, 24, 28, 32].includes(ent.length))
+    throw new Error("invalid entropy length");
+}
+var calcChecksum = (entropy) => {
+  const bitsLeft = 8 - entropy.length / 4;
+  return new Uint8Array([sha2562(entropy)[0] >> bitsLeft << bitsLeft]);
+};
+function getCoder(wordlist2) {
+  if (!Array.isArray(wordlist2) || wordlist2.length !== 2048 || typeof wordlist2[0] !== "string")
+    throw new Error("Wordlist: expected array of 2048 strings");
+  wordlist2.forEach((i) => {
+    if (typeof i !== "string")
+      throw new Error("wordlist: non-string element: " + i);
+  });
+  return utils.chain(utils.checksum(1, calcChecksum), utils.radix2(11, true), utils.alphabet(wordlist2));
+}
+function mnemonicToEntropy(mnemonic, wordlist2) {
+  const { words } = normalize(mnemonic);
+  const entropy = getCoder(wordlist2).decode(words);
+  aentropy(entropy);
+  return entropy;
+}
+function validateMnemonic(mnemonic, wordlist2) {
+  try {
+    mnemonicToEntropy(mnemonic, wordlist2);
+  } catch (e) {
+    return false;
+  }
+  return true;
+}
+
+// node_modules/@scure/bip39/wordlists/english.js
+var wordlist = `abandon
+ability
+able
+about
+above
+absent
+absorb
+abstract
+absurd
+abuse
+access
+accident
+account
+accuse
+achieve
+acid
+acoustic
+acquire
+across
+act
+action
+actor
+actress
+actual
+adapt
+add
+addict
+address
+adjust
+admit
+adult
+advance
+advice
+aerobic
+affair
+afford
+afraid
+again
+age
+agent
+agree
+ahead
+aim
+air
+airport
+aisle
+alarm
+album
+alcohol
+alert
+alien
+all
+alley
+allow
+almost
+alone
+alpha
+already
+also
+alter
+always
+amateur
+amazing
+among
+amount
+amused
+analyst
+anchor
+ancient
+anger
+angle
+angry
+animal
+ankle
+announce
+annual
+another
+answer
+antenna
+antique
+anxiety
+any
+apart
+apology
+appear
+apple
+approve
+april
+arch
+arctic
+area
+arena
+argue
+arm
+armed
+armor
+army
+around
+arrange
+arrest
+arrive
+arrow
+art
+artefact
+artist
+artwork
+ask
+aspect
+assault
+asset
+assist
+assume
+asthma
+athlete
+atom
+attack
+attend
+attitude
+attract
+auction
+audit
+august
+aunt
+author
+auto
+autumn
+average
+avocado
+avoid
+awake
+aware
+away
+awesome
+awful
+awkward
+axis
+baby
+bachelor
+bacon
+badge
+bag
+balance
+balcony
+ball
+bamboo
+banana
+banner
+bar
+barely
+bargain
+barrel
+base
+basic
+basket
+battle
+beach
+bean
+beauty
+because
+become
+beef
+before
+begin
+behave
+behind
+believe
+below
+belt
+bench
+benefit
+best
+betray
+better
+between
+beyond
+bicycle
+bid
+bike
+bind
+biology
+bird
+birth
+bitter
+black
+blade
+blame
+blanket
+blast
+bleak
+bless
+blind
+blood
+blossom
+blouse
+blue
+blur
+blush
+board
+boat
+body
+boil
+bomb
+bone
+bonus
+book
+boost
+border
+boring
+borrow
+boss
+bottom
+bounce
+box
+boy
+bracket
+brain
+brand
+brass
+brave
+bread
+breeze
+brick
+bridge
+brief
+bright
+bring
+brisk
+broccoli
+broken
+bronze
+broom
+brother
+brown
+brush
+bubble
+buddy
+budget
+buffalo
+build
+bulb
+bulk
+bullet
+bundle
+bunker
+burden
+burger
+burst
+bus
+business
+busy
+butter
+buyer
+buzz
+cabbage
+cabin
+cable
+cactus
+cage
+cake
+call
+calm
+camera
+camp
+can
+canal
+cancel
+candy
+cannon
+canoe
+canvas
+canyon
+capable
+capital
+captain
+car
+carbon
+card
+cargo
+carpet
+carry
+cart
+case
+cash
+casino
+castle
+casual
+cat
+catalog
+catch
+category
+cattle
+caught
+cause
+caution
+cave
+ceiling
+celery
+cement
+census
+century
+cereal
+certain
+chair
+chalk
+champion
+change
+chaos
+chapter
+charge
+chase
+chat
+cheap
+check
+cheese
+chef
+cherry
+chest
+chicken
+chief
+child
+chimney
+choice
+choose
+chronic
+chuckle
+chunk
+churn
+cigar
+cinnamon
+circle
+citizen
+city
+civil
+claim
+clap
+clarify
+claw
+clay
+clean
+clerk
+clever
+click
+client
+cliff
+climb
+clinic
+clip
+clock
+clog
+close
+cloth
+cloud
+clown
+club
+clump
+cluster
+clutch
+coach
+coast
+coconut
+code
+coffee
+coil
+coin
+collect
+color
+column
+combine
+come
+comfort
+comic
+common
+company
+concert
+conduct
+confirm
+congress
+connect
+consider
+control
+convince
+cook
+cool
+copper
+copy
+coral
+core
+corn
+correct
+cost
+cotton
+couch
+country
+couple
+course
+cousin
+cover
+coyote
+crack
+cradle
+craft
+cram
+crane
+crash
+crater
+crawl
+crazy
+cream
+credit
+creek
+crew
+cricket
+crime
+crisp
+critic
+crop
+cross
+crouch
+crowd
+crucial
+cruel
+cruise
+crumble
+crunch
+crush
+cry
+crystal
+cube
+culture
+cup
+cupboard
+curious
+current
+curtain
+curve
+cushion
+custom
+cute
+cycle
+dad
+damage
+damp
+dance
+danger
+daring
+dash
+daughter
+dawn
+day
+deal
+debate
+debris
+decade
+december
+decide
+decline
+decorate
+decrease
+deer
+defense
+define
+defy
+degree
+delay
+deliver
+demand
+demise
+denial
+dentist
+deny
+depart
+depend
+deposit
+depth
+deputy
+derive
+describe
+desert
+design
+desk
+despair
+destroy
+detail
+detect
+develop
+device
+devote
+diagram
+dial
+diamond
+diary
+dice
+diesel
+diet
+differ
+digital
+dignity
+dilemma
+dinner
+dinosaur
+direct
+dirt
+disagree
+discover
+disease
+dish
+dismiss
+disorder
+display
+distance
+divert
+divide
+divorce
+dizzy
+doctor
+document
+dog
+doll
+dolphin
+domain
+donate
+donkey
+donor
+door
+dose
+double
+dove
+draft
+dragon
+drama
+drastic
+draw
+dream
+dress
+drift
+drill
+drink
+drip
+drive
+drop
+drum
+dry
+duck
+dumb
+dune
+during
+dust
+dutch
+duty
+dwarf
+dynamic
+eager
+eagle
+early
+earn
+earth
+easily
+east
+easy
+echo
+ecology
+economy
+edge
+edit
+educate
+effort
+egg
+eight
+either
+elbow
+elder
+electric
+elegant
+element
+elephant
+elevator
+elite
+else
+embark
+embody
+embrace
+emerge
+emotion
+employ
+empower
+empty
+enable
+enact
+end
+endless
+endorse
+enemy
+energy
+enforce
+engage
+engine
+enhance
+enjoy
+enlist
+enough
+enrich
+enroll
+ensure
+enter
+entire
+entry
+envelope
+episode
+equal
+equip
+era
+erase
+erode
+erosion
+error
+erupt
+escape
+essay
+essence
+estate
+eternal
+ethics
+evidence
+evil
+evoke
+evolve
+exact
+example
+excess
+exchange
+excite
+exclude
+excuse
+execute
+exercise
+exhaust
+exhibit
+exile
+exist
+exit
+exotic
+expand
+expect
+expire
+explain
+expose
+express
+extend
+extra
+eye
+eyebrow
+fabric
+face
+faculty
+fade
+faint
+faith
+fall
+false
+fame
+family
+famous
+fan
+fancy
+fantasy
+farm
+fashion
+fat
+fatal
+father
+fatigue
+fault
+favorite
+feature
+february
+federal
+fee
+feed
+feel
+female
+fence
+festival
+fetch
+fever
+few
+fiber
+fiction
+field
+figure
+file
+film
+filter
+final
+find
+fine
+finger
+finish
+fire
+firm
+first
+fiscal
+fish
+fit
+fitness
+fix
+flag
+flame
+flash
+flat
+flavor
+flee
+flight
+flip
+float
+flock
+floor
+flower
+fluid
+flush
+fly
+foam
+focus
+fog
+foil
+fold
+follow
+food
+foot
+force
+forest
+forget
+fork
+fortune
+forum
+forward
+fossil
+foster
+found
+fox
+fragile
+frame
+frequent
+fresh
+friend
+fringe
+frog
+front
+frost
+frown
+frozen
+fruit
+fuel
+fun
+funny
+furnace
+fury
+future
+gadget
+gain
+galaxy
+gallery
+game
+gap
+garage
+garbage
+garden
+garlic
+garment
+gas
+gasp
+gate
+gather
+gauge
+gaze
+general
+genius
+genre
+gentle
+genuine
+gesture
+ghost
+giant
+gift
+giggle
+ginger
+giraffe
+girl
+give
+glad
+glance
+glare
+glass
+glide
+glimpse
+globe
+gloom
+glory
+glove
+glow
+glue
+goat
+goddess
+gold
+good
+goose
+gorilla
+gospel
+gossip
+govern
+gown
+grab
+grace
+grain
+grant
+grape
+grass
+gravity
+great
+green
+grid
+grief
+grit
+grocery
+group
+grow
+grunt
+guard
+guess
+guide
+guilt
+guitar
+gun
+gym
+habit
+hair
+half
+hammer
+hamster
+hand
+happy
+harbor
+hard
+harsh
+harvest
+hat
+have
+hawk
+hazard
+head
+health
+heart
+heavy
+hedgehog
+height
+hello
+helmet
+help
+hen
+hero
+hidden
+high
+hill
+hint
+hip
+hire
+history
+hobby
+hockey
+hold
+hole
+holiday
+hollow
+home
+honey
+hood
+hope
+horn
+horror
+horse
+hospital
+host
+hotel
+hour
+hover
+hub
+huge
+human
+humble
+humor
+hundred
+hungry
+hunt
+hurdle
+hurry
+hurt
+husband
+hybrid
+ice
+icon
+idea
+identify
+idle
+ignore
+ill
+illegal
+illness
+image
+imitate
+immense
+immune
+impact
+impose
+improve
+impulse
+inch
+include
+income
+increase
+index
+indicate
+indoor
+industry
+infant
+inflict
+inform
+inhale
+inherit
+initial
+inject
+injury
+inmate
+inner
+innocent
+input
+inquiry
+insane
+insect
+inside
+inspire
+install
+intact
+interest
+into
+invest
+invite
+involve
+iron
+island
+isolate
+issue
+item
+ivory
+jacket
+jaguar
+jar
+jazz
+jealous
+jeans
+jelly
+jewel
+job
+join
+joke
+journey
+joy
+judge
+juice
+jump
+jungle
+junior
+junk
+just
+kangaroo
+keen
+keep
+ketchup
+key
+kick
+kid
+kidney
+kind
+kingdom
+kiss
+kit
+kitchen
+kite
+kitten
+kiwi
+knee
+knife
+knock
+know
+lab
+label
+labor
+ladder
+lady
+lake
+lamp
+language
+laptop
+large
+later
+latin
+laugh
+laundry
+lava
+law
+lawn
+lawsuit
+layer
+lazy
+leader
+leaf
+learn
+leave
+lecture
+left
+leg
+legal
+legend
+leisure
+lemon
+lend
+length
+lens
+leopard
+lesson
+letter
+level
+liar
+liberty
+library
+license
+life
+lift
+light
+like
+limb
+limit
+link
+lion
+liquid
+list
+little
+live
+lizard
+load
+loan
+lobster
+local
+lock
+logic
+lonely
+long
+loop
+lottery
+loud
+lounge
+love
+loyal
+lucky
+luggage
+lumber
+lunar
+lunch
+luxury
+lyrics
+machine
+mad
+magic
+magnet
+maid
+mail
+main
+major
+make
+mammal
+man
+manage
+mandate
+mango
+mansion
+manual
+maple
+marble
+march
+margin
+marine
+market
+marriage
+mask
+mass
+master
+match
+material
+math
+matrix
+matter
+maximum
+maze
+meadow
+mean
+measure
+meat
+mechanic
+medal
+media
+melody
+melt
+member
+memory
+mention
+menu
+mercy
+merge
+merit
+merry
+mesh
+message
+metal
+method
+middle
+midnight
+milk
+million
+mimic
+mind
+minimum
+minor
+minute
+miracle
+mirror
+misery
+miss
+mistake
+mix
+mixed
+mixture
+mobile
+model
+modify
+mom
+moment
+monitor
+monkey
+monster
+month
+moon
+moral
+more
+morning
+mosquito
+mother
+motion
+motor
+mountain
+mouse
+move
+movie
+much
+muffin
+mule
+multiply
+muscle
+museum
+mushroom
+music
+must
+mutual
+myself
+mystery
+myth
+naive
+name
+napkin
+narrow
+nasty
+nation
+nature
+near
+neck
+need
+negative
+neglect
+neither
+nephew
+nerve
+nest
+net
+network
+neutral
+never
+news
+next
+nice
+night
+noble
+noise
+nominee
+noodle
+normal
+north
+nose
+notable
+note
+nothing
+notice
+novel
+now
+nuclear
+number
+nurse
+nut
+oak
+obey
+object
+oblige
+obscure
+observe
+obtain
+obvious
+occur
+ocean
+october
+odor
+off
+offer
+office
+often
+oil
+okay
+old
+olive
+olympic
+omit
+once
+one
+onion
+online
+only
+open
+opera
+opinion
+oppose
+option
+orange
+orbit
+orchard
+order
+ordinary
+organ
+orient
+original
+orphan
+ostrich
+other
+outdoor
+outer
+output
+outside
+oval
+oven
+over
+own
+owner
+oxygen
+oyster
+ozone
+pact
+paddle
+page
+pair
+palace
+palm
+panda
+panel
+panic
+panther
+paper
+parade
+parent
+park
+parrot
+party
+pass
+patch
+path
+patient
+patrol
+pattern
+pause
+pave
+payment
+peace
+peanut
+pear
+peasant
+pelican
+pen
+penalty
+pencil
+people
+pepper
+perfect
+permit
+person
+pet
+phone
+photo
+phrase
+physical
+piano
+picnic
+picture
+piece
+pig
+pigeon
+pill
+pilot
+pink
+pioneer
+pipe
+pistol
+pitch
+pizza
+place
+planet
+plastic
+plate
+play
+please
+pledge
+pluck
+plug
+plunge
+poem
+poet
+point
+polar
+pole
+police
+pond
+pony
+pool
+popular
+portion
+position
+possible
+post
+potato
+pottery
+poverty
+powder
+power
+practice
+praise
+predict
+prefer
+prepare
+present
+pretty
+prevent
+price
+pride
+primary
+print
+priority
+prison
+private
+prize
+problem
+process
+produce
+profit
+program
+project
+promote
+proof
+property
+prosper
+protect
+proud
+provide
+public
+pudding
+pull
+pulp
+pulse
+pumpkin
+punch
+pupil
+puppy
+purchase
+purity
+purpose
+purse
+push
+put
+puzzle
+pyramid
+quality
+quantum
+quarter
+question
+quick
+quit
+quiz
+quote
+rabbit
+raccoon
+race
+rack
+radar
+radio
+rail
+rain
+raise
+rally
+ramp
+ranch
+random
+range
+rapid
+rare
+rate
+rather
+raven
+raw
+razor
+ready
+real
+reason
+rebel
+rebuild
+recall
+receive
+recipe
+record
+recycle
+reduce
+reflect
+reform
+refuse
+region
+regret
+regular
+reject
+relax
+release
+relief
+rely
+remain
+remember
+remind
+remove
+render
+renew
+rent
+reopen
+repair
+repeat
+replace
+report
+require
+rescue
+resemble
+resist
+resource
+response
+result
+retire
+retreat
+return
+reunion
+reveal
+review
+reward
+rhythm
+rib
+ribbon
+rice
+rich
+ride
+ridge
+rifle
+right
+rigid
+ring
+riot
+ripple
+risk
+ritual
+rival
+river
+road
+roast
+robot
+robust
+rocket
+romance
+roof
+rookie
+room
+rose
+rotate
+rough
+round
+route
+royal
+rubber
+rude
+rug
+rule
+run
+runway
+rural
+sad
+saddle
+sadness
+safe
+sail
+salad
+salmon
+salon
+salt
+salute
+same
+sample
+sand
+satisfy
+satoshi
+sauce
+sausage
+save
+say
+scale
+scan
+scare
+scatter
+scene
+scheme
+school
+science
+scissors
+scorpion
+scout
+scrap
+screen
+script
+scrub
+sea
+search
+season
+seat
+second
+secret
+section
+security
+seed
+seek
+segment
+select
+sell
+seminar
+senior
+sense
+sentence
+series
+service
+session
+settle
+setup
+seven
+shadow
+shaft
+shallow
+share
+shed
+shell
+sheriff
+shield
+shift
+shine
+ship
+shiver
+shock
+shoe
+shoot
+shop
+short
+shoulder
+shove
+shrimp
+shrug
+shuffle
+shy
+sibling
+sick
+side
+siege
+sight
+sign
+silent
+silk
+silly
+silver
+similar
+simple
+since
+sing
+siren
+sister
+situate
+six
+size
+skate
+sketch
+ski
+skill
+skin
+skirt
+skull
+slab
+slam
+sleep
+slender
+slice
+slide
+slight
+slim
+slogan
+slot
+slow
+slush
+small
+smart
+smile
+smoke
+smooth
+snack
+snake
+snap
+sniff
+snow
+soap
+soccer
+social
+sock
+soda
+soft
+solar
+soldier
+solid
+solution
+solve
+someone
+song
+soon
+sorry
+sort
+soul
+sound
+soup
+source
+south
+space
+spare
+spatial
+spawn
+speak
+special
+speed
+spell
+spend
+sphere
+spice
+spider
+spike
+spin
+spirit
+split
+spoil
+sponsor
+spoon
+sport
+spot
+spray
+spread
+spring
+spy
+square
+squeeze
+squirrel
+stable
+stadium
+staff
+stage
+stairs
+stamp
+stand
+start
+state
+stay
+steak
+steel
+stem
+step
+stereo
+stick
+still
+sting
+stock
+stomach
+stone
+stool
+story
+stove
+strategy
+street
+strike
+strong
+struggle
+student
+stuff
+stumble
+style
+subject
+submit
+subway
+success
+such
+sudden
+suffer
+sugar
+suggest
+suit
+summer
+sun
+sunny
+sunset
+super
+supply
+supreme
+sure
+surface
+surge
+surprise
+surround
+survey
+suspect
+sustain
+swallow
+swamp
+swap
+swarm
+swear
+sweet
+swift
+swim
+swing
+switch
+sword
+symbol
+symptom
+syrup
+system
+table
+tackle
+tag
+tail
+talent
+talk
+tank
+tape
+target
+task
+taste
+tattoo
+taxi
+teach
+team
+tell
+ten
+tenant
+tennis
+tent
+term
+test
+text
+thank
+that
+theme
+then
+theory
+there
+they
+thing
+this
+thought
+three
+thrive
+throw
+thumb
+thunder
+ticket
+tide
+tiger
+tilt
+timber
+time
+tiny
+tip
+tired
+tissue
+title
+toast
+tobacco
+today
+toddler
+toe
+together
+toilet
+token
+tomato
+tomorrow
+tone
+tongue
+tonight
+tool
+tooth
+top
+topic
+topple
+torch
+tornado
+tortoise
+toss
+total
+tourist
+toward
+tower
+town
+toy
+track
+trade
+traffic
+tragic
+train
+transfer
+trap
+trash
+travel
+tray
+treat
+tree
+trend
+trial
+tribe
+trick
+trigger
+trim
+trip
+trophy
+trouble
+truck
+true
+truly
+trumpet
+trust
+truth
+try
+tube
+tuition
+tumble
+tuna
+tunnel
+turkey
+turn
+turtle
+twelve
+twenty
+twice
+twin
+twist
+two
+type
+typical
+ugly
+umbrella
+unable
+unaware
+uncle
+uncover
+under
+undo
+unfair
+unfold
+unhappy
+uniform
+unique
+unit
+universe
+unknown
+unlock
+until
+unusual
+unveil
+update
+upgrade
+uphold
+upon
+upper
+upset
+urban
+urge
+usage
+use
+used
+useful
+useless
+usual
+utility
+vacant
+vacuum
+vague
+valid
+valley
+valve
+van
+vanish
+vapor
+various
+vast
+vault
+vehicle
+velvet
+vendor
+venture
+venue
+verb
+verify
+version
+very
+vessel
+veteran
+viable
+vibrant
+vicious
+victory
+video
+view
+village
+vintage
+violin
+virtual
+virus
+visa
+visit
+visual
+vital
+vivid
+vocal
+voice
+void
+volcano
+volume
+vote
+voyage
+wage
+wagon
+wait
+walk
+wall
+walnut
+want
+warfare
+warm
+warrior
+wash
+wasp
+waste
+water
+wave
+way
+wealth
+weapon
+wear
+weasel
+weather
+web
+wedding
+weekend
+weird
+welcome
+west
+wet
+whale
+what
+wheat
+wheel
+when
+where
+whip
+whisper
+wide
+width
+wife
+wild
+will
+win
+window
+wine
+wing
+wink
+winner
+winter
+wire
+wisdom
+wise
+wish
+witness
+wolf
+woman
+wonder
+wood
+wool
+word
+work
+world
+worry
+worth
+wrap
+wreck
+wrestle
+wrist
+write
+wrong
+yard
+year
+yellow
+you
+young
+youth
+zebra
+zero
+zone
+zoo`.split("\n");
 
 // node_modules/@noble/hashes/hkdf.js
 function extract(hash, ikm, salt) {
@@ -5938,8 +8995,17 @@ async function pbkdf2Async(hash, password, salt, opts) {
 }
 
 // src/zk-wallet.js
-var utf84 = new TextEncoder();
-var label = (name) => utf84.encode("NeuraiZK/v1/" + name);
+var utf86 = new TextEncoder();
+var label = (name) => utf86.encode("NeuraiZK/v2/" + name);
+var NZK_DERIVATION = "NeuraiZK/v2";
+var NZK_FAMILIES = Object.freeze({ legacy: 0, ecdsa: 1, pq: 2 });
+function familyByte(family) {
+  if (!Object.hasOwn(NZK_FAMILIES, family)) fail("family must be legacy, ecdsa or pq");
+  return Uint8Array.of(NZK_FAMILIES[family]);
+}
+function accountScope({ family, account = 0, domain, assetId }) {
+  return concat5(familyByte(family), u32le(index31(account, "account")), bytes324(domain, "domain"), bytes324(assetId, "assetId"));
+}
 var NZK_ARGON2ID = Object.freeze({ t: 3, m: 64 * 1024, p: 1, dkLen: 64 });
 var NZK_HRP = Object.freeze({ mainnet: "nzk", testnet: "tnzk", regtest: "rnzk" });
 var NZK_DEFAULT_GAP = 20;
@@ -5960,7 +9026,7 @@ var SMALL_ORDER_U = /* @__PURE__ */ new Set([
 function fail(reason) {
   throw new Error("nzk: " + reason);
 }
-function concat4(...parts) {
+function concat5(...parts) {
   const out = new Uint8Array(parts.reduce((n, part) => n + part.length, 0));
   let at = 0;
   for (const part of parts) {
@@ -5974,19 +9040,19 @@ function u32le(value) {
   new DataView(out.buffer).setUint32(0, value, true);
   return out;
 }
-function hex4(bytes3) {
-  return Array.from(bytes3, (b) => b.toString(16).padStart(2, "0")).join("");
+function hex5(bytes4) {
+  return Array.from(bytes4, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 function bytes324(value, name) {
   if (value instanceof Uint8Array && value.length === 32) return value;
   if (typeof value === "string" && /^[0-9a-f]{64}$/i.test(value)) return Uint8Array.from(value.match(/../g), (b) => parseInt(b, 16));
   return fail(name + " must be 32 bytes");
 }
-function beInt(bytes3) {
-  return BigInt("0x" + (hex4(bytes3) || "0"));
+function beInt(bytes4) {
+  return BigInt("0x" + (hex5(bytes4) || "0"));
 }
-function leInt(bytes3) {
-  return beInt(Uint8Array.from(bytes3).reverse());
+function leInt(bytes4) {
+  return beInt(Uint8Array.from(bytes4).reverse());
 }
 function index31(value, name) {
   if (!Number.isInteger(value) || value < 0 || value >= MAX_INDEX2) fail(name + " must be an integer in [0, 2^31)");
@@ -6029,12 +9095,12 @@ function convertBits(data, from, to, pad) {
   } else if (bits >= from || acc << to - bits & max) fail("invalid bit padding");
   return out;
 }
-function bech32mEncode(hrp, bytes3) {
+function bech32mEncode(hrp, bytes4) {
   if (!/^[a-z]{1,83}$/.test(hrp)) fail("invalid HRP");
-  const data = convertBits(bytes3, 8, 5, true);
+  const data = convertBits(bytes4, 8, 5, true);
   const mod2 = polymod([...expandHrp(hrp), ...data, 0, 0, 0, 0, 0, 0]) ^ BECH32M_CONST;
-  const checksum = [0, 1, 2, 3, 4, 5].map((i) => mod2 >>> 5 * (5 - i) & 31);
-  return hrp + "1" + [...data, ...checksum].map((v) => CHARSET[v]).join("");
+  const checksum2 = [0, 1, 2, 3, 4, 5].map((i) => mod2 >>> 5 * (5 - i) & 31);
+  return hrp + "1" + [...data, ...checksum2].map((v) => CHARSET[v]).join("");
 }
 function bech32mDecode(text2) {
   if (typeof text2 !== "string" || text2.length > 1023) fail("address must be a string");
@@ -6054,46 +9120,50 @@ function bech32mDecode(text2) {
 async function walletSeedFromMnemonic(mnemonic, passphrase = "") {
   if (typeof mnemonic !== "string" || !mnemonic.trim()) fail("mnemonic required");
   if (typeof passphrase !== "string") fail("passphrase must be a string");
+  const canonical2 = mnemonic.normalize("NFKD").trim().split(/\s+/u).join(" ");
+  if (!validateMnemonic(canonical2, wordlist)) fail("invalid English BIP39 mnemonic");
   return pbkdf2Async(
     sha512,
-    utf84.encode(mnemonic.normalize("NFKD")),
-    utf84.encode("mnemonic" + passphrase.normalize("NFKD")),
+    utf86.encode(canonical2),
+    utf86.encode("mnemonic" + passphrase.normalize("NFKD")),
     { c: 2048, dkLen: 64 }
   );
 }
 async function deriveZkRoot(seed, zkPassphrase = "") {
   if (!(seed instanceof Uint8Array) || seed.length !== 64) fail("wallet seed must be 64 bytes");
   if (typeof zkPassphrase !== "string") fail("ZK passphrase must be a string");
-  const z = utf84.encode(zkPassphrase.normalize("NFKD"));
-  const password = concat4(seed, u32le(z.length), z);
+  const z = utf86.encode(zkPassphrase.normalize("NFKD"));
+  if (z.length > 4294967295) fail("ZK passphrase is too long");
+  const password = concat5(seed, u32le(z.length), z);
   try {
-    return await argon2idAsync(password, label("root"), { ...NZK_ARGON2ID, maxmem: NZK_ARGON2ID.m * 1024 });
+    return await argon2idAsync(password, label("root"), { ...NZK_ARGON2ID, version: 19, maxmem: NZK_ARGON2ID.m * 1024 });
   } finally {
     password.fill(0);
+    z.fill(0);
   }
 }
 function accountPrk(root) {
   if (!(root instanceof Uint8Array) || root.length !== 64) fail("ZK root must be 64 bytes");
   return extract(sha256, root, label("account"));
 }
-function fingerprintFromPrk(prk) {
-  return hex4(sha256(expand(sha256, prk, label("fingerprint"), 32)).subarray(0, 4));
+function fingerprintFromPrk(prk, options) {
+  return hex5(sha256(expand(sha256, prk, concat5(label("fingerprint"), accountScope(options)), 32)).subarray(0, 4));
 }
-function zkFingerprint(root) {
+function zkFingerprint(root, options) {
   const prk = accountPrk(root);
   try {
-    return fingerprintFromPrk(prk);
+    return fingerprintFromPrk(prk, options);
   } finally {
     prk.fill(0);
   }
 }
-function keysFromPrk(prk, { account, chain, index, domain, assetId }) {
+function keysFromPrk(prk, { family, account = 0, chain: chain2, index, domain, assetId }) {
   index31(account, "account");
   index31(index, "address index");
-  if (chain !== CHAIN_RECEIVING && chain !== CHAIN_CHANGE) fail("chain must be 0 (receiving) or 1 (change)");
-  const scope = concat4(u32le(account), u32le(chain), u32le(index), bytes324(domain, "domain"), bytes324(assetId, "assetId"));
-  const spendSecret = expand(sha256, prk, concat4(label("spend"), scope), 32);
-  const viewSeed = expand(sha256, prk, concat4(label("view"), scope), 32);
+  if (chain2 !== CHAIN_RECEIVING && chain2 !== CHAIN_CHANGE) fail("chain must be 0 (receiving) or 1 (change)");
+  const scope = concat5(familyByte(family), u32le(account), u32le(chain2), u32le(index), bytes324(domain, "domain"), bytes324(assetId, "assetId"));
+  const spendSecret = expand(sha256, prk, concat5(label("spend"), scope), 32);
+  const viewSeed = expand(sha256, prk, concat5(label("view"), scope), 32);
   if (spendSecret.every((b) => b === 0)) fail("invalid derived spend secret");
   return { spendSecret, viewSeed };
 }
@@ -6106,7 +9176,7 @@ function deriveZkAddressKeys(root, options) {
   }
 }
 function nzkInstanceTag(domain, assetId) {
-  return sha256(concat4(label("instance"), bytes324(domain, "domain"), bytes324(assetId, "assetId"))).subarray(0, 4);
+  return sha256(concat5(utf86.encode("NeuraiZK/v1/instance"), bytes324(domain, "domain"), bytes324(assetId, "assetId"))).subarray(0, 4);
 }
 function encodeNzkAddress(descriptor2, network) {
   if (!descriptor2 || typeof descriptor2 !== "object") fail("descriptor required");
@@ -6114,7 +9184,7 @@ function encodeNzkAddress(descriptor2, network) {
   const viewPub = bytes324(descriptor2.view_pub, "view_pub");
   checkOwner(owner);
   checkViewPublic(viewPub);
-  const payload = concat4(Uint8Array.of(1), owner, viewPub, nzkInstanceTag(descriptor2.domain, descriptor2.asset_id));
+  const payload = concat5(Uint8Array.of(1), owner, viewPub, nzkInstanceTag(descriptor2.domain, descriptor2.asset_id));
   return bech32mEncode(hrpFor(network), payload);
 }
 function checkOwner(owner) {
@@ -6127,39 +9197,46 @@ function checkViewPublic(viewPub) {
   if (SMALL_ORDER_U.has(u)) fail("view key has small order");
 }
 function decodeNzkAddress(address, { network, domain, assetId }) {
-  const { hrp, bytes: bytes3 } = bech32mDecode(address);
+  const { hrp, bytes: bytes4 } = bech32mDecode(address);
   if (hrp !== hrpFor(network)) fail("address belongs to another network");
-  if (bytes3.length !== PAYLOAD_BYTES) fail("invalid address length");
-  if (bytes3[0] !== 1) fail("unsupported address version");
-  const owner = bytes3.subarray(1, 33), viewPub = bytes3.subarray(33, 65), tag2 = bytes3.subarray(65, 69);
+  if (bytes4.length !== PAYLOAD_BYTES) fail("invalid address length");
+  if (bytes4[0] !== 1) fail("unsupported address version");
+  const owner = bytes4.subarray(1, 33), viewPub = bytes4.subarray(33, 65), tag2 = bytes4.subarray(65, 69);
   const expected = nzkInstanceTag(domain, assetId);
   if (tag2.some((b, i) => b !== expected[i])) fail("address belongs to another pool instance");
   checkOwner(owner);
   checkViewPublic(viewPub);
   return {
-    domain: hex4(bytes324(domain, "domain")),
-    asset_id: hex4(bytes324(assetId, "assetId")),
-    owner: hex4(owner),
-    view_pub: hex4(viewPub)
+    domain: hex5(bytes324(domain, "domain")),
+    asset_id: hex5(bytes324(assetId, "assetId")),
+    owner: hex5(owner),
+    view_pub: hex5(viewPub)
   };
 }
-function parseRecipient(text2, { network, domain, assetId }) {
-  if (typeof text2 !== "string" || !text2.trim()) fail("recipient required");
-  const value = text2.trim();
-  if (value[0] !== "{") return decodeNzkAddress(value, { network, domain, assetId });
+function parseRecipient(input, { network, domain, assetId }) {
   let descriptor2;
-  try {
-    descriptor2 = JSON.parse(value);
-  } catch {
-    fail("recipient is neither an nzk address nor a JSON descriptor");
+  if (typeof input === "string") {
+    const value = input.trim();
+    if (!value) fail("recipient required");
+    if (value[0] !== "{") return decodeNzkAddress(value, { network, domain, assetId });
+    try {
+      descriptor2 = JSON.parse(value);
+    } catch {
+      fail("recipient is neither an nzk address nor a JSON descriptor");
+    }
+  } else {
+    descriptor2 = input;
+  }
+  if (!descriptor2 || typeof descriptor2 !== "object" || Array.isArray(descriptor2)) {
+    fail("recipient must be an nzk address or a descriptor");
   }
   const normalized = {
-    domain: hex4(bytes324(descriptor2.domain, "domain")),
-    asset_id: hex4(bytes324(descriptor2.asset_id, "asset_id")),
-    owner: hex4(bytes324(descriptor2.owner, "owner")),
-    view_pub: hex4(bytes324(descriptor2.view_pub, "view_pub"))
+    domain: hex5(bytes324(descriptor2.domain, "domain")),
+    asset_id: hex5(bytes324(descriptor2.asset_id, "asset_id")),
+    owner: hex5(bytes324(descriptor2.owner, "owner")),
+    view_pub: hex5(bytes324(descriptor2.view_pub, "view_pub"))
   };
-  if (normalized.domain !== hex4(bytes324(domain, "domain")) || normalized.asset_id !== hex4(bytes324(assetId, "assetId"))) {
+  if (normalized.domain !== hex5(bytes324(domain, "domain")) || normalized.asset_id !== hex5(bytes324(assetId, "assetId"))) {
     fail("recipient belongs to another pool instance");
   }
   checkOwner(bytes324(normalized.owner, "owner"));
@@ -6171,6 +9248,8 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
   #domain;
   #assetId;
   #account;
+  #family;
+  #storageId;
   #network;
   #fingerprint;
   #gap = NZK_DEFAULT_GAP;
@@ -6178,18 +9257,22 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
   #used = /* @__PURE__ */ new Set();
   #maxUsed = -1;
   #identities = /* @__PURE__ */ new Map();
-  constructor(prk, { account, domain, assetId, network, gap, issued }) {
+  constructor(prk, { family, account = 0, domain, assetId, network, gap, issued }) {
+    const scope = accountScope({ family, account, domain, assetId });
+    this.#family = family;
     this.#prk = prk.slice();
     this.#account = index31(account, "account");
-    this.#domain = hex4(bytes324(domain, "domain"));
-    this.#assetId = hex4(bytes324(assetId, "assetId"));
+    this.#domain = hex5(bytes324(domain, "domain"));
+    this.#assetId = hex5(bytes324(assetId, "assetId"));
     hrpFor(network);
     this.#network = network;
-    this.#fingerprint = fingerprintFromPrk(this.#prk);
+    this.#fingerprint = fingerprintFromPrk(this.#prk, { family, account, domain, assetId });
+    this.#storageId = hex5(sha256(expand(sha256, this.#prk, concat5(label("storage"), scope), 32)));
     if (gap !== void 0) this.setGap(gap);
     if (issued !== void 0) this.setIssued(issued);
   }
   static async fromMnemonic({ mnemonic, passphrase = "", zkPassphrase = "", ...options }) {
+    accountScope(options);
     const seed = await walletSeedFromMnemonic(mnemonic, passphrase);
     try {
       return await _ZkWalletIdentity.fromSeed({ seed, zkPassphrase, ...options });
@@ -6198,6 +9281,7 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
     }
   }
   static async fromSeed({ seed, zkPassphrase = "", ...options }) {
+    accountScope(options);
     const root = await deriveZkRoot(seed, zkPassphrase);
     try {
       return _ZkWalletIdentity.fromRoot({ root, ...options });
@@ -6216,6 +9300,15 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
   }
   #assertOpen() {
     if (!this.#prk) fail("identity is locked");
+  }
+  get derivation() {
+    return NZK_DERIVATION;
+  }
+  get family() {
+    return this.#family;
+  }
+  get storageId() {
+    return this.#storageId;
   }
   get fingerprint() {
     return this.#fingerprint;
@@ -6246,14 +9339,15 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
     this.#issued = index31(index, "issued index");
   }
   /** Sub-identity for one address; created on demand and cached. */
-  identityAt(chain, index) {
+  identityAt(chain2, index) {
     this.#assertOpen();
-    const key = chain + "/" + index;
+    const key = chain2 + "/" + index;
     let identity = this.#identities.get(key);
     if (!identity) {
       const { spendSecret, viewSeed } = keysFromPrk(this.#prk, {
+        family: this.#family,
         account: this.#account,
-        chain,
+        chain: chain2,
         index,
         domain: this.#domain,
         assetId: this.#assetId
@@ -6268,11 +9362,11 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
     }
     return identity;
   }
-  descriptorAt(chain, index) {
-    return this.identityAt(chain, index).recipient();
+  descriptorAt(chain2, index) {
+    return this.identityAt(chain2, index).recipient();
   }
-  addressAt(chain, index) {
-    return encodeNzkAddress(this.descriptorAt(chain, index), this.#network);
+  addressAt(chain2, index) {
+    return encodeNzkAddress(this.descriptorAt(chain2, index), this.#network);
   }
   /** First receiving index after the highest used one, or the last one handed out if later. */
   currentIndex() {
@@ -6305,8 +9399,8 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
     this.#used = new Set(knownAddresses.filter((address) => address?.chain === CHAIN_RECEIVING).map((address) => index31(address.index, "known address index")));
     this.#maxUsed = this.#used.size ? Math.max(...this.#used) : -1;
     const found = /* @__PURE__ */ new Map();
-    const tryAddress = (chain, index) => {
-      const identity = this.identityAt(chain, index);
+    const tryAddress = (chain2, index) => {
+      const identity = this.identityAt(chain2, index);
       entries.forEach((entry, position) => {
         if (found.has(position)) return;
         let owned = null;
@@ -6316,8 +9410,8 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
           owned = null;
         }
         if (!owned) return;
-        found.set(position, { position, owned, address: { chain, index } });
-        if (chain === CHAIN_RECEIVING) {
+        found.set(position, { position, owned, address: { chain: chain2, index } });
+        if (chain2 === CHAIN_RECEIVING) {
           this.#used.add(index);
           this.#maxUsed = Math.max(this.#maxUsed, index);
         }
@@ -6333,9 +9427,9 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
   }
   /** Compatibility with single-key callers: try the change address, then receiving addresses. */
   openRecord(record, cm) {
-    for (const [chain, index] of [[CHAIN_CHANGE, 0], ...Array.from({ length: this.currentIndex() + this.#gap }, (_, i) => [CHAIN_RECEIVING, i])]) {
+    for (const [chain2, index] of [[CHAIN_CHANGE, 0], ...Array.from({ length: this.currentIndex() + this.#gap }, (_, i) => [CHAIN_RECEIVING, i])]) {
       try {
-        const owned = this.identityAt(chain, index).openRecord(record, cm);
+        const owned = this.identityAt(chain2, index).openRecord(record, cm);
         if (owned) return owned;
       } catch {
       }
@@ -6355,6 +9449,9 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
   prepareC3(options) {
     return this.spendingIdentity(options.consumed).prepareC3(options);
   }
+  prepareC4(options) {
+    return this.spendingIdentity(options.consumed).prepareC4(options);
+  }
   /** Derived identities are recovered from the words; there is no file backup. */
   backupJson() {
     return null;
@@ -6364,7 +9461,7 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
     return expand(
       sha256,
       this.#prk,
-      concat4(label("scan-checkpoint"), u32le(this.#account), bytes324(this.#domain, "domain"), bytes324(this.#assetId, "assetId")),
+      concat5(label("scan-checkpoint"), accountScope({ family: this.#family, account: this.#account, domain: this.#domain, assetId: this.#assetId })),
       32
     );
   }
@@ -6435,6 +9532,11 @@ function formatXna(satoshis) {
 }
 
 // src/pool-client.js
+var strictScript = /^(?:52|53)20[0-9a-f]{64}$/;
+function accepts(script, profile) {
+  if (profile !== "C3" && profile !== "C4") throw new Error("Unknown pool profile");
+  return LEGACY_P2PKH.test(script) || profile === "C4" && strictScript.test(script);
+}
 var LEGACY_P2PKH = /^76a914[0-9a-f]{40}88ac$/;
 var MIN_SPONSOR_CHANGE_ATOMIC = 546n;
 var POOL_READ_RPC_METHODS = Object.freeze([
@@ -6457,39 +9559,41 @@ function message(error) {
 async function assertPoolChain(rpc, manifest) {
   if (await rpc("getblockhash", [0]) !== manifest.genesis) throw new Error("RPC node is not on the network of this pool");
 }
-async function confirmedPoolCoins(rpc, utxos, { baseCurrency }) {
+async function confirmedPoolCoins(rpc, utxos, { baseCurrency, profile = "C3" }) {
   const coins = [];
   for (const row of utxos) {
-    if (!LEGACY_P2PKH.test(row.script) || row.assetName !== baseCurrency) continue;
+    if (!accepts(row.script, profile) || row.assetName !== baseCurrency) continue;
     const live = await rpc("gettxout", [row.txid, row.outputIndex, true]);
     if (!live || live.confirmations < 1) continue;
-    coins.push({ ...row, vout: row.outputIndex, valueSats: String(row.satoshis), scriptHex: row.script });
+    const coin3 = { ...row, vout: row.outputIndex, valueSats: String(row.satoshis), scriptHex: row.script };
+    coins.push(coin3);
   }
   return coins;
 }
-function selectPoolCoins(coins, { action, amountAtomic, feeAtomic }) {
+function selectPoolCoins(coins, { action, amountAtomic, feeAtomic, profile = "C3" }) {
   const fee = BigInt(feeAtomic);
   if (fee < 0n) throw new Error("Fee must not be negative");
+  coins = coins.filter((c) => accepts(c.scriptHex, profile));
   let funding;
   if (action === "deposit") {
     const wanted = String(BigInt(amountAtomic));
     funding = coins.find((c) => c.valueSats === wanted);
     if (!funding) throw new Error("No confirmed coin matches this deposit. Prepare an exact deposit coin, wait for its confirmation and retry.");
   }
-  const sponsor = coins.find((c) => c !== funding && BigInt(c.valueSats) >= fee + MIN_SPONSOR_CHANGE_ATOMIC);
-  if (!sponsor) throw new Error("A separate confirmed Legacy XNA coin is needed for the fee");
+  const sponsor = coins.find((c) => c !== funding && BigInt(c.valueSats) >= fee + (profile === "C4" ? c.scriptHex.startsWith("5220") ? 3060n : c.scriptHex.startsWith("5320") ? 336n : 546n : MIN_SPONSOR_CHANGE_ATOMIC));
+  if (!sponsor) throw new Error("A separate confirmed supported XNA coin is needed for the fee");
   return { funding, sponsor };
 }
-async function checkPoolCoin(rpc, coin2) {
-  const live = await rpc("gettxout", [coin2.txid, coin2.vout, true]);
-  if (!live || live.confirmations < 1 || live.scriptPubKey?.hex !== coin2.scriptHex || !LEGACY_P2PKH.test(coin2.scriptHex)) {
+async function checkPoolCoin(rpc, coin3, { profile = "C3" } = {}) {
+  const live = await rpc("gettxout", [coin3.txid, coin3.vout, true]);
+  if (!live || live.confirmations < 1 || live.scriptPubKey?.hex !== coin3.scriptHex || !accepts(coin3.scriptHex, profile)) {
     throw new Error("Funding coin is spent, unconfirmed or unsupported");
   }
-  if (rpcAmountToSatoshis(live.value).toString() !== String(coin2.valueSats)) throw new Error("Funding value mismatch");
+  if (rpcAmountToSatoshis(live.value).toString() !== String(coin3.valueSats)) throw new Error("Funding value mismatch");
 }
-async function withdrawalScript(rpc, address) {
+async function withdrawalScript(rpc, address, { profile = "C3" } = {}) {
   const result = await rpc("validateaddress", [String(address ?? "").trim()]);
-  if (!result?.isvalid || !LEGACY_P2PKH.test(result.scriptPubKey ?? "")) throw new Error("Withdrawals from this pool require a Legacy address");
+  if (!result?.isvalid || !accepts(result.scriptPubKey ?? "", profile)) throw new Error(profile === "C3" ? "Withdrawals from this pool require a Legacy address" : "Withdrawals from this pool require a Legacy, PQ or ECDSA address");
   return result.scriptPubKey;
 }
 async function recheckInputs(rpc, manifest, points) {
@@ -6554,10 +9658,12 @@ async function publicationStatus(rpc, manifest, { txid, raw, points = [] }) {
 
 // src/rotation-store.js
 var ROTATION_MAX_GAP = 1e3;
-function rotationStorageKey({ network, walletId = "", fingerprint, account }) {
-  if (typeof fingerprint !== "string" || !/^[0-9a-f]{8}$/.test(fingerprint)) throw new Error("fingerprint must be 8 hex characters");
-  if (!Number.isInteger(account) || account < 0) throw new Error("account must be a non-negative integer");
-  return `neurai-privacy-zk:${network}:${walletId}:${fingerprint}:${account}`;
+function rotationStorageKey({ network, walletId = "", derivation, family, storageId, account }) {
+  if (derivation !== "NeuraiZK/v2") throw new Error("unsupported derivation");
+  if (!["legacy", "ecdsa", "pq"].includes(family)) throw new Error("invalid family");
+  if (typeof storageId !== "string" || !/^[0-9a-f]{64}$/.test(storageId)) throw new Error("storageId must be 32 bytes in hex");
+  if (!Number.isInteger(account) || account < 0 || account >= 2 ** 31) throw new Error("invalid account");
+  return "neurai-privacy-zk:v2:" + JSON.stringify([network, walletId, family, account, storageId]);
 }
 function loadRotation(storage, key) {
   try {
@@ -6588,7 +9694,7 @@ function deepFreeze(value) {
   return value;
 }
 var C3_TESTNET_NETWORK = "testnet";
-var C3_TEST_DEPOSIT_LIMIT_ATOMIC = 100000000000n;
+var C3_TEST_DEPOSIT_LIMIT_ATOMIC = 2100000000000000000n;
 var C3_TESTNET_MANIFEST = deepFreeze({
   "schema": "neurai-c3-xna-test-v1",
   "profile": "xna",
@@ -6907,9 +10013,9 @@ var PoolWorkerClient = class {
   async restore({ backup, password }) {
     return (await this.#request("restore", { backup, password })).identity;
   }
-  /** Identity derived from the wallet words (NeuraiZK/v1 draft). */
-  async derive({ mnemonic, passphrase = "", zkPassphrase = "", account = 0, gap, issued }) {
-    return (await this.#request("derive", { mnemonic, passphrase, zkPassphrase, account, gap, issued })).identity;
+  /** Identity derived from the wallet words (NeuraiZK/v2). */
+  async derive({ family, mnemonic, passphrase = "", zkPassphrase = "", account = 0, gap, issued }) {
+    return (await this.#request("derive", { family, mnemonic, passphrase, zkPassphrase, account, gap, issued })).identity;
   }
   /** Rebuild pool state and own notes; returns {result, recipient, addresses}. */
   async scan({ gap, issued, checkpoint } = {}) {
@@ -6938,18 +10044,18 @@ var PoolWorkerClient = class {
 var HEX322 = /^[0-9a-f]{64}$/i;
 var FORMS2 = ["D0", "D1", "T1", "T2", "W_partial", "W_full"];
 var MAX_MONEY2 = 2100000000000000000n;
-var utf85 = new TextEncoder();
-function demand2(ok, reason) {
+var utf87 = new TextEncoder();
+function demand4(ok, reason) {
   if (!ok) throw new Error(`pool scan: ${reason}`);
 }
-function unhex3(hex7, name) {
-  demand2(typeof hex7 === "string" && /^(?:[0-9a-f]{2})*$/i.test(hex7), `${name} is not hex`);
-  return Uint8Array.from(hex7.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
+function unhex4(hex8, name) {
+  demand4(typeof hex8 === "string" && /^(?:[0-9a-f]{2})*$/i.test(hex8), `${name} is not hex`);
+  return Uint8Array.from(hex8.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
 }
-function hex5(bytes3) {
-  return Array.from(bytes3, (byte) => byte.toString(16).padStart(2, "0")).join("");
+function hex6(bytes4) {
+  return Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
-function concat5(...parts) {
+function concat6(...parts) {
   const out = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
   let at = 0;
   for (const part of parts) {
@@ -6963,30 +10069,30 @@ function sameOutpoint(vin, outpoint) {
 }
 function sats(value) {
   const str = typeof value === "number" && Number.isFinite(value) ? String(value) : value;
-  demand2(typeof str === "string" && /^(?:0|[1-9]\d*)(?:\.\d+)?(?:e-?\d+)?$/i.test(str), "invalid XNA value");
+  demand4(typeof str === "string" && /^(?:0|[1-9]\d*)(?:\.\d+)?(?:e-?\d+)?$/i.test(str), "invalid XNA value");
   const [base, expPart] = str.toLowerCase().split("e");
   const [whole, fraction = ""] = base.split(".");
   const places = 8 - fraction.length + Number(expPart ?? 0);
-  demand2(Number.isSafeInteger(places) && places >= -100 && places <= 100, "invalid XNA decimal scale");
+  demand4(Number.isSafeInteger(places) && places >= -100 && places <= 100, "invalid XNA decimal scale");
   const digits = BigInt(whole + fraction);
   const numerator = places >= 0 ? digits * 10n ** BigInt(places) : digits;
   const denominator = places >= 0 ? 1n : 10n ** BigInt(-places);
-  demand2(numerator % denominator === 0n, "nonintegral XNA amount");
+  demand4(numerator % denominator === 0n, "nonintegral XNA amount");
   const result = numerator / denominator;
-  demand2(result >= 0n && result <= MAX_MONEY2, "XNA amount out of range");
+  demand4(result >= 0n && result <= MAX_MONEY2, "XNA amount out of range");
   return result;
 }
 function stateScript(commitment, digest) {
-  const payload = concat5(
-    utf85.encode("xnat"),
+  const payload = concat6(
+    utf87.encode("xnat"),
     Uint8Array.of(9),
-    utf85.encode("XNAP#POOL"),
+    utf87.encode("XNAP#POOL"),
     Uint8Array.of(0, 225, 245, 5, 0, 0, 0, 0),
     Uint8Array.of(84, 32),
     digest
   );
-  demand2(payload.length === 56, "bad state asset payload");
-  return hex5(concat5(
+  demand4(payload.length === 56, "bad state asset payload");
+  return hex6(concat6(
     Uint8Array.of(81, 32),
     commitment,
     Uint8Array.of(192, 56),
@@ -7004,7 +10110,7 @@ function parseRecord(identity, record, cm) {
 }
 function walletCheckpointTag(identity) {
   if (!identity) return null;
-  return identity.fingerprint === void 0 ? identity.recipient().owner : `${identity.fingerprint}:${identity.account}`;
+  return identity.fingerprint === void 0 ? identity.recipient().owner : `${identity.derivation}:${identity.storageId}`;
 }
 function checkpointFor({
   manifest,
@@ -7024,7 +10130,7 @@ function checkpointFor({
   const indexed = (tree) => [...tree].map(([index, [value, next, nextIndex]]) => [index, [String(value), String(next), nextIndex]]);
   return {
     version: 1,
-    manifestId: hex5(sha256(utf85.encode(JSON.stringify(manifest)))),
+    manifestId: hex6(sha256(utf87.encode(JSON.stringify(manifest)))),
     height,
     blockhash,
     birth,
@@ -7033,12 +10139,12 @@ function checkpointFor({
     reserveOutpoint,
     state: {
       mode: state.mode,
-      slots: [...state.slots].map(([index, value]) => [index, hex5(value)]),
+      slots: [...state.slots].map(([index, value]) => [index, hex6(value)]),
       seen: indexed(state.seen),
       nfs: indexed(state.nfs)
     },
     transitions: transitions.map((t) => ({ ...t, reserveAtomic: String(t.reserveAtomic) })),
-    published: published.map((e) => ({ ...e, cm: hex5(e.cm), record: hex5(e.record) })),
+    published: published.map((e) => ({ ...e, cm: hex6(e.cm), record: hex6(e.record) })),
     spentBy: [...spentBy].map(([nf, spent]) => [String(nf), spent]),
     walletTag: walletCheckpointTag(identity),
     walletWindow: identity?.gap === void 0 ? null : { gap: identity.gap, issued: identity.issued },
@@ -7055,12 +10161,12 @@ function checkpointFor({
   };
 }
 function restoreCheckpoint(saved, manifest, limit) {
-  if (saved?.version !== 1 || saved.manifestId !== hex5(sha256(utf85.encode(JSON.stringify(manifest)))) || !Number.isSafeInteger(saved.height) || saved.height < 1 || saved.height > limit || !HEX322.test(saved.blockhash) || !saved.birth || !Array.isArray(saved.stateOutpoint) || !Array.isArray(saved.transitions) || !Array.isArray(saved.published) || !Array.isArray(saved.spentBy) || !Array.isArray(saved.owned)) return null;
+  if (saved?.version !== 1 || saved.manifestId !== hex6(sha256(utf87.encode(JSON.stringify(manifest)))) || !Number.isSafeInteger(saved.height) || saved.height < 1 || saved.height > limit || !HEX322.test(saved.blockhash) || !saved.birth || !Array.isArray(saved.stateOutpoint) || !Array.isArray(saved.transitions) || !Array.isArray(saved.published) || !Array.isArray(saved.spentBy) || !Array.isArray(saved.owned)) return null;
   try {
     const indexed = (rows) => new Map(rows.map(([index, [value, next, nextIndex]]) => [index, [BigInt(value), BigInt(next), nextIndex]]));
     const state = {
       mode: saved.state.mode,
-      slots: new Map(saved.state.slots.map(([index, value]) => [index, unhex3(value, "cached note")])),
+      slots: new Map(saved.state.slots.map(([index, value]) => [index, unhex4(value, "cached note")])),
       seen: indexed(saved.state.seen),
       nfs: indexed(saved.state.nfs)
     };
@@ -7068,8 +10174,8 @@ function restoreCheckpoint(saved, manifest, limit) {
     const transitions = saved.transitions.map((t) => ({ ...t, reserveAtomic: BigInt(t.reserveAtomic) }));
     const published = saved.published.map((e) => ({
       ...e,
-      cm: unhex3(e.cm, "cached commitment"),
-      record: unhex3(e.record, "cached record")
+      cm: unhex4(e.cm, "cached commitment"),
+      record: unhex4(e.record, "cached record")
     }));
     if (published.some((e) => e.cm.length !== 32 || e.record.length !== 1024 || !Number.isSafeInteger(e.slot) || e.slot < 0 || !HEX322.test(e.txid))) return null;
     const spentBy = new Map(saved.spentBy.map(([nf, spent]) => [BigInt(nf), spent]));
@@ -7103,37 +10209,44 @@ async function scanBrowserPool({
   onProgress = () => {
   },
   strategy,
-  checkpoint
+  checkpoint,
+  expectedGenesis,
+  expectedCommitment
 }) {
   const c3 = manifest?.schema === "neurai-c3-xna-test-v1";
+  const c4 = manifest?.schema === "neurai-c4-xna-test-v1";
+  const pinned = c3 || c4;
   if (c3) validateC3Manifest(manifest);
-  const mode = strategy ?? (c3 ? "spent-index" : "blocks");
-  demand2(
-    mode === "blocks" || mode === "spent-index" && c3,
-    "spent-index scan requires a C3 manifest with its birth transaction"
+  if (c4) validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  const forms = c4 ? C4_FORMS : FORMS2;
+  const vkHashes = c4 ? Object.fromEntries(forms.map((f) => [f, manifest.forms[f].vkHash])) : manifest.vkHashes;
+  const mode = strategy ?? (pinned ? "spent-index" : "blocks");
+  demand4(
+    mode === "blocks" || mode === "spent-index" && pinned,
+    "spent-index scan requires a C3 manifest or an independently pinned C4 manifest with its birth transaction"
   );
-  const makeStateScript = (digest2) => c3 ? c3StateScript(manifest, digest2) : stateScript(commitment, digest2);
-  demand2(typeof rpc === "function", "RPC function required");
-  demand2(manifest?.profile === "xna" && HEX322.test(manifest.genesis) && HEX322.test(manifest.commitment) && HEX322.test(manifest.reserveCommitment) && HEX322.test(manifest.domain) && HEX322.test(manifest.assetId), "invalid XNA TEST manifest");
-  demand2(
-    FORMS2.every((form) => HEX322.test(manifest.vkHashes?.[form])) && Object.keys(manifest.vkHashes).length === FORMS2.length && new Set(Object.values(manifest.vkHashes)).size === FORMS2.length,
+  const makeStateScript = (digest2) => c4 ? c4StateScript(manifest, digest2) : c3 ? c3StateScript(manifest, digest2) : stateScript(commitment, digest2);
+  demand4(typeof rpc === "function", "RPC function required");
+  demand4(manifest?.profile === "xna" && HEX322.test(manifest.genesis) && HEX322.test(manifest.commitment) && HEX322.test(manifest.reserveCommitment) && HEX322.test(manifest.domain) && HEX322.test(manifest.assetId), "invalid XNA TEST manifest");
+  demand4(
+    forms.every((form) => HEX322.test(vkHashes?.[form])) && Object.keys(vkHashes).length === forms.length && new Set(Object.values(vkHashes)).size === forms.length,
     "incomplete or duplicate VK registry"
   );
   const call = (method, ...params) => rpc(method, params);
-  demand2(await call("getblockhash", 0) === manifest.genesis, "wrong genesis");
+  demand4(await call("getblockhash", 0) === manifest.genesis, "wrong genesis");
   const tip = await call("getbestblockhash");
   const currentHeight = await call("getblockcount");
   const height = stopHeight ?? currentHeight;
-  demand2(Number.isSafeInteger(currentHeight) && Number.isSafeInteger(height) && currentHeight >= height && height >= 1, "invalid scan height");
+  demand4(Number.isSafeInteger(currentHeight) && Number.isSafeInteger(height) && currentHeight >= height && height >= 1, "invalid scan height");
   if (identity) {
     const recipient = identity.recipient();
-    demand2(
+    demand4(
       recipient.domain === manifest.domain && recipient.asset_id === manifest.assetId,
       "wallet belongs to another pool instance"
     );
   }
-  const commitment = unhex3(manifest.commitment, "commitment");
-  const reserveCommitment = unhex3(manifest.reserveCommitment, "reserve commitment");
+  const commitment = unhex4(manifest.commitment, "commitment");
+  const reserveCommitment = unhex4(manifest.reserveCommitment, "reserve commitment");
   let restored = checkpoint && mode === "spent-index" ? restoreCheckpoint(checkpoint, manifest, height) : null;
   if (restored && await call("getblockhash", restored.height) !== restored.blockhash) restored = null;
   const state = restored?.state ?? emptyPoolState();
@@ -7149,58 +10262,66 @@ async function scanBrowserPool({
   const cachedPublishedCount = published.length;
   const spentBy = restored?.spentBy ?? /* @__PURE__ */ new Map();
   async function applyBirth(tx, blockHeight) {
-    demand2(!birth, "multiple pool births");
+    demand4(!birth, "multiple pool births");
     let uniqueConsumed = false;
     for (const vin of tx.vin ?? []) {
       if (!vin.txid) continue;
       const parent = await call("getrawtransaction", vin.txid, true);
       const script = parent?.vout?.[vin.vout]?.scriptPubKey?.hex;
-      if (typeof script === "string" && script.includes(hex5(utf85.encode(c3 ? manifest.identity : "XNAP#POOL")))) {
+      if (typeof script === "string" && script.includes(hex6(utf87.encode(pinned ? manifest.identity : "XNAP#POOL")))) {
         uniqueConsumed = true;
         break;
       }
     }
-    demand2(uniqueConsumed, "birth did not consume UNIQUE");
+    demand4(uniqueConsumed, "birth did not consume UNIQUE");
     birth = { txid: tx.txid, height: blockHeight };
     stateOutpoint = [tx.txid, 0];
   }
   async function applyTransition(tx, blockHeight) {
     const vin = tx.vin ?? [];
     const witness = vin[0].txinwitness;
-    demand2(
+    demand4(
       Array.isArray(witness) && witness.length >= 5 && witness[0] === "10",
       "state spend is not MAST"
     );
-    const vkHash = hex5(sha256(unhex3(witness[2], "VK")));
-    const form = FORMS2.find((name) => manifest.vkHashes[name] === vkHash);
-    demand2(form, "unknown pool VK");
-    if (c3) {
+    const vkHash = hex6(sha256(unhex4(witness[2], "VK")));
+    const form = forms.find((name) => vkHashes[name] === vkHash);
+    demand4(form, "unknown pool VK");
+    if (pinned) {
       const expected = manifest.forms[form];
-      demand2(
+      demand4(
         witness.length === (form.startsWith("W") ? 7 : 8) && witness[witness.length - 2] === expected.script && witness[witness.length - 1] === expected.control && witness[2] === expected.vk,
-        "unexpected C3 leaf, control or VK"
+        "unexpected C3/C4 leaf, control or VK"
       );
     }
     const expectReserve = form !== "D0";
-    demand2(reserve > 0n === expectReserve, "unexpected reserve/form combination");
-    if (reserveOutpoint) demand2(
+    demand4(reserve > 0n === expectReserve, "unexpected reserve/form combination");
+    if (reserveOutpoint) demand4(
       sameOutpoint(vin[1], reserveOutpoint),
       "transition skipped canonical reserve"
     );
     if (form.startsWith("D") || form.startsWith("T")) {
-      demand2(witness.length >= 7, "missing publication");
-      const blob = concat5(
-        unhex3(witness[3], "blob first half"),
-        unhex3(witness[4], "blob second half")
+      demand4(witness.length >= 7, "missing publication");
+      const blob = concat6(
+        unhex4(witness[3], "blob first half"),
+        unhex4(witness[4], "blob second half")
       );
-      demand2(blob.length === 4096, "bad publication size");
+      demand4(blob.length === 4096, "bad publication size");
       let entries;
-      if (form.startsWith("D")) {
-        demand2(blob[0] === 1 && blob[4] === 1, "bad deposit publication");
+      if (c4) {
+        const publication = decodeC4Publication(form, blob);
+        if (publication.nf) {
+          const nf = decodeField(publication.nf);
+          state.nfs = poolIndexedInsert("nf", state.nfs, nf);
+          spentBy.set(nf, { txid: tx.txid, height: blockHeight });
+        }
+        entries = publication.cms.map((cm, i) => [cm, publication.records[i]]);
+      } else if (form.startsWith("D")) {
+        demand4(blob[0] === 1 && blob[4] === 1, "bad deposit publication");
         entries = [[blob.slice(6, 38), blob.slice(198, 1222)]];
       } else {
         const count = form === "T1" ? 1 : 2;
-        demand2(blob[0] === 1 && blob[1] === count, "bad transfer publication");
+        demand4(blob[0] === 1 && blob[1] === count, "bad transfer publication");
         const nf = decodeField(blob.slice(2, 34));
         state.nfs = poolIndexedInsert("nf", state.nfs, nf);
         spentBy.set(nf, { txid: tx.txid, height: blockHeight });
@@ -7208,7 +10329,7 @@ async function scanBrowserPool({
         if (count === 2) entries.push([blob.slice(66, 98), blob.slice(1122, 2146)]);
       }
       for (const [cm, record] of entries) {
-        demand2(record.length === 1024, "bad encrypted record");
+        demand4(record.length === 1024, "bad encrypted record");
         const slot = state.slots.size;
         state.slots.set(slot, cm);
         state.seen = poolIndexedInsert("cm", state.seen, decodeField(cm));
@@ -7216,47 +10337,47 @@ async function scanBrowserPool({
       }
       state.mode = 1;
     } else {
-      const nf = decodeField(unhex3(witness[3], "nullifier"));
+      const nf = decodeField(unhex4(witness[3], "nullifier"));
       state.nfs = poolIndexedInsert("nf", state.nfs, nf);
       spentBy.set(nf, { txid: tx.txid, height: blockHeight });
       state.mode = form === "W_full" ? 0 : 1;
     }
     digest = poolStateDigest(state);
-    demand2(
+    demand4(
       tx.vout?.[0]?.scriptPubKey?.hex === makeStateScript(digest),
       "pool state root disagrees with block"
     );
     let newReserve = 0n;
     let newReserveOutpoint = null;
     if (form === "W_full") {
-      demand2(reserveOutpoint, "empty full withdrawal");
-      demand2(
+      demand4(reserveOutpoint, "empty full withdrawal");
+      demand4(
         !(tx.vout ?? []).slice(1).some((v) => v.scriptPubKey?.hex?.startsWith("5120" + manifest.reserveCommitment)),
         "full withdrawal left a reserve"
       );
     } else {
       const output = tx.vout?.[1];
-      demand2(
+      demand4(
         output?.scriptPubKey?.hex === "5120" + manifest.reserveCommitment,
         "wrong reserve output"
       );
       newReserve = sats(output.value);
-      demand2(newReserve > 0n, "empty reserve");
+      demand4(newReserve > 0n, "empty reserve");
       newReserveOutpoint = [tx.txid, 1];
     }
-    if (form.startsWith("T")) demand2(newReserve === reserve, "transfer changed reserve");
+    if (form.startsWith("T")) demand4(newReserve === reserve, "transfer changed reserve");
     else if (form.startsWith("D")) {
-      demand2(newReserve > reserve, "deposit did not increase reserve");
+      demand4(newReserve > reserve, "deposit did not increase reserve");
       const previous = vin[form === "D0" ? 1 : 2];
       const spent = await call("getrawtransaction", previous.txid, true);
-      demand2(
+      demand4(
         newReserve - reserve === sats(spent?.vout?.[previous.vout]?.value),
         "reserve delta differs from deposit"
       );
     } else {
-      demand2(newReserve < reserve, "withdrawal did not decrease reserve");
+      demand4(newReserve < reserve, "withdrawal did not decrease reserve");
       const outputIndex = form === "W_full" ? 1 : 2;
-      demand2(
+      demand4(
         reserve - newReserve === sats(tx.vout?.[outputIndex]?.value),
         "reserve delta differs from withdrawal"
       );
@@ -7275,14 +10396,14 @@ async function scanBrowserPool({
   let scannedHeight = height;
   let finalTip = tip;
   if (mode === "blocks") {
-    for (let blockHeight = c3 ? manifest.birthHeight : 1; blockHeight <= height; blockHeight++) {
+    for (let blockHeight = pinned ? manifest.birthHeight : 1; blockHeight <= height; blockHeight++) {
       onProgress({ height: blockHeight, total: height });
       const blockHash = await call("getblockhash", blockHeight);
       const block2 = await call("getblock", blockHash, 2);
-      demand2(block2?.hash === blockHash && block2?.height === blockHeight && Array.isArray(block2.tx), "block RPC mismatch");
+      demand4(block2?.hash === blockHash && block2?.height === blockHeight && Array.isArray(block2.tx), "block RPC mismatch");
       for (const tx of block2.tx) {
         if (!stateOutpoint) {
-          if (c3 && tx.txid !== manifest.birth) continue;
+          if (pinned && tx.txid !== manifest.birth) continue;
           if (tx.vout?.[0]?.scriptPubKey?.hex !== initialScript) continue;
           await applyBirth(tx, blockHeight);
           continue;
@@ -7291,14 +10412,14 @@ async function scanBrowserPool({
         await applyTransition(tx, blockHeight);
       }
     }
-    demand2(birth, "pool birth not found");
-    demand2(await call("getbestblockhash") === tip, "tip changed during scan; retry");
+    demand4(birth, "pool birth not found");
+    demand4(await call("getbestblockhash") === tip, "tip changed during scan; retry");
     if (height === currentHeight) {
-      demand2(
+      demand4(
         await call("gettxout", ...stateOutpoint, false) !== null,
         "reconstructed state already spent"
       );
-      if (reserveOutpoint) demand2(
+      if (reserveOutpoint) demand4(
         await call("gettxout", ...reserveOutpoint, false) !== null,
         "reconstructed reserve already spent"
       );
@@ -7308,25 +10429,25 @@ async function scanBrowserPool({
     const anchors = new Map(restored ? [[restored.height, restored.blockhash]] : []);
     async function confirmed(txid, blockHeight) {
       const tx = await call("getrawtransaction", txid, true);
-      demand2(
+      demand4(
         tx?.txid === txid && typeof tx.blockhash === "string" && tx.confirmations >= 1 && (tx.height === void 0 || tx.height === blockHeight),
         "transaction is not confirmed at the expected height"
       );
-      demand2(
+      demand4(
         await call("getblockhash", blockHeight) === tx.blockhash,
         "transaction is not in the active chain"
       );
       anchors.set(blockHeight, tx.blockhash);
       return tx;
     }
-    demand2(
+    demand4(
       Number.isSafeInteger(manifest.birthHeight) && manifest.birthHeight <= height,
       "pool birth not found"
     );
     if (!restored) {
       onProgress({ height: manifest.birthHeight, total: height });
       const born = await confirmed(manifest.birth, manifest.birthHeight);
-      demand2(born.vout?.[0]?.scriptPubKey?.hex === initialScript, "pool birth not found");
+      demand4(born.vout?.[0]?.scriptPubKey?.hex === initialScript, "pool birth not found");
       await applyBirth(born, manifest.birthHeight);
     }
     let last = restored?.transitions.at(-1)?.height ?? manifest.birthHeight;
@@ -7339,17 +10460,17 @@ async function scanBrowserPool({
         spent = null;
       }
       if (spent && spent.height !== -1) {
-        demand2(
+        demand4(
           Number.isSafeInteger(spent.height) && spent.height >= last,
           "invalid or out-of-order spent index entry"
         );
         if (bounded && spent.height > height) break;
-        demand2(
+        demand4(
           spent.index === 0 && typeof spent.txid === "string",
           "state spent outside the pool contract"
         );
         const tx = await confirmed(spent.txid, spent.height);
-        demand2(sameOutpoint(tx.vin?.[0], stateOutpoint), "spent index disagrees with transaction");
+        demand4(sameOutpoint(tx.vin?.[0], stateOutpoint), "spent index disagrees with transaction");
         onProgress({ height: spent.height, total: Math.max(height, spent.height) });
         await applyTransition(tx, spent.height);
         last = spent.height;
@@ -7360,18 +10481,18 @@ async function scanBrowserPool({
       const through = await call("getblockcount");
       const reserveLive = !reserveOutpoint || await call("gettxout", ...reserveOutpoint, false) !== null;
       if (await call("gettxout", ...stateOutpoint, false) !== null) {
-        demand2(reserveLive, "reconstructed reserve already spent");
-        demand2(Number.isSafeInteger(through) && through >= last, "invalid scan height");
+        demand4(reserveLive, "reconstructed reserve already spent");
+        demand4(Number.isSafeInteger(through) && through >= last, "invalid scan height");
         scannedHeight = through;
         break;
       }
-      demand2(
+      demand4(
         ++unresolved < 2,
         "state spend missing from the spent index; the RPC node needs -spentindex"
       );
     }
     for (const [blockHeight, blockHash] of anchors) {
-      demand2(
+      demand4(
         await call("getblockhash", blockHeight) === blockHash,
         "chain reorganized during scan; retry"
       );
@@ -7404,11 +10525,11 @@ async function scanBrowserPool({
       const entry = remaining[position];
       const nf = decodeField(found.nf);
       const spent = spentBy.get(nf);
-      notes.set(hex5(entry.cm), {
-        cm: hex5(entry.cm),
+      notes.set(hex6(entry.cm), {
+        cm: hex6(entry.cm),
         amountAtomic: found.amountAtomic,
         nf,
-        note: hex5(found.note),
+        note: hex6(found.note),
         spent: !!spent,
         ...spent ? { spentTxid: spent.txid, spentHeight: spent.height } : {},
         slot: entry.slot,
@@ -7457,7 +10578,7 @@ async function scanBrowserPool({
 }
 
 // src/pool-operations.js
-var hex6 = (bytes3) => Array.from(bytes3, (b) => b.toString(16).padStart(2, "0")).join("");
+var hex7 = (bytes4) => Array.from(bytes4, (b) => b.toString(16).padStart(2, "0")).join("");
 var MAX_ARTIFACT_BYTES = 150 * 1048576;
 function summarizeScan(scan) {
   return {
@@ -7479,6 +10600,9 @@ function describeReceiving(identity, scan, { network }) {
   const current = identity.currentIndex();
   return {
     kind: "derived",
+    derivation: identity.derivation,
+    family: identity.family,
+    storageId: identity.storageId,
     fingerprint: identity.fingerprint,
     account: identity.account,
     gap: identity.gap,
@@ -7541,7 +10665,7 @@ async function loadVerifiedArtifact({
   if (!meta || meta.bytes > maxBytes) throw new Error("Unsupported C3 artifact");
   const response = await fetchArtifact(path);
   if (!response?.ok) throw new Error(missingMessage);
-  const bytes3 = new Uint8Array(meta.bytes);
+  const bytes4 = new Uint8Array(meta.bytes);
   let at = 0;
   if (response.body?.getReader) {
     const reader = response.body.getReader();
@@ -7549,10 +10673,10 @@ async function loadVerifiedArtifact({
     for (; ; ) {
       const { value, done } = await reader.read();
       if (done) break;
-      if (at + value.length > bytes3.length) throw new Error("Artifact exceeds pinned size");
-      bytes3.set(value, at);
+      if (at + value.length > bytes4.length) throw new Error("Artifact exceeds pinned size");
+      bytes4.set(value, at);
       at += value.length;
-      const percent = Math.floor(at / bytes3.length * 20) * 5;
+      const percent = Math.floor(at / bytes4.length * 20) * 5;
       if (percent !== last) {
         last = percent;
         onProgress?.(percent);
@@ -7560,13 +10684,13 @@ async function loadVerifiedArtifact({
     }
   } else {
     const whole = new Uint8Array(await response.arrayBuffer());
-    if (whole.length > bytes3.length) throw new Error("Artifact exceeds pinned size");
-    bytes3.set(whole);
+    if (whole.length > bytes4.length) throw new Error("Artifact exceeds pinned size");
+    bytes4.set(whole);
     at = whole.length;
     onProgress?.(100);
   }
-  if (at !== bytes3.length || hex6(sha256(bytes3)) !== meta.sha256) throw new Error("C3 artifact integrity mismatch");
-  return bytes3;
+  if (at !== bytes4.length || hex7(sha256(bytes4)) !== meta.sha256) throw new Error("C3 artifact integrity mismatch");
+  return bytes4;
 }
 async function proveC3({ form, prepared, artifacts, loadArtifact, snarkjs, onStage = () => {
 } }) {
@@ -7584,10 +10708,30 @@ async function proveC3({ form, prepared, artifacts, loadArtifact, snarkjs, onSta
   if (!await snarkjs.groth16.verify(vk, publicSignals, proof)) throw new Error("Local proof verification failed");
   return { proof, publicSignals };
 }
-async function buildC3Transaction({ identity, scan, manifest, artifacts, loadArtifact, snarkjs, pool, request, onStage = () => {
-} }) {
+async function buildC3Transaction({
+  identity,
+  scan,
+  manifest,
+  artifacts,
+  loadArtifact,
+  snarkjs,
+  pool,
+  request,
+  depositLimitAtomic,
+  onStage = () => {
+  }
+}) {
   const { action, amountAtomic, feeAtomic, funding, sponsor, payout, note, recipient } = request;
-  const plan = planC3Operation({ identity, scan, action, amountAtomic, note, recipient, pool });
+  const plan = planC3Operation({
+    identity,
+    scan,
+    action,
+    amountAtomic,
+    note,
+    recipient,
+    pool,
+    ...depositLimitAtomic === void 0 ? {} : { depositLimitAtomic }
+  });
   onStage("Building note paths and transaction witness");
   const prepared = identity.prepareC3({
     manifest,
@@ -7610,6 +10754,80 @@ async function buildC3Transaction({ identity, scan, manifest, artifacts, loadArt
     amountAtomic: plan.amountAtomic
   };
 }
+function planC4Operation(options) {
+  const { identity, scan, action, note, pool, recipients } = options;
+  if (action !== "transfer") return planC3Operation(options);
+  if (!identity) throw new Error("Unlock the private wallet first");
+  const consumed = scan.notes.find((n) => n.cm === note && !n.spent);
+  if (!consumed) throw new Error("Selected note is no longer spendable");
+  const targets = recipients ?? [{ recipient: options.recipient, amountAtomic: options.amountAtomic }];
+  if (!Array.isArray(targets) || targets.length < 1 || targets.length > 4) {
+    throw new Error("C4 requires between one and four private recipients");
+  }
+  const validated = targets.map((target) => {
+    if (typeof target?.amountAtomic !== "string" || !/^[1-9][0-9]*$/.test(target.amountAtomic)) {
+      throw new Error("Recipient amounts must be exact positive atomic strings");
+    }
+    return { descriptor: parseRecipient(target.recipient, pool), amount: BigInt(target.amountAtomic) };
+  });
+  const amount = validated.reduce((sum, x) => sum + x.amount, 0n);
+  const total = BigInt(consumed.amountAtomic);
+  if (amount > total) throw new Error("Recipient total exceeds the selected note");
+  if (amount < total && targets.length === 4) throw new Error("C4 supports at most four notes including change");
+  const created = validated.map((x) => identity.createNote(x.descriptor, String(x.amount)));
+  if (amount < total) created.push(identity.createNote(selfRecipient(identity), String(total - amount)));
+  return { form: `T${created.length}`, created, consumed, amountAtomic: String(amount) };
+}
+async function buildC4Transaction({
+  identity,
+  scan,
+  manifest,
+  artifacts,
+  loadArtifact,
+  snarkjs,
+  pool,
+  request,
+  expectedGenesis,
+  expectedCommitment,
+  depositLimitAtomic,
+  onStage = () => {
+  }
+}) {
+  const plan = planC4Operation({
+    identity,
+    scan,
+    pool,
+    action: request.action,
+    amountAtomic: request.amountAtomic,
+    note: request.note,
+    recipient: request.recipient,
+    recipients: request.recipients,
+    ...depositLimitAtomic === void 0 ? {} : { depositLimitAtomic }
+  });
+  onStage("Building C4 note paths and transaction witness");
+  const prepared = identity.prepareC4({
+    manifest,
+    scan,
+    form: plan.form,
+    created: plan.created,
+    consumed: plan.consumed,
+    funding: request.funding,
+    sponsor: request.sponsor,
+    payout: request.payout,
+    feeAtomic: request.feeAtomic,
+    expectedGenesis,
+    expectedCommitment
+  });
+  const { proof, publicSignals } = await proveC3({ form: plan.form, prepared, artifacts, loadArtifact, snarkjs, onStage });
+  return {
+    raw: finishC4(prepared, proof, publicSignals),
+    form: plan.form,
+    feeAtomic: request.feeAtomic,
+    stateOutpoint: scan.state.stateOutpoint,
+    inputPoints: prepared.inputs.map((x) => ({ txid: x.txid, vout: x.vout })),
+    amountAtomic: plan.amountAtomic
+  };
+}
 
 // src/pool-worker.js
 function startPoolWorker({
@@ -7621,9 +10839,21 @@ function startPoolWorker({
   artifacts = C3_TESTNET_ARTIFACTS,
   network = C3_TESTNET_NETWORK,
   singleThread = true,
-  missingArtifactMessage
+  missingArtifactMessage,
+  depositLimitAtomic,
+  expectedGenesis,
+  expectedCommitment,
+  maxArtifactBytes = MAX_ARTIFACT_BYTES
 } = {}) {
   if (!fetchArtifact && !artifactBaseUrl) throw new Error("startPoolWorker needs artifactBaseUrl or fetchArtifact");
+  if (depositLimitAtomic !== void 0 && (typeof depositLimitAtomic !== "bigint" || depositLimitAtomic <= 0n)) {
+    throw new Error("depositLimitAtomic must be a positive bigint");
+  }
+  const c4 = manifest?.schema === "neurai-c4-xna-test-v1";
+  if (c4) validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  if (!Number.isSafeInteger(maxArtifactBytes) || maxArtifactBytes <= 0 || maxArtifactBytes > 256 * 1048576) {
+    throw new Error("Artifact limit must be a positive integer of at most 256 MiB");
+  }
   const missing = missingArtifactMessage ?? (artifactBaseUrl ? "C3 TEST parameters are not available at " + artifactBaseUrl : "C3 TEST parameters are not available");
   const pool = { network, domain: manifest.domain, assetId: manifest.assetId };
   const fetcher = fetchArtifact ?? ((path) => fetch(new URL(path, artifactBaseUrl)));
@@ -7647,6 +10877,7 @@ function startPoolWorker({
       artifacts,
       fetchArtifact: fetcher,
       missingMessage: missing,
+      maxBytes: maxArtifactBytes,
       onProgress: (percent) => stage(`Loading ${name} \xB7 ${percent}%`)
     });
   };
@@ -7662,7 +10893,7 @@ function startPoolWorker({
       }
     }
     stage("Reading confirmed pool state");
-    scan = await scanBrowserPool({ rpc, manifest, identity, checkpoint: previous, onProgress: ({ height }) => stage(`Reading pool operation at block ${height}`) });
+    scan = await scanBrowserPool({ rpc, manifest, identity, expectedGenesis, expectedCommitment, checkpoint: previous, onProgress: ({ height }) => stage(`Reading pool operation at block ${height}`) });
     let checkpoint = null;
     try {
       checkpoint = identity.sealCheckpoint(scan.checkpoint);
@@ -7674,8 +10905,8 @@ function startPoolWorker({
     if (!identity) throw new Error("Unlock the private wallet first");
     if (!snarkjs) throw new Error("This worker was started without snarkjs, so it cannot prove");
     await refresh();
-    for (const coin2 of [data.sponsor, data.funding].filter(Boolean)) await checkPoolCoin(rpc, coin2);
-    const result = await buildC3Transaction({
+    for (const coin3 of [data.sponsor, data.funding].filter(Boolean)) await checkPoolCoin(rpc, coin3, { profile: c4 ? "C4" : "C3" });
+    const result = await (c4 ? buildC4Transaction : buildC3Transaction)({
       identity,
       scan,
       manifest,
@@ -7684,6 +10915,9 @@ function startPoolWorker({
       snarkjs,
       pool,
       request: data,
+      depositLimitAtomic,
+      expectedGenesis,
+      expectedCommitment,
       onStage: stage
     });
     post({ type: "prepared", result });
@@ -7720,6 +10954,7 @@ function startPoolWorker({
         identity = await ZkWalletIdentity.fromMnemonic({
           mnemonic: data.mnemonic,
           passphrase: data.passphrase ?? "",
+          family: data.family,
           zkPassphrase: data.zkPassphrase ?? "",
           account: data.account,
           gap: data.gap,
@@ -7770,6 +11005,7 @@ function startPoolWorker({
   C3_TESTNET_MANIFEST,
   C3_TESTNET_NETWORK,
   C3_TEST_DEPOSIT_LIMIT_ATOMIC,
+  C4_FORMS,
   CliTestBackend,
   LEGACY_P2PKH,
   MAX_ARTIFACT_BYTES,
@@ -7777,6 +11013,8 @@ function startPoolWorker({
   MIN_SPONSOR_CHANGE_ATOMIC,
   NZK_ARGON2ID,
   NZK_DEFAULT_GAP,
+  NZK_DERIVATION,
+  NZK_FAMILIES,
   NZK_HRP,
   NZK_MAX_GAP,
   NeuraiPrivacy,
@@ -7790,6 +11028,8 @@ function startPoolWorker({
   bech32mDecode,
   bech32mEncode,
   buildC3Transaction,
+  buildC4Transaction,
+  c4DustAtomic,
   checkPoolCoin,
   confirmedPoolCoins,
   decodeField,
@@ -7804,6 +11044,7 @@ function startPoolWorker({
   encodeField,
   encodeNote,
   encodeNzkAddress,
+  finishC4,
   formatXna,
   inspectFundingTransaction,
   isPoolReadRpc,
@@ -7817,8 +11058,10 @@ function startPoolWorker({
   parseRecipient,
   parseXna,
   planC3Operation,
+  planC4Operation,
   poseidonBytes,
   poseidonPermutation,
+  prepareC4,
   proveC3,
   publicationStatus,
   publishTransaction,
@@ -7831,6 +11074,7 @@ function startPoolWorker({
   selectPoolCoins,
   startPoolWorker,
   summarizeScan,
+  validateC4Manifest,
   walletSeedFromMnemonic,
   withdrawalScript,
   zkFingerprint
@@ -7847,5 +11091,14 @@ function startPoolWorker({
 @noble/curves/abstract/montgomery.js:
 @noble/curves/ed25519.js:
   (*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
+
+@noble/hashes/utils.js:
+  (*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
+
+@scure/base/index.js:
+  (*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
+
+@scure/bip39/index.js:
+  (*! scure-bip39 - MIT License (c) 2022 Patricio Palladino, Paul Miller (paulmillr.com) *)
 */
 //# sourceMappingURL=index.cjs.map

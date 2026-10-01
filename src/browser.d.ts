@@ -6,8 +6,8 @@ export { encodeNote, decodeNote, deriveOwner, deriveNullifierKey, noteCommitment
 export { sealVault, openVault } from './index.js';
 export { deriveViewPublic, sealNote, openNoteRecord } from './index.js';
 export { BrowserTestIdentity } from './index.js';
-export { NZK_ARGON2ID, NZK_HRP, NZK_DEFAULT_GAP, NZK_MAX_GAP, walletSeedFromMnemonic, deriveZkRoot, zkFingerprint, deriveZkAddressKeys, nzkInstanceTag, encodeNzkAddress, decodeNzkAddress, parseRecipient, bech32mEncode, bech32mDecode, ZkWalletIdentity } from './index.js';
-export type { NzkNetwork, NzkAddressRef, NzkPoolScope, ZkWalletOptions } from './index.js';
+export { NZK_DERIVATION, NZK_FAMILIES, NZK_ARGON2ID, NZK_HRP, NZK_DEFAULT_GAP, NZK_MAX_GAP, walletSeedFromMnemonic, deriveZkRoot, zkFingerprint, deriveZkAddressKeys, nzkInstanceTag, encodeNzkAddress, decodeNzkAddress, parseRecipient, bech32mEncode, bech32mDecode, ZkWalletIdentity } from './index.js';
+export type { NzkFamily, NzkNetwork, NzkAddressRef, NzkPoolScope, ZkWalletOptions } from './index.js';
 
 export interface BrowserPoolManifest {
   profile: 'xna';
@@ -48,8 +48,9 @@ export interface PoolScanCheckpoint {
 
 export declare function scanBrowserPool(options: {
   rpc: import('./index.js').NeuraiRpc;
-  manifest: BrowserPoolManifest;
+  manifest: BrowserPoolManifest | C4Manifest;
   identity?: import('./index.js').BrowserTestIdentity | import('./index.js').ZkWalletIdentity;
+  expectedGenesis?: string; expectedCommitment?: string;
   stopHeight?: number;
   onProgress?: (position:{height:number;total:number})=>void;
   /** 'spent-index' (C3 default) needs -spentindex and -txindex; 'blocks' replays every block. */
@@ -87,3 +88,22 @@ export declare function finishC3(prepared:C3Prepared, proof:{pi_a:string[];pi_b:
 
 export * from './client.js';
 export * from './worker.js';
+
+/** TEST single-asset XNA deployment. The commitment must be pinned independently. */
+export type C4Form = C3Form | 'T3' | 'T4';
+export interface C4Manifest extends Omit<C3Manifest, 'schema' | 'forms' | 'vkHashes'> {
+  schema: 'neurai-c4-xna-test-v1'; testOnly: true;
+  unit: '1'; registryRoot: string; context: string;
+  issuance: {txid:string;vout:number};
+  forms: Record<C4Form, {script:string;control:string;vk:string;vkHash:string}>;
+}
+export interface C4PrepareOptions extends Omit<C3PrepareOptions, 'manifest' | 'form'> {
+  manifest:C4Manifest; form:C4Form; expectedGenesis?:string; expectedCommitment:string;
+  dustRelayFeePerKb?:string;
+}
+export interface C4Prepared extends Omit<C3Prepared, 'manifest' | 'form'> {manifest:C4Manifest;form:C4Form}
+export declare const C4_FORMS:C4Form[];
+export declare function validateC4Manifest(manifest:C4Manifest, options:{expectedGenesis?:string;expectedCommitment:string}):C4Manifest;
+export declare function c4DustAtomic(scriptHex:string, feePerKb?:string):bigint;
+export declare function prepareC4(options:C4PrepareOptions & {secret?:Uint8Array}):C4Prepared;
+export declare function finishC4(prepared:C4Prepared, proof:import('./worker.js').Groth16Proof, publicSignals:string[]):string;

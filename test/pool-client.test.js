@@ -118,9 +118,9 @@ test('publication marks unknown outcomes as uncertain and resolves them later', 
 });
 
 test('rotation state is small, validated and tolerant of unavailable storage', () => {
-  const key = rotationStorageKey({ network: 'xna-test', walletId: 'tWallet', fingerprint: 'ce62fe35', account: 0 });
-  assert.equal(key, 'neurai-privacy-zk:xna-test:tWallet:ce62fe35:0');
-  assert.throws(() => rotationStorageKey({ network: 'x', fingerprint: 'nothex!!', account: 0 }), /fingerprint/);
+  const key = rotationStorageKey({ network: 'xna-test', walletId: 'tWallet', derivation: 'NeuraiZK/v2', family: 'legacy', storageId: 'ab'.repeat(32), account: 0 });
+  assert.equal(key, 'neurai-privacy-zk:v2:' + JSON.stringify(['xna-test', 'tWallet', 'legacy', 0, 'ab'.repeat(32)]));
+  assert.throws(() => rotationStorageKey({ network: 'x', derivation: 'NeuraiZK/v2', family: 'legacy', storageId: 'nothex!!', account: 0 }), /storageId/);
   const map = new Map();
   const storage = { getItem: k => map.get(k) ?? null, setItem: (k, v) => map.set(k, v) };
   assert.equal(loadRotation(storage, key), null);

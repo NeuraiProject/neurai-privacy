@@ -230,13 +230,17 @@ export declare class BrowserTestIdentity {
   createNote(recipient: RecipientDescriptor, amountAtomic: bigint | string): { note: Uint8Array; cm: Uint8Array; record: Uint8Array };
   openRecord(record: Uint8Array, commitment: Uint8Array): { note: Uint8Array; cm: Uint8Array; amountAtomic: bigint; nf: Uint8Array };
   /** Local worker only: returned witness contains private circuit inputs. */
+  prepareC4(options: import('./browser.js').C4PrepareOptions): import('./browser.js').C4Prepared;
   prepareC3(options: import('./browser.js').C3PrepareOptions): import('./browser.js').C3Prepared;
   sealCheckpoint(checkpoint: import('./browser.js').PoolScanCheckpoint): string;
   openCheckpoint(encoded: string): import('./browser.js').PoolScanCheckpoint;
   lock(): void;
 }
 
-/** NeuraiZK/v1 draft: deterministic identities from the wallet seed and nzk addresses. */
+/** NeuraiZK/v2: deterministic identities from the wallet seed and nzk addresses. */
+export type NzkFamily = 'legacy' | 'ecdsa' | 'pq';
+export declare const NZK_DERIVATION: 'NeuraiZK/v2';
+export declare const NZK_FAMILIES: Readonly<Record<NzkFamily, number>>;
 export type NzkNetwork = 'mainnet' | 'testnet' | 'regtest';
 export interface NzkAddressRef { chain: 0 | 1; index: number }
 export interface NzkPoolScope { network: NzkNetwork; domain: string; assetId: string }
@@ -246,19 +250,22 @@ export declare const NZK_DEFAULT_GAP: number;
 export declare const NZK_MAX_GAP: number;
 export declare function walletSeedFromMnemonic(mnemonic: string, passphrase?: string): Promise<Uint8Array>;
 export declare function deriveZkRoot(seed: Uint8Array, zkPassphrase?: string): Promise<Uint8Array>;
-export declare function zkFingerprint(root: Uint8Array): string;
-export declare function deriveZkAddressKeys(root: Uint8Array, options: { account: number; chain: 0 | 1; index: number; domain: string | Uint8Array; assetId: string | Uint8Array }): { spendSecret: Uint8Array; viewSeed: Uint8Array };
+export declare function zkFingerprint(root: Uint8Array, options: { family: NzkFamily; account?: number; domain: string | Uint8Array; assetId: string | Uint8Array }): string;
+export declare function deriveZkAddressKeys(root: Uint8Array, options: { family: NzkFamily; account?: number; chain: 0 | 1; index: number; domain: string | Uint8Array; assetId: string | Uint8Array }): { spendSecret: Uint8Array; viewSeed: Uint8Array };
 export declare function nzkInstanceTag(domain: string | Uint8Array, assetId: string | Uint8Array): Uint8Array;
 export declare function encodeNzkAddress(descriptor: RecipientDescriptor, network: NzkNetwork): string;
 export declare function decodeNzkAddress(address: string, scope: NzkPoolScope): RecipientDescriptor;
-export declare function parseRecipient(text: string, scope: NzkPoolScope): RecipientDescriptor;
+export declare function parseRecipient(text: string | RecipientDescriptor, scope: NzkPoolScope): RecipientDescriptor;
 export declare function bech32mEncode(hrp: string, bytes: Uint8Array): string;
 export declare function bech32mDecode(text: string): { hrp: string; bytes: Uint8Array };
-export interface ZkWalletOptions { account: number; domain: string; assetId: string; network: NzkNetwork; gap?: number; issued?: number }
+export interface ZkWalletOptions { family: NzkFamily; account?: number; domain: string; assetId: string; network: NzkNetwork; gap?: number; issued?: number }
 export declare class ZkWalletIdentity {
   static fromMnemonic(options: ZkWalletOptions & { mnemonic: string; passphrase?: string; zkPassphrase?: string }): Promise<ZkWalletIdentity>;
   static fromSeed(options: ZkWalletOptions & { seed: Uint8Array; zkPassphrase?: string }): Promise<ZkWalletIdentity>;
   static fromRoot(options: ZkWalletOptions & { root: Uint8Array }): ZkWalletIdentity;
+  readonly derivation: 'NeuraiZK/v2';
+  readonly family: NzkFamily;
+  readonly storageId: string;
   readonly fingerprint: string;
   readonly account: number;
   readonly network: NzkNetwork;
@@ -280,6 +287,7 @@ export declare class ZkWalletIdentity {
   createNote(recipient: RecipientDescriptor, amountAtomic: bigint | string): { note: Uint8Array; cm: Uint8Array; record: Uint8Array };
   spendingIdentity(consumed?: { address?: NzkAddressRef }): BrowserTestIdentity;
   /** Local worker only: returned witness contains private circuit inputs. */
+  prepareC4(options: import('./browser.js').C4PrepareOptions): import('./browser.js').C4Prepared;
   prepareC3(options: import('./browser.js').C3PrepareOptions): import('./browser.js').C3Prepared;
   backupJson(): null;
   sealCheckpoint(checkpoint: import('./browser.js').PoolScanCheckpoint): string;
@@ -289,3 +297,6 @@ export declare class ZkWalletIdentity {
 
 export * from './client.js';
 export * from './worker.js';
+
+export { C4_FORMS, validateC4Manifest, prepareC4, finishC4, c4DustAtomic } from './browser.js';
+export type { C4Form, C4Manifest, C4PrepareOptions, C4Prepared } from './browser.js';

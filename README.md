@@ -101,7 +101,7 @@ const pool = new PoolWorkerClient({
 });
 
 // Private wallet from the open wallet's words.
-const { addresses } = await pool.derive({ mnemonic, passphrase, zkPassphrase: '', account: 0 });
+const { addresses } = await pool.derive({ mnemonic, passphrase, zkPassphrase: '', family: 'legacy', account: 0 });
 showReceivingAddress(addresses.current.address); // tnzk1...
 const { result, checkpoint } = await pool.scan(); // balanceAtomic, notes, transitions
 // Save checkpoint in the app's local storage for the next session.
@@ -126,9 +126,10 @@ IndexedDB or the mobile app's local storage, under a key specific to the
 wallet and network. The storage adapter below is supplied by the application:
 
 ```js
-const { addresses } = await pool.derive({ mnemonic, account: 0 });
+const { addresses } = await pool.derive({ mnemonic, family: 'legacy', account: 0 });
 const key = rotationStorageKey({
-  network: 'testnet', fingerprint: addresses.fingerprint, account: 0,
+  network: 'testnet', derivation: addresses.derivation, family: addresses.family,
+  storageId: addresses.storageId, account: 0,
 }) + ':scan';
 let previous;
 try { previous = await storage.get(key); } catch { /* storage unavailable */ }
@@ -160,7 +161,7 @@ itself. The protocol is described at the top of `src/pool-worker.js`.
 The application provides these parts:
 
 - **Proving parameters.** Serve the 30 files listed in `C3_TESTNET_ARTIFACTS`,
-  about 336 MB, under `artifactBaseUrl`. The worker checks each size and
+  about 335 MiB, under `artifactBaseUrl`. The worker checks each size and
   SHA-256 before use.
 - **A node with indexes.** The scanner follows the pool state with
   `getspentinfo`, so the node needs `-spentindex` and `-txindex`.
@@ -183,10 +184,15 @@ arithmetic. `parseXna` and `formatXna` handle user input and display.
 
 ## Receiving addresses
 
-The derivation scheme is NeuraiZK/v1. Argon2id with 64 MiB turns the wallet
-seed and the ZK passphrase into a root. HKDF-SHA256 then derives the keys of
-each address for one pool. Different ZK passphrases or accounts give
-unrelated private wallets inside the same transparent wallet.
+The derivation scheme is [NeuraiZK/v2](docs/nzk-v2-derivation.md). The
+mandatory `family` is `legacy`, `ecdsa` or `pq`.
+The same wallet words produce separate private keys for each family. Argon2id
+with 64 MiB derives a root from the BIP39 seed and optional ZK passphrase;
+HKDF-SHA256 binds address keys to family, account, branch, index and pool.
+This replaces v1 without automatic migration. Old TEST notes need their old
+keys. Receiving descriptors keep format version 1 and work across families.
+`fromMnemonic` validates English BIP39 words; other BIP39 wordlists can use
+`fromSeed` with their independently validated 64-byte seed.
 
 - **Format.** An address is bech32m. Its 69-byte payload holds a version
   byte, the owner, the viewing public key and a 4-byte tag of the pool. It is
@@ -206,7 +212,7 @@ unrelated private wallets inside the same transparent wallet.
 import { ZkWalletIdentity, decodeNzkAddress } from '@neuraiproject/neurai-privacy/browser';
 
 const scope = { network: 'testnet', domain: manifest.domain, assetId: manifest.assetId };
-const wallet = await ZkWalletIdentity.fromMnemonic({ mnemonic, passphrase: '', zkPassphrase: '', account: 0, ...scope });
+const wallet = await ZkWalletIdentity.fromMnemonic({ mnemonic, passphrase: '', zkPassphrase: '', family: 'legacy', account: 0, ...scope });
 const address = wallet.addressAt(0, wallet.currentIndex()); // tnzk1...
 const next = wallet.addressAt(0, wallet.issueNext());
 const descriptor = decodeNzkAddress(next, scope);
@@ -222,8 +228,9 @@ The package includes the pool manifest and the proving parameter list for
 Neurai testnet, `C3_TESTNET_MANIFEST` and `C3_TESTNET_ARTIFACTS`. The worker
 uses them by default. Their verification keys come from a public setup, so
 they are meant for testnet only. Another network needs its own manifest and
-parameters, passed to `startPoolWorker`. The testnet pool accepts deposits of
-up to 1,000 XNA each.
+parameters, passed to `startPoolWorker`. The pool contract accepts deposits up
+to the XNA money range; `startPoolWorker({ depositLimitAtomic })` sets a lower
+limit for an application.
 
 ## What stays public
 
@@ -231,7 +238,21 @@ The fee is paid from a transparent coin, so it shows which transparent wallet
 paid for each pool transaction. Deposits and withdrawals also show their
 amounts and transparent addresses. Assignments inside the pool hide the
 receiver and the amount. The time of each transaction and the node the
-application talks to remain visible.
+application talks to remain visible. See the
+[security and privacy model](docs/security-model.md).
+
+## Documentation
+
+The [`docs/`](docs/README.md) folder explains how the pool and the library
+work:
+
+- [How the privacy pool works](docs/privacy-pool.md)
+- [Library architecture](docs/architecture.md)
+- [Transaction lifecycle](docs/transaction-lifecycle.md)
+- [Chain scanning and checkpoints](docs/chain-scanning.md)
+- [NeuraiZK/v2 derivation](docs/nzk-v2-derivation.md)
+- [Data formats](docs/data-formats.md)
+- [Security and privacy model](docs/security-model.md)
 
 ## Node backend
 

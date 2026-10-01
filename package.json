@@ -1,6 +1,6 @@
 {
   "name": "@neuraiproject/neurai-privacy",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Private XNA payments on Neurai: private wallets from the wallet words, nzk addresses and zero-knowledge proofs built on the device",
   "repository": {
     "type": "git",
@@ -69,7 +69,10 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "docs",
+    "test/fixtures/nzk-poseidon.json",
+    "test/fixtures/nzk-vectors.json"
   ],
   "engines": {
     "node": ">=20.19.0"
@@ -83,12 +86,13 @@
     "prepublishOnly": "npm run build && npm test && npm run test:types && npm run test:build"
   },
   "devDependencies": {
-    "@types/node": "^20.19.27",
-    "esbuild": "0.28.2",
-    "typescript": "^5.9.3",
     "@noble/ciphers": "2.2.0",
     "@noble/curves": "2.2.0",
-    "@noble/hashes": "2.2.0"
+    "@noble/hashes": "2.2.0",
+    "@scure/bip39": "2.0.1",
+    "@types/node": "^20.19.27",
+    "esbuild": "0.28.2",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "@neuraiproject/neurai-rpc": "^0.7.0"

@@ -6,10 +6,12 @@
  */
 export const ROTATION_MAX_GAP = 1000;
 
-export function rotationStorageKey({ network, walletId = '', fingerprint, account }) {
-  if (typeof fingerprint !== 'string' || !/^[0-9a-f]{8}$/.test(fingerprint)) throw new Error('fingerprint must be 8 hex characters');
-  if (!Number.isInteger(account) || account < 0) throw new Error('account must be a non-negative integer');
-  return `neurai-privacy-zk:${network}:${walletId}:${fingerprint}:${account}`;
+export function rotationStorageKey({ network, walletId = '', derivation, family, storageId, account }) {
+  if (derivation !== 'NeuraiZK/v2') throw new Error('unsupported derivation');
+  if (!['legacy', 'ecdsa', 'pq'].includes(family)) throw new Error('invalid family');
+  if (typeof storageId !== 'string' || !/^[0-9a-f]{64}$/.test(storageId)) throw new Error('storageId must be 32 bytes in hex');
+  if (!Number.isInteger(account) || account < 0 || account >= 2 ** 31) throw new Error('invalid account');
+  return 'neurai-privacy-zk:v2:' + JSON.stringify([network, walletId, family, account, storageId]);
 }
 
 export function loadRotation(storage, key) {

@@ -1,12 +1,13 @@
-/* Deterministic ZK identities and nzk addresses (NeuraiZK/v1 draft, 2026-09-29).
+/* Deterministic ZK identities and nzk addresses (NeuraiZK/v2, 2026-10-01).
  *
  * Wallet seed (BIP-39 words + passphrase) + ZK passphrase -> Argon2id root ->
- * HKDF keys per account, chain (0 receiving, 1 change) and address index, bound
+ * HKDF keys per family, account, chain (0 receiving, 1 change) and address index, bound
  * to one pool instance. Each address has its own spend secret and view seed, so
  * receiving addresses can rotate without linking them. Wallet-only: no consensus,
- * circuit or note-format change. This file must stay identical in the webwallet
- * engine copy; it imports no curve module for that reason.
+ * circuit or note-format change. The webwallet consumes the bundled package.
  */
+import { validateMnemonic } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { argon2idAsync } from '@noble/hashes/argon2.js';
 import { extract, expand } from '@noble/hashes/hkdf.js';
 import { pbkdf2Async } from '@noble/hashes/pbkdf2.js';
@@ -17,7 +18,16 @@ import { deriveOwner } from './notes.js';
 import { deriveViewPublic } from './hpke.js';
 
 const utf8 = new TextEncoder();
-const label = name => utf8.encode('NeuraiZK/v1/' + name);
+const label = name => utf8.encode('NeuraiZK/v2/' + name);
+export const NZK_DERIVATION = 'NeuraiZK/v2';
+export const NZK_FAMILIES = Object.freeze({ legacy: 0, ecdsa: 1, pq: 2 });
+function familyByte(family) {
+  if (!Object.hasOwn(NZK_FAMILIES, family)) fail('family must be legacy, ecdsa or pq');
+  return Uint8Array.of(NZK_FAMILIES[family]);
+}
+function accountScope({ family, account = 0, domain, assetId }) {
+  return concat(familyByte(family), u32le(index31(account, 'account')), bytes32(domain, 'domain'), bytes32(assetId, 'assetId'));
+}
 export const NZK_ARGON2ID = Object.freeze({ t: 3, m: 64 * 1024, p: 1, dkLen: 64 });
 export const NZK_HRP = Object.freeze({ mainnet: 'nzk', testnet: 'tnzk', regtest: 'rnzk' });
 export const NZK_DEFAULT_GAP = 20;
@@ -118,11 +128,13 @@ export function bech32mDecode(text) {
   return { hrp, bytes: Uint8Array.from(convertBits(data.slice(0, -6), 5, 8, false)) };
 }
 
-/** BIP-39 seed: PBKDF2-HMAC-SHA512, 2048 iterations. The wallet validates the words. */
+/** BIP-39 English words, validated and normalized; passphrase whitespace is significant. */
 export async function walletSeedFromMnemonic(mnemonic, passphrase = '') {
   if (typeof mnemonic !== 'string' || !mnemonic.trim()) fail('mnemonic required');
   if (typeof passphrase !== 'string') fail('passphrase must be a string');
-  return pbkdf2Async(sha512, utf8.encode(mnemonic.normalize('NFKD')),
+  const canonical = mnemonic.normalize('NFKD').trim().split(/\s+/u).join(' ');
+  if (!validateMnemonic(canonical, wordlist)) fail('invalid English BIP39 mnemonic');
+  return pbkdf2Async(sha512, utf8.encode(canonical),
     utf8.encode('mnemonic' + passphrase.normalize('NFKD')), { c: 2048, dkLen: 64 });
 }
 
@@ -131,29 +143,32 @@ export async function deriveZkRoot(seed, zkPassphrase = '') {
   if (!(seed instanceof Uint8Array) || seed.length !== 64) fail('wallet seed must be 64 bytes');
   if (typeof zkPassphrase !== 'string') fail('ZK passphrase must be a string');
   const z = utf8.encode(zkPassphrase.normalize('NFKD'));
+  if (z.length > 0xffffffff) fail('ZK passphrase is too long');
   const password = concat(seed, u32le(z.length), z);
   try {
-    return await argon2idAsync(password, label('root'), { ...NZK_ARGON2ID, maxmem: NZK_ARGON2ID.m * 1024 });
-  } finally { password.fill(0); }
+    return await argon2idAsync(password, label('root'), { ...NZK_ARGON2ID, version: 0x13, maxmem: NZK_ARGON2ID.m * 1024 });
+  } finally { password.fill(0); z.fill(0); }
 }
 
 function accountPrk(root) {
   if (!(root instanceof Uint8Array) || root.length !== 64) fail('ZK root must be 64 bytes');
   return extract(sha256, root, label('account'));
 }
-function fingerprintFromPrk(prk) { return hex(sha256(expand(sha256, prk, label('fingerprint'), 32)).subarray(0, 4)); }
-
-/** Eight hex characters that identify one words + passphrase + ZK passphrase family. Never publish it. */
-export function zkFingerprint(root) {
-  const prk = accountPrk(root);
-  try { return fingerprintFromPrk(prk); } finally { prk.fill(0); }
+function fingerprintFromPrk(prk, options) {
+  return hex(sha256(expand(sha256, prk, concat(label('fingerprint'), accountScope(options)), 32)).subarray(0, 4));
 }
 
-function keysFromPrk(prk, { account, chain, index, domain, assetId }) {
+/** Local comparison hint only; never an authentication token or storage identifier. */
+export function zkFingerprint(root, options) {
+  const prk = accountPrk(root);
+  try { return fingerprintFromPrk(prk, options); } finally { prk.fill(0); }
+}
+
+function keysFromPrk(prk, { family, account = 0, chain, index, domain, assetId }) {
   index31(account, 'account');
   index31(index, 'address index');
   if (chain !== CHAIN_RECEIVING && chain !== CHAIN_CHANGE) fail('chain must be 0 (receiving) or 1 (change)');
-  const scope = concat(u32le(account), u32le(chain), u32le(index), bytes32(domain, 'domain'), bytes32(assetId, 'assetId'));
+  const scope = concat(familyByte(family), u32le(account), u32le(chain), u32le(index), bytes32(domain, 'domain'), bytes32(assetId, 'assetId'));
   const spendSecret = expand(sha256, prk, concat(label('spend'), scope), 32);
   const viewSeed = expand(sha256, prk, concat(label('view'), scope), 32);
   if (spendSecret.every(b => b === 0)) fail('invalid derived spend secret');
@@ -168,7 +183,7 @@ export function deriveZkAddressKeys(root, options) {
 
 /** Four-byte tag that binds an address to one pool instance; not a security control. */
 export function nzkInstanceTag(domain, assetId) {
-  return sha256(concat(label('instance'), bytes32(domain, 'domain'), bytes32(assetId, 'assetId'))).subarray(0, 4);
+  return sha256(concat(utf8.encode('NeuraiZK/v1/instance'), bytes32(domain, 'domain'), bytes32(assetId, 'assetId'))).subarray(0, 4);
 }
 
 /** Encode a receiving descriptor {domain, asset_id, owner, view_pub} as an nzk address. */
@@ -207,13 +222,20 @@ export function decodeNzkAddress(address, { network, domain, assetId }) {
     owner: hex(owner), view_pub: hex(viewPub) };
 }
 
-/** Accept an nzk address or a JSON descriptor as a recipient, and validate both the same way. */
-export function parseRecipient(text, { network, domain, assetId }) {
-  if (typeof text !== 'string' || !text.trim()) fail('recipient required');
-  const value = text.trim();
-  if (value[0] !== '{') return decodeNzkAddress(value, { network, domain, assetId });
+/** Validate nzk text, JSON text and descriptor objects through the same checks. */
+export function parseRecipient(input, { network, domain, assetId }) {
   let descriptor;
-  try { descriptor = JSON.parse(value); } catch { fail('recipient is neither an nzk address nor a JSON descriptor'); }
+  if (typeof input === 'string') {
+    const value = input.trim();
+    if (!value) fail('recipient required');
+    if (value[0] !== '{') return decodeNzkAddress(value, { network, domain, assetId });
+    try { descriptor = JSON.parse(value); } catch { fail('recipient is neither an nzk address nor a JSON descriptor'); }
+  } else {
+    descriptor = input;
+  }
+  if (!descriptor || typeof descriptor !== 'object' || Array.isArray(descriptor)) {
+    fail('recipient must be an nzk address or a descriptor');
+  }
   const normalized = { domain: hex(bytes32(descriptor.domain, 'domain')), asset_id: hex(bytes32(descriptor.asset_id, 'asset_id')),
     owner: hex(bytes32(descriptor.owner, 'owner')), view_pub: hex(bytes32(descriptor.view_pub, 'view_pub')) };
   if (normalized.domain !== hex(bytes32(domain, 'domain')) || normalized.asset_id !== hex(bytes32(assetId, 'assetId'))) {
@@ -233,6 +255,8 @@ export class ZkWalletIdentity {
   #domain;
   #assetId;
   #account;
+  #family;
+  #storageId;
   #network;
   #fingerprint;
   #gap = NZK_DEFAULT_GAP;
@@ -241,24 +265,29 @@ export class ZkWalletIdentity {
   #maxUsed = -1;
   #identities = new Map();
 
-  constructor(prk, { account, domain, assetId, network, gap, issued }) {
+  constructor(prk, { family, account = 0, domain, assetId, network, gap, issued }) {
+    const scope = accountScope({ family, account, domain, assetId });
+    this.#family = family;
     this.#prk = prk.slice();
     this.#account = index31(account, 'account');
     this.#domain = hex(bytes32(domain, 'domain'));
     this.#assetId = hex(bytes32(assetId, 'assetId'));
     hrpFor(network);
     this.#network = network;
-    this.#fingerprint = fingerprintFromPrk(this.#prk);
+    this.#fingerprint = fingerprintFromPrk(this.#prk, { family, account, domain, assetId });
+    this.#storageId = hex(sha256(expand(sha256, this.#prk, concat(label('storage'), scope), 32)));
     if (gap !== undefined) this.setGap(gap);
     if (issued !== undefined) this.setIssued(issued);
   }
 
   static async fromMnemonic({ mnemonic, passphrase = '', zkPassphrase = '', ...options }) {
+    accountScope(options); // Fail before running the expensive KDF.
     const seed = await walletSeedFromMnemonic(mnemonic, passphrase);
     try { return await ZkWalletIdentity.fromSeed({ seed, zkPassphrase, ...options }); } finally { seed.fill(0); }
   }
 
   static async fromSeed({ seed, zkPassphrase = '', ...options }) {
+    accountScope(options);
     const root = await deriveZkRoot(seed, zkPassphrase);
     try { return ZkWalletIdentity.fromRoot({ root, ...options }); } finally { root.fill(0); }
   }
@@ -271,6 +300,9 @@ export class ZkWalletIdentity {
 
   #assertOpen() { if (!this.#prk) fail('identity is locked'); }
 
+  get derivation() { return NZK_DERIVATION; }
+  get family() { return this.#family; }
+  get storageId() { return this.#storageId; }
   get fingerprint() { return this.#fingerprint; }
   get account() { return this.#account; }
   get network() { return this.#network; }
@@ -291,7 +323,7 @@ export class ZkWalletIdentity {
     const key = chain + '/' + index;
     let identity = this.#identities.get(key);
     if (!identity) {
-      const { spendSecret, viewSeed } = keysFromPrk(this.#prk, { account: this.#account, chain, index,
+      const { spendSecret, viewSeed } = keysFromPrk(this.#prk, { family: this.#family, account: this.#account, chain, index,
         domain: this.#domain, assetId: this.#assetId });
       try {
         identity = new BrowserTestIdentity(spendSecret, viewSeed, bytes32(this.#domain), bytes32(this.#assetId), null);
@@ -377,6 +409,7 @@ export class ZkWalletIdentity {
   }
 
   prepareC3(options) { return this.spendingIdentity(options.consumed).prepareC3(options); }
+  prepareC4(options) { return this.spendingIdentity(options.consumed).prepareC4(options); }
 
   /** Derived identities are recovered from the words; there is no file backup. */
   backupJson() { return null; }
@@ -384,7 +417,7 @@ export class ZkWalletIdentity {
   #checkpointKey() {
     this.#assertOpen();
     return expand(sha256, this.#prk,
-      concat(label('scan-checkpoint'), u32le(this.#account), bytes32(this.#domain, 'domain'), bytes32(this.#assetId, 'assetId')), 32);
+      concat(label('scan-checkpoint'), accountScope({ family: this.#family, account: this.#account, domain: this.#domain, assetId: this.#assetId })), 32);
   }
 
   sealCheckpoint(checkpoint) {

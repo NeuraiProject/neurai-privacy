@@ -1,4 +1,5 @@
 import { prepareC3 } from './c3.js';
+import { prepareC4 } from './c4.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { sealScanCheckpoint, openScanCheckpoint } from './checkpoint-crypto.js';
 import { sealVault, openVault } from './vault.js';
@@ -110,6 +111,15 @@ export class BrowserTestIdentity {
       throw new Error('wallet belongs to another pool instance');
     }
     return prepareC3({ ...options, secret: this.#spendSecret });
+  }
+
+  /** Build private circuit inputs locally; call only from the dedicated wallet worker. */
+  prepareC4(options) {
+    this.#assertOpen();
+    if (options.manifest.domain !== hex(this.#domain) || options.manifest.assetId !== hex(this.#assetId)) {
+      throw new Error('wallet belongs to another pool instance');
+    }
+    return prepareC4({ ...options, secret: this.#spendSecret });
   }
 
   #checkpointKey() {
