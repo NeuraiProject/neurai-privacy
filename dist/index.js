@@ -966,17 +966,17 @@ function noteNullifier(note, spendSecret) {
 // node_modules/@noble/hashes/_u64.js
 var U32_MASK64 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
 var _32n = /* @__PURE__ */ BigInt(32);
-function fromBig(n, le3 = false) {
-  if (le3)
+function fromBig(n, le2 = false) {
+  if (le2)
     return { h: Number(n & U32_MASK64), l: Number(n >> _32n & U32_MASK64) };
   return { h: Number(n >> _32n & U32_MASK64) | 0, l: Number(n & U32_MASK64) | 0 };
 }
-function split(lst, le3 = false) {
+function split(lst, le2 = false) {
   const len = lst.length;
   let Ah = new Uint32Array(len);
   let Al = new Uint32Array(len);
   for (let i = 0; i < len; i++) {
-    const { h, l } = fromBig(lst[i], le3);
+    const { h, l } = fromBig(lst[i], le2);
     [Ah[i], Al[i]] = [h, l];
   }
   return [Ah, Al];
@@ -1090,11 +1090,11 @@ function bytesToHex(bytes4) {
   abytes(bytes4);
   if (hasHexBuiltin)
     return bytes4.toHex();
-  let hex8 = "";
+  let hex7 = "";
   for (let i = 0; i < bytes4.length; i++) {
-    hex8 += hexes[bytes4[i]];
+    hex7 += hexes[bytes4[i]];
   }
-  return hex8;
+  return hex7;
 }
 var asciis = { _0: 48, _9: 57, A: 65, F: 70, a: 97, f: 102 };
 function asciiToBase16(ch) {
@@ -1106,28 +1106,28 @@ function asciiToBase16(ch) {
     return ch - (asciis.a - 10);
   return;
 }
-function hexToBytes(hex8) {
-  if (typeof hex8 !== "string")
-    throw new TypeError("hex string expected, got " + typeof hex8);
+function hexToBytes(hex7) {
+  if (typeof hex7 !== "string")
+    throw new TypeError("hex string expected, got " + typeof hex7);
   if (hasHexBuiltin) {
     try {
-      return Uint8Array.fromHex(hex8);
+      return Uint8Array.fromHex(hex7);
     } catch (error) {
       if (error instanceof SyntaxError)
         throw new RangeError(error.message);
       throw error;
     }
   }
-  const hl = hex8.length;
+  const hl = hex7.length;
   const al = hl / 2;
   if (hl % 2)
     throw new RangeError("hex string expected, got unpadded hex of length " + hl);
   const array = new Uint8Array(al);
   for (let ai = 0, hi = 0; ai < al; ai++, hi += 2) {
-    const n1 = asciiToBase16(hex8.charCodeAt(hi));
-    const n2 = asciiToBase16(hex8.charCodeAt(hi + 1));
+    const n1 = asciiToBase16(hex7.charCodeAt(hi));
+    const n2 = asciiToBase16(hex7.charCodeAt(hi + 1));
     if (n1 === void 0 || n2 === void 0) {
-      const char = hex8[hi] + hex8[hi + 1];
+      const char = hex7[hi] + hex7[hi + 1];
       throw new RangeError('hex string expected, got non-hex character "' + char + '" at index ' + hi);
     }
     array[ai] = n1 * 16 + n2;
@@ -2874,11 +2874,11 @@ var MAX_CIPHERTEXT = 16 * 1024 * 1024;
 function bytesToHex3(bytes4) {
   return Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
-function hexToBytes2(hex8, length, name) {
-  if (typeof hex8 !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(hex8) || length !== null && hex8.length !== length * 2) {
+function hexToBytes2(hex7, length, name) {
+  if (typeof hex7 !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(hex7) || length !== null && hex7.length !== length * 2) {
     throw new TypeError(`invalid wallet vault ${name}`);
   }
-  return Uint8Array.from(hex8.match(/../g), (pair2) => parseInt(pair2, 16));
+  return Uint8Array.from(hex7.match(/../g), (pair2) => parseInt(pair2, 16));
 }
 function passwordBytes(password) {
   const bytes4 = typeof password === "string" ? utf8.encode(password) : password;
@@ -3324,7 +3324,7 @@ var abytes3 = (value, length, title) => abytes(value, length, title);
 var anumber3 = anumber;
 var bytesToHex4 = bytesToHex;
 var concatBytes3 = (...arrays) => concatBytes(...arrays);
-var hexToBytes3 = (hex8) => hexToBytes(hex8);
+var hexToBytes3 = (hex7) => hexToBytes(hex7);
 var isBytes3 = isBytes;
 var randomBytes3 = (bytesLength) => randomBytes(bytesLength);
 var _0n = /* @__PURE__ */ BigInt(0);
@@ -3354,10 +3354,10 @@ function asafenumber(value, title = "") {
     throw new RangeError(prefix + "expected safe integer, got " + value);
   }
 }
-function hexToNumber2(hex8) {
-  if (typeof hex8 !== "string")
-    throw new TypeError("hex string expected, got " + typeof hex8);
-  return hex8 === "" ? _0n : BigInt("0x" + hex8);
+function hexToNumber2(hex7) {
+  if (typeof hex7 !== "string")
+    throw new TypeError("hex string expected, got " + typeof hex7);
+  return hex7 === "" ? _0n : BigInt("0x" + hex7);
 }
 function bytesToNumberBE(bytes4) {
   return hexToNumber2(bytesToHex(bytes4));
@@ -3370,10 +3370,10 @@ function numberToBytesBE2(n, len) {
   if (len === 0)
     throw new RangeError("zero length");
   n = abignumber(n);
-  const hex8 = n.toString(16);
-  if (hex8.length > len * 2)
+  const hex7 = n.toString(16);
+  if (hex7.length > len * 2)
     throw new RangeError("number too large");
-  return hexToBytes(hex8.padStart(len * 2, "0"));
+  return hexToBytes(hex7.padStart(len * 2, "0"));
 }
 function numberToBytesLE(n, len) {
   return numberToBytesBE2(n, len).reverse();
@@ -4153,8 +4153,8 @@ function edwards(params, extraOpts = {}) {
         x = modP(-x);
       return Point.fromAffine({ x, y });
     }
-    static fromHex(hex8, zip215 = false) {
-      return Point.fromBytes(hexToBytes3(hex8), zip215);
+    static fromHex(hex7, zip215 = false) {
+      return Point.fromBytes(hexToBytes3(hex7), zip215);
     }
     get x() {
       return this.toAffine().x;
@@ -4756,8 +4756,8 @@ var _RistrettoPoint = class __RistrettoPoint extends PrimeEdwardsPoint {
    * Described in [RFC9496](https://www.rfc-editor.org/rfc/rfc9496#name-decode).
    * @param hex - Ristretto-encoded 32 bytes. Not every 32-byte string is valid ristretto encoding
    */
-  static fromHex(hex8) {
-    return __RistrettoPoint.fromBytes(hexToBytes(hex8));
+  static fromHex(hex7) {
+    return __RistrettoPoint.fromBytes(hexToBytes(hex7));
   }
   /**
    * Encodes ristretto point to Uint8Array.
@@ -5095,6 +5095,88 @@ function openNoteRecord({ record, cm, domain, assetId, viewSeed, spendSecret }) 
   }
 }
 
+// src/c4-publication.js
+var utf83 = (value) => new TextEncoder().encode(value);
+var demand = (condition, message2) => {
+  if (!condition) throw new Error(message2);
+};
+function bytes(value, size, label2) {
+  demand(value instanceof Uint8Array && value.length === size, `${label2} must be ${size} bytes`);
+  return value;
+}
+function concat(...items) {
+  const result = new Uint8Array(items.reduce((n, x) => n + x.length, 0));
+  let offset = 0;
+  for (const item of items) {
+    result.set(item, offset);
+    offset += item.length;
+  }
+  return result;
+}
+function le64(value) {
+  demand(typeof value === "bigint" && value >= 0n && value < 1n << 64n, "Expected unsigned 64-bit bigint");
+  const result = new Uint8Array(8);
+  for (let i = 0; i < 8; i++, value >>= 8n) result[i] = Number(value & 255n);
+  return result;
+}
+var same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+function layout(form) {
+  const deposit = form === "D0" || form === "D1";
+  demand(deposit || /^T[1-4]$/.test(form), "Unsupported C4 publication form");
+  const count = deposit ? 1 : Number(form[1]);
+  return { deposit, count, recordsAt: 34 + count * 32, end: 34 + count * 252 };
+}
+function compactRecord(record) {
+  bytes(record, 1024, "HPKE record");
+  demand(same(record.slice(0, 3), Uint8Array.of(1, 217, 0)) && record.slice(220).every((x) => x === 0), "Noncanonical HPKE record");
+  return record.slice(0, 220);
+}
+function c4Context({ domain, assetId, unit: unit2, registryRoot = new Uint8Array(32) }) {
+  bytes(domain, 32, "Domain");
+  bytes(assetId, 32, "Asset ID");
+  bytes(registryRoot, 32, "Registry root");
+  decodeField(registryRoot);
+  demand(typeof unit2 === "bigint" && Array.from({ length: 9 }, (_, i) => 10n ** BigInt(i)).includes(unit2), "Invalid asset quantum");
+  return poseidonBytes(concat(utf83("NeuraiPoolCtx"), Uint8Array.of(1), domain, assetId, le64(unit2), registryRoot));
+}
+function decodeC4Publication(form, blob) {
+  bytes(blob, 4096, "C4 publication");
+  const spec = layout(form);
+  demand(blob[0] === 2 && blob[1] === spec.count, "C4 version/count mismatch");
+  demand(blob.slice(spec.end).every((x) => x === 0), "Noncanonical C4 padding");
+  const nf = spec.deposit ? null : blob.slice(2, 34);
+  if (spec.deposit) demand(blob.slice(2, 34).every((x) => x === 0), "Deposit cannot carry a nullifier");
+  else demand(decodeField(nf) !== 0n, "Zero nullifier");
+  const cms = [], records = [];
+  for (let i = 0; i < spec.count; i++) {
+    const cm = blob.slice(34 + i * 32, 66 + i * 32);
+    demand(decodeField(cm) !== 0n && !cms.some((other) => same(other, cm)), "Zero or duplicate commitment");
+    cms.push(cm);
+    const record = new Uint8Array(1024);
+    record.set(blob.slice(spec.recordsAt + i * 220, spec.recordsAt + (i + 1) * 220));
+    compactRecord(record);
+    records.push(record);
+  }
+  return { cms, records, nf };
+}
+function encodeC4Publication(form, { cms, records, nf = null }) {
+  const spec = layout(form);
+  demand(Array.isArray(cms) && Array.isArray(records) && cms.length === spec.count && records.length === spec.count, "Wrong note count");
+  demand(spec.deposit ? nf === null : nf instanceof Uint8Array, "Wrong nullifier presence");
+  const result = new Uint8Array(4096);
+  result.set([2, spec.count]);
+  if (!spec.deposit) result.set(bytes(nf, 32, "Nullifier"), 2);
+  cms.forEach((cm, i) => result.set(bytes(cm, 32, "Commitment"), 34 + i * 32));
+  records.forEach((record, i) => result.set(compactRecord(record), spec.recordsAt + i * 220));
+  decodeC4Publication(form, result);
+  return result;
+}
+function c4PublicationHash(form, blob) {
+  decodeC4Publication(form, blob);
+  const seed = poseidonBytes(utf83("NIP045/dat"));
+  return poseidonBytes(concat(poseidonBytes(concat(seed, blob.slice(0, 2048))), blob.slice(2048)));
+}
+
 // src/pool-state.js
 var encoder = new TextEncoder();
 var ZERO = new Uint8Array(32);
@@ -5114,7 +5196,7 @@ function uint32(value, name) {
   new DataView(out.buffer).setUint32(0, value, true);
   return out;
 }
-function concat(...parts) {
+function concat2(...parts) {
   const out = new Uint8Array(parts.reduce((n, part) => n + part.length, 0));
   let offset = 0;
   for (const part of parts) {
@@ -5155,7 +5237,7 @@ function poolTreeRoot(slots) {
 }
 function poolIndexedLeaf(kind, value, nextValue, nextIndex) {
   if (kind !== "cm" && kind !== "nf") throw new TypeError("indexed kind must be cm or nf");
-  return poseidonBytes(concat(
+  return poseidonBytes(concat2(
     encoder.encode(`NIP043/${kind}leaf`),
     encodeField(value),
     encodeField(nextValue),
@@ -5197,7 +5279,7 @@ function poolStateOpening({ slots, seen, nfs, mode }) {
   if (!(slots instanceof Map) || !(seen instanceof Map) || !(nfs instanceof Map)) {
     throw new TypeError("state trees must be Maps");
   }
-  return concat(
+  return concat2(
     poolTreeRoot(slots),
     poolIndexedRoot("nf", nfs),
     poolIndexedRoot("cm", seen),
@@ -5224,7 +5306,7 @@ var tag = sha256(new TextEncoder().encode("NeuraiTxHash"));
 var mask = Uint8Array.of(31, 1);
 var empty = new Uint8Array();
 var doubleSha256 = (data) => sha256(sha256(data));
-function concat2(...parts) {
+function concat3(...parts) {
   const out = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
   let offset = 0;
   for (const part of parts) {
@@ -5233,20 +5315,20 @@ function concat2(...parts) {
   }
   return out;
 }
-function bytes(value, name) {
+function bytes2(value, name) {
   if (!(value instanceof Uint8Array)) throw new TypeError(`${name} must be bytes`);
   return value;
 }
 function poolTxHash({ version, locktime, prevouts, sequences, outputs }) {
-  bytes(version, "version");
-  bytes(locktime, "locktime");
-  bytes(prevouts, "prevouts");
-  bytes(sequences, "sequences");
-  bytes(outputs, "outputs");
+  bytes2(version, "version");
+  bytes2(locktime, "locktime");
+  bytes2(prevouts, "prevouts");
+  bytes2(sequences, "sequences");
+  bytes2(outputs, "outputs");
   if (version.length !== 4 || locktime.length !== 4 || prevouts.length === 0 || prevouts.length % 36 !== 0 || sequences.length !== prevouts.length / 9 || outputs.length === 0) {
     throw new RangeError("invalid pool transaction preimage fields");
   }
-  const payload = concat2(
+  const payload = concat3(
     mask,
     version,
     locktime,
@@ -5255,7 +5337,7 @@ function poolTxHash({ version, locktime, prevouts, sequences, outputs }) {
     doubleSha256(outputs),
     doubleSha256(empty)
   );
-  return sha256(concat2(tag, tag, payload));
+  return sha256(concat3(tag, tag, payload));
 }
 function poolTxAnchor(fields) {
   return poseidonBytes(poolTxHash(fields));
@@ -5263,13 +5345,13 @@ function poolTxAnchor(fields) {
 
 // src/pool-transaction.js
 var MAX_MONEY = 2100000000000000000n;
-function bytes2(hex8, name) {
-  if (typeof hex8 !== "string" || hex8.length % 2 || !/^[0-9a-f]*$/i.test(hex8)) {
+function bytes3(hex7, name) {
+  if (typeof hex7 !== "string" || hex7.length % 2 || !/^[0-9a-f]*$/i.test(hex7)) {
     throw new TypeError(`${name} must be even-length hex`);
   }
-  return Uint8Array.from(hex8.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
+  return Uint8Array.from(hex7.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
 }
-function concat3(...parts) {
+function concat4(...parts) {
   const result = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
   let at = 0;
   for (const part of parts) {
@@ -5298,20 +5380,20 @@ function compactSize(value) {
   if (!Number.isSafeInteger(value) || value < 0 || value > 4294967295) throw new RangeError("invalid script size");
   if (value < 253) return Uint8Array.of(value);
   if (value <= 65535) return Uint8Array.of(253, value & 255, value >>> 8);
-  return concat3(Uint8Array.of(254), u323(value));
+  return concat4(Uint8Array.of(254), u323(value));
 }
 function serializePoolTemplate({ inputs, outputs }) {
   if (!Array.isArray(inputs) || !inputs.length || !Array.isArray(outputs) || !outputs.length) {
     throw new TypeError("nonempty pool inputs and outputs required");
   }
-  const prevouts = concat3(...inputs.map(({ txid, vout }) => {
-    const hash = bytes2(txid, "txid");
+  const prevouts = concat4(...inputs.map(({ txid, vout }) => {
+    const hash = bytes3(txid, "txid");
     if (hash.length !== 32) throw new TypeError("txid must be 32 bytes");
-    return concat3(hash.reverse(), u323(vout));
+    return concat4(hash.reverse(), u323(vout));
   }));
-  const serializedOutputs = concat3(...outputs.map(({ valueSats, scriptHex }) => {
-    const script = bytes2(scriptHex, "script");
-    return concat3(u64(valueSats), compactSize(script.length), script);
+  const serializedOutputs = concat4(...outputs.map(({ valueSats, scriptHex }) => {
+    const script = bytes3(scriptHex, "script");
+    return concat4(u64(valueSats), compactSize(script.length), script);
   }));
   const fields = {
     version: Uint8Array.of(3, 0, 0, 0),
@@ -5323,8 +5405,8 @@ function serializePoolTemplate({ inputs, outputs }) {
   return { ...fields, anchor: poolTxAnchor(fields) };
 }
 
-// src/c3.js
-var C3_FORMS = ["D0", "D1", "T1", "T2", "W_partial", "W_full"];
+// src/c4.js
+var C4_FORMS = ["D0", "D1", "T1", "T2", "T3", "T4", "W_partial", "W_full"];
 var hex = (x) => Array.from(x, (b) => b.toString(16).padStart(2, "0")).join("");
 function unhex(x) {
   if (typeof x !== "string" || !/^(?:[0-9a-f]{2})*$/i.test(x)) throw new Error("Invalid hex");
@@ -5339,13 +5421,13 @@ function cat(...xs) {
   }
   return r;
 }
-var utf83 = (x) => new TextEncoder().encode(x);
-var demand = (ok, why) => {
+var utf84 = (x) => new TextEncoder().encode(x);
+var demand2 = (ok, why) => {
   if (!ok) throw new Error(why);
 };
 function le(x, size) {
   let n = BigInt(x);
-  demand(n >= 0n && n < 1n << BigInt(size * 8), "Integer overflow");
+  demand2(n >= 0n && n < 1n << BigInt(size * 8), "Integer overflow");
   const b = new Uint8Array(size);
   for (let i = 0; i < size; i++) {
     b[i] = Number(n & 255n);
@@ -5361,37 +5443,52 @@ function push(b) {
   return cat(b.length < 76 ? le(b.length, 1) : b.length <= 255 ? cat(le(76, 1), le(b.length, 1)) : cat(le(77, 1), le(b.length, 2)), b);
 }
 function tagged(tag2, data) {
-  const t = sha256(utf83(tag2));
+  const t = sha256(utf84(tag2));
   return sha256(cat(t, t, data));
 }
 var p2pkh = (x) => /^76a914[0-9a-f]{40}88ac$/.test(x);
+var transparent = (x) => p2pkh(x) || /^(?:52|53)20[0-9a-f]{64}$/.test(x);
+function c4DustAtomic(scriptHex, feePerKb = "3000") {
+  demand2((transparent(scriptHex) || /^5120[0-9a-f]{64}$/.test(scriptHex)) && typeof feePerKb === "string" && /^(0|[1-9][0-9]*)$/.test(feePerKb), "Invalid dust policy input");
+  const size = p2pkh(scriptHex) ? 182n : /^(?:51|52)/.test(scriptHex) ? 1020n : 112n;
+  const rate = BigInt(feePerKb), fee = size * rate / 1000n;
+  return fee === 0n && rate > 0n ? 1n : fee;
+}
 var decimal = (x) => typeof x === "bigint" ? x.toString() : Array.isArray(x) ? x.map(decimal) : x && typeof x === "object" ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, decimal(v)])) : x;
-function validateC3Manifest(m) {
-  demand(m?.schema === "neurai-c3-xna-test-v1" && m.genesis === RESET_TESTNET_GENESIS && m.profile === "xna", "Only reset-testnet C3 XNA is supported");
-  demand(m.domain === hex(Uint8Array.from({ length: 32 }, (_, i) => i)) && m.assetId === hex(Uint8Array.from({ length: 32 }, (_, i) => i + 32)), "Unsupported circuit domain");
-  demand(/^[A-Z0-9_]+#POOL$/.test(m.identity) && m.identity.length <= 30, "Invalid UNIQUE identity");
-  demand(/^[0-9a-f]{64}$/.test(m.birth) && Number.isSafeInteger(m.birthHeight) && m.birthHeight > 0, "Pinned birth required");
-  demand(/^[0-9a-f]{64}$/.test(m.commitment) && /^[0-9a-f]{64}$/.test(m.reserveCommitment), "Bad commitments");
-  demand(C3_FORMS.every((f) => m.forms?.[f]) && Object.keys(m.forms).length === 6, "Six circuit forms required");
-  for (const f of C3_FORMS) {
+function validateC4Manifest(m, { expectedGenesis = RESET_TESTNET_GENESIS, expectedCommitment } = {}) {
+  demand2(typeof expectedCommitment === "string" && /^[0-9a-f]{64}$/.test(expectedCommitment) && m?.commitment === expectedCommitment, "An independently pinned pool commitment is required");
+  demand2(m?.schema === "neurai-c4-xna-test-v1" && m.testOnly === true && m.profile === "xna", "Only experimental C4 XNA is supported");
+  demand2(/^[0-9a-f]{64}$/.test(expectedGenesis) && m.genesis === expectedGenesis, "Unexpected chain genesis");
+  demand2(m.unit === "1" && m.registryRoot === "00".repeat(32), "XNA context must have unit one and no registry");
+  demand2(/^[A-Z0-9_]+#POOL$/.test(m.identity) && m.identity.length <= 30, "Invalid UNIQUE identity");
+  demand2(/^[0-9a-f]{64}$/.test(m.issuance?.txid) && Number.isSafeInteger(m.issuance?.vout) && m.issuance.vout >= 0 && m.issuance.vout <= 4294967295, "Pinned issuance outpoint required");
+  const domain = sha256(cat(utf84("NIP043/instance/v3"), unhex(m.genesis).reverse(), unhex(m.issuance.txid).reverse(), le(m.issuance.vout, 4), variable(utf84(m.identity))));
+  const assetId = sha256(cat(utf84("NeuraiPoolAsset/v2"), Uint8Array.of(0, 0)));
+  demand2(hex(domain) === m.domain && hex(assetId) === m.assetId, "Wrong instance domain or native asset ID");
+  demand2(hex(c4Context({ domain, assetId, unit: 1n })) === m.context, "Context mismatch");
+  demand2(/^[0-9a-f]{64}$/.test(m.birth) && Number.isSafeInteger(m.birthHeight) && m.birthHeight > 0, "Pinned birth required");
+  demand2(/^[0-9a-f]{64}$/.test(m.commitment) && /^[0-9a-f]{64}$/.test(m.reserveCommitment), "Bad commitments");
+  demand2(C4_FORMS.every((f) => m.forms?.[f]) && Object.keys(m.forms).length === 8, "Eight circuit forms required");
+  for (const f of C4_FORMS) {
     const entry = m.forms[f], script = unhex(entry.script), control = unhex(entry.control), vk = unhex(entry.vk);
-    demand(script.length > 0 && script.length <= 1e4 && control[0] === 1 && (control.length - 1) % 32 === 0, "Invalid MAST leaf");
+    demand2(script.length > 0 && script.length <= 1e4 && control[0] === 1 && (control.length - 1) % 32 === 0, "Invalid MAST leaf");
     let root = tagged("NeuraiAuthLeaf", cat(le(1, 1), variable(script)));
     for (let at = 1; at < control.length; at += 32) {
-      const b = control.slice(at, at + 32);
-      root = tagged("NeuraiAuthBranch", hex(root) < hex(b) ? cat(root, b) : cat(b, root));
+      const sibling = control.slice(at, at + 32);
+      root = tagged("NeuraiAuthBranch", hex(root) < hex(sibling) ? cat(root, sibling) : cat(sibling, root));
     }
-    demand(hex(tagged("NeuraiAuthScript", cat(le(4, 1), le(0, 1), root))) === m.commitment, "MAST commitment mismatch");
-    demand(hex(sha256(vk)) === entry.vkHash && entry.script.includes(entry.vkHash), "VK commitment mismatch");
+    demand2(hex(tagged("NeuraiAuthScript", cat(le(4, 1), le(0, 1), root))) === m.commitment, "MAST commitment mismatch");
+    demand2(hex(sha256(vk)) === entry.vkHash && entry.script.includes(entry.vkHash), "VK commitment mismatch");
+    demand2(entry.script.includes(m.context), "Missing pinned context in leaf");
   }
-  demand(hex(tagged("NeuraiAuthScript", cat(le(1, 1), le(0, 1), sha256(unhex(m.guard))))) === m.reserveCommitment, "Reserve commitment mismatch");
+  demand2(hex(tagged("NeuraiAuthScript", cat(le(1, 1), le(0, 1), sha256(unhex(m.guard))))) === m.reserveCommitment, "Reserve commitment mismatch");
   return m;
 }
-function c3StateScript(m, digest) {
-  const payload = cat(utf83("xnat"), variable(utf83(m.identity)), le(1e8, 8), unhex("5420"), digest);
+function c4StateScript(m, digest) {
+  const payload = cat(utf84("xnat"), variable(utf84(m.identity)), le(1e8, 8), unhex("5420"), digest);
   return hex(cat(unhex("5120" + m.commitment + "c0"), push(payload), unhex("75")));
 }
-function c3Path(slots, index) {
+function c4Path(slots, index) {
   let empty2 = new Uint8Array(32), layer = new Map(slots);
   const siblings = [];
   for (let d = 0; d < 32; d++) {
@@ -5412,12 +5509,12 @@ function insert(kind, entries, value) {
   }
   const [predValue, predNextValue, predNextIndex] = entries.get(pred);
   const slots = new Map([...entries].map(([i, e]) => [i, poolIndexedLeaf(kind, ...e)]));
-  const predPath = c3Path(slots, pred);
+  const predPath = c4Path(slots, pred);
   slots.set(pred, poolIndexedLeaf(kind, predValue, value, index));
-  return [{ predIndex: pred, predValue, predNextValue, predNextIndex, predPath, emptyPath: c3Path(slots, index) }, updated];
+  return [{ predIndex: pred, predValue, predNextValue, predNextIndex, predPath, emptyPath: c4Path(slots, index) }, updated];
 }
 function add2(state, note) {
-  const cm = noteCommitment(note), notePath = c3Path(state.slots, state.slots.size);
+  const cm = noteCommitment(note), notePath = c4Path(state.slots, state.slots.size);
   const [fields, seen] = insert("cm", state.seen, decodeField(cm));
   state.seen = seen;
   state.slots.set(state.slots.size, cm);
@@ -5427,9 +5524,9 @@ function add2(state, note) {
 function spend(state, note, secret) {
   const cm = hex(noteCommitment(note));
   const noteIndex = [...state.slots].find(([, c]) => hex(c) === cm)?.[0];
-  demand(noteIndex !== void 0, "Note is not in the confirmed pool");
+  demand2(noteIndex !== void 0, "Note is not in the confirmed pool");
   const nf = decodeField(noteNullifier(note, secret));
-  const notePath = c3Path(state.slots, noteIndex);
+  const notePath = c4Path(state.slots, noteIndex);
   const [fields, nfs] = insert("nf", state.nfs, nf);
   state.nfs = nfs;
   return { noteIndex, notePath, nf, ...fields };
@@ -5437,45 +5534,29 @@ function spend(state, note, secret) {
 function states(old, state) {
   return { oldState: Array.from(poolStateOpening(old)), newState: Array.from(poolStateOpening(state)), S_old: decodeField(poolStateDigest(old)), S_new: decodeField(poolStateDigest(state)) };
 }
-function c3Publication(form, created, nf) {
-  const b = new Uint8Array(4096);
-  if (form[0] === "D") {
-    demand(created.length === 1, "One deposit note required");
-    b.set([1, 0, 0, 0, 1, 0]);
-    b.set(created[0].cm, 6);
-    b.set(created[0].record, 198);
-  } else {
-    demand(created.length === Number(form[1]), "Transfer note count mismatch");
-    b.set([1, created.length]);
-    b.set(encodeField(nf), 2);
-    created.forEach((x, i) => {
-      b.set(x.cm, 34 + i * 32);
-      b.set(x.record, 98 + i * 1024);
-    });
-  }
-  for (const x of created) demand(x.cm.length === 32 && x.record.length === 1024 && hex(x.record.slice(0, 3)) === "01d900" && !x.record.slice(220).some(Boolean), "Bad publication record");
-  return b;
+function c4Publication(form, created, nf) {
+  return encodeC4Publication(form, { cms: created.map((x) => x.cm), records: created.map((x) => x.record), nf: form[0] === "D" ? null : encodeField(nf) });
 }
 function coin(u) {
-  demand(u && /^[0-9a-f]{64}$/.test(u.txid) && Number.isSafeInteger(u.vout) && u.vout >= 0 && u.vout <= 4294967295 && p2pkh(u.scriptHex), "A confirmed P2PKH XNA coin is required");
-  demand(typeof u.valueSats === "string" && /^[1-9][0-9]*$/.test(u.valueSats), "Exact coin value required");
+  demand2(u && /^[0-9a-f]{64}$/.test(u.txid) && Number.isSafeInteger(u.vout) && u.vout >= 0 && u.vout <= 4294967295 && transparent(u.scriptHex), "A confirmed Legacy/PQ/ECDSA XNA coin is required");
+  demand2(typeof u.valueSats === "string" && /^[1-9][0-9]*$/.test(u.valueSats), "Exact coin value required");
   return u;
 }
-function prepareC3({ manifest, scan, form, created = [], consumed, secret, funding, sponsor, payout, feeAtomic }) {
-  const m = validateC3Manifest(manifest);
-  demand(C3_FORMS.includes(form), "Unknown form");
+function prepareC4({ manifest, scan, form, created = [], consumed, secret, funding, sponsor, payout, feeAtomic, dustRelayFeePerKb = "3000", expectedGenesis = RESET_TESTNET_GENESIS, expectedCommitment }) {
+  const m = validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  demand2(C4_FORMS.includes(form), "Unknown form");
   const old = scan.state, state = { slots: new Map(old.slots), seen: new Map(old.seen), nfs: new Map(old.nfs), mode: old.mode };
   const reserve = BigInt(scan.reserveAtomic);
   let nextReserve = reserve, amount = 0n, data;
-  demand(form === "D0" === (reserve === 0n), "Pool state changed: rescan required");
-  demand(form !== "D0" || old.mode === 0, "Pool mode mismatch");
+  demand2(form === "D0" === (reserve === 0n), "Pool state changed: rescan required");
+  demand2(form !== "D0" || old.mode === 0, "Pool mode mismatch");
   for (const fresh of created) {
-    demand(hex(noteCommitment(fresh.note)) === hex(fresh.cm), "Note commitment mismatch");
+    demand2(hex(noteCommitment(fresh.note)) === hex(fresh.cm), "Note commitment mismatch");
     const p = decodeNote(fresh.note);
-    demand(hex(p.domain) === m.domain && hex(p.assetId) === m.assetId, "Note belongs to another domain");
+    demand2(hex(p.domain) === m.domain && hex(p.assetId) === m.assetId, "Note belongs to another domain");
   }
   if (form[0] === "D") {
-    demand(created.length === 1 && !consumed, "Invalid deposit notes");
+    demand2(created.length === 1 && !consumed, "Invalid deposit notes");
     const x = created[0];
     amount = decodeNote(x.note).amountAtomic;
     data = {
@@ -5484,361 +5565,27 @@ function prepareC3({ manifest, scan, form, created = [], consumed, secret, fundi
       note: Array.from(x.note),
       cm: decodeField(x.cm),
       amount,
-      dep: decodeField(poseidonBytes(cat(utf83(NEURAI_POOL_HASH_LABELS.deposit), le(amount, 8), x.cm))),
-      wdr: decodeField(poseidonBytes(utf83(NEURAI_POOL_HASH_LABELS.withdrawal))),
-      req: decodeField(poseidonBytes(utf83(NEURAI_POOL_HASH_LABELS.request)))
+      dep: decodeField(poseidonBytes(cat(utf84(NEURAI_POOL_HASH_LABELS.deposit), le(amount, 8), x.cm))),
+      wdr: decodeField(poseidonBytes(utf84(NEURAI_POOL_HASH_LABELS.withdrawal))),
+      req: decodeField(poseidonBytes(utf84(NEURAI_POOL_HASH_LABELS.request)))
     };
     coin(funding);
-    demand(BigInt(funding.valueSats) === amount, "Deposit input must match the note amount exactly");
+    demand2(BigInt(funding.valueSats) === amount, "Deposit input must match the note amount exactly");
     nextReserve += amount;
   } else {
-    demand(consumed?.note && !consumed.spent, "Select an unspent owned note");
+    demand2(consumed?.note && !consumed.spent, "Select an unspent owned note");
     const note = typeof consumed.note === "string" ? unhex(consumed.note) : consumed.note;
     const parsed = decodeNote(note);
-    demand(hex(parsed.domain) === m.domain && hex(parsed.assetId) === m.assetId, "Consumed note domain mismatch");
+    demand2(hex(parsed.domain) === m.domain && hex(parsed.assetId) === m.assetId, "Consumed note domain mismatch");
     const spent = spend(state, note, secret);
     amount = parsed.amountAtomic;
     if (form[0] === "T") {
-      demand(created.length === Number(form[1]) && created.reduce((sum, x) => sum + decodeNote(x.note).amountAtomic, 0n) === amount, "Transfer amounts must conserve the selected note");
-      data = { oldState: Array.from(poolStateOpening(old)), S_old: decodeField(poolStateDigest(old)), spentState: Array.from(poolStateOpening(state)), sk: Array.from(secret), spentNote: Array.from(note), spentCm: decodeField(noteCommitment(note)), spentIndex: spent.noteIndex, spentPath: spent.notePath, nf: spent.nf };
-      for (const k of ["predIndex", "predValue", "predNextValue", "predNextIndex", "predPath", "emptyPath"]) data["nf" + k[0].toUpperCase() + k.slice(1)] = spent[k];
-      created.forEach((x, i) => {
-        const j = i + 1, fields = add2(state, x.note);
-        for (const [k, v] of Object.entries(fields)) data[k === "notePath" ? `note${j}Path` : k === "emptyPath" ? `empty${j}Path` : `pred${j}${k.slice(4)}`] = v;
-        data["note" + j] = Array.from(x.note);
-        data["cm" + j] = decodeField(x.cm);
-        data["amount" + j] = decodeNote(x.note).amountAtomic;
-        if (form === "T2" && j === 1) data.midState = Array.from(poolStateOpening(state));
-      });
-      data.newState = Array.from(poolStateOpening(state));
-      data.S_new = decodeField(poolStateDigest(state));
-    } else {
-      demand(created.length === 0 && p2pkh(payout), "Withdrawal requires a P2PKH destination");
-      nextReserve -= amount;
-      demand(nextReserve >= 0n && form === "W_full" === (nextReserve === 0n), "Wrong withdrawal form");
-      if (form === "W_full") state.mode = 0;
-      data = { ...spent, ...states(old, state), note: Array.from(note), sk: Array.from(secret), cm: decodeField(noteCommitment(note)), amount, reserve_in: reserve, reserve_out: nextReserve };
-    }
-  }
-  demand(nextReserve <= 2100000000000000000n, "Reserve exceeds money range");
-  let blob;
-  if ("DT".includes(form[0])) {
-    blob = c3Publication(form, created, data.nf);
-    data.data_hash = decodeField(poseidonBytes(cat(poseidonBytes(cat(poseidonBytes(utf83(NEURAI_POOL_HASH_LABELS.data)), blob.slice(0, 2048))), blob.slice(2048))));
-  }
-  coin(sponsor);
-  demand(typeof feeAtomic === "string" && /^[1-9][0-9]*$/.test(feeAtomic), "Exact positive fee required");
-  const fee = BigInt(feeAtomic);
-  demand(fee <= 100000000n && BigInt(sponsor.valueSats) - fee >= 546n, "Fee must be at most 1 XNA and leave non-dust sponsor change");
-  const inputs = [{ txid: old.stateOutpoint[0], vout: 0 }];
-  if (form !== "D0") {
-    demand(old.reserveOutpoint?.[0] === old.stateOutpoint[0] && old.reserveOutpoint[1] === 1, "Noncanonical reserve");
-    inputs.push({ txid: old.reserveOutpoint[0], vout: 1 });
-  }
-  if (form[0] === "D") inputs.push(funding);
-  inputs.push(sponsor);
-  demand(new Set(inputs.map((x) => x.txid + ":" + x.vout)).size === inputs.length, "Duplicate transaction input");
-  const outputs = [{ valueSats: 0n, scriptHex: c3StateScript(m, encodeField(data.S_new)) }];
-  if (form !== "W_full") outputs.push({ valueSats: nextReserve, scriptHex: "5120" + m.reserveCommitment });
-  if (form[0] === "W") outputs.push({ valueSats: amount, scriptHex: payout });
-  outputs.push({ valueSats: BigInt(sponsor.valueSats) - fee, scriptHex: sponsor.scriptHex });
-  const template = serializePoolTemplate({ inputs, outputs });
-  data.anchor = decodeField(template.anchor);
-  const publics = [data.S_old, data.S_new];
-  if (form[0] === "D") publics.push(data.dep, data.wdr, data.req, data.data_hash, data.anchor, amount);
-  else if (form[0] === "T") publics.push(data.nf, data.data_hash, data.anchor, ...created.map((x) => decodeField(x.cm)));
-  else publics.push(data.nf, data.anchor, amount, reserve, nextReserve);
-  return { state, form, inputs, outputs, template, input: decimal(data), publicSignals: publics.map(String), blob, nf: data.nf === void 0 ? void 0 : encodeField(data.nf), feeAtomic, manifest: m };
-}
-var FP = 21888242871839275222246405745257275088696311157297823662689037894645226208583n;
-function g1(p) {
-  const [x, y] = p.map(BigInt);
-  demand(x >= 0n && x < FP && y >= 0n && y < FP && y * y % FP === (x * x % FP * x + 3n) % FP, "Invalid G1 proof point");
-  return le(x | (y > FP - y ? 1n << 255n : 0n), 32);
-}
-function g2(p) {
-  const [x, y] = p.map((q) => q.map(BigInt));
-  demand([...x, ...y].every((v) => v >= 0n && v < FP), "Invalid G2 coordinate");
-  const n = y.map((v) => (FP - v) % FP);
-  const sign = y[1] > n[1] || y[1] === n[1] && y[0] > n[0];
-  return cat(le(x[0], 32), le(x[1] | (sign ? 1n << 255n : 0n), 32));
-}
-function c3ProofBytes(proof) {
-  return cat(g1(proof.pi_a), g2(proof.pi_b), g1(proof.pi_c));
-}
-function finishC3(prepared, proof, publicSignals) {
-  demand(JSON.stringify(publicSignals.map(String)) === JSON.stringify(prepared.publicSignals), "Proof public inputs differ from the transaction");
-  const { form, inputs, outputs, template, manifest: m } = prepared, entry = m.forms[form];
-  const args = prepared.blob ? [prepared.blob.slice(0, 2048), prepared.blob.slice(2048)] : [prepared.nf];
-  const own = [unhex("10"), c3ProofBytes(proof), unhex(entry.vk), ...args, template.prevouts, unhex(entry.script), unhex(entry.control)];
-  const witnesses = [own, ...form === "D0" ? [] : [[unhex("00"), unhex(m.guard)]], ...form[0] === "D" ? [[]] : [], []];
-  demand(witnesses.length === inputs.length, "Witness count mismatch");
-  return hex(cat(le(3, 4), unhex("0001"), compact(inputs.length), ...inputs.map((x) => cat(unhex(x.txid).reverse(), le(x.vout, 4), le(0, 1), unhex("ffffffff"))), compact(outputs.length), template.outputs, le(0, 1), ...witnesses.map((w) => cat(compact(w.length), ...w.map(variable))), le(0, 4)));
-}
-
-// src/c4-publication.js
-var utf84 = (value) => new TextEncoder().encode(value);
-var demand2 = (condition, message2) => {
-  if (!condition) throw new Error(message2);
-};
-function bytes3(value, size, label2) {
-  demand2(value instanceof Uint8Array && value.length === size, `${label2} must be ${size} bytes`);
-  return value;
-}
-function concat4(...items) {
-  const result = new Uint8Array(items.reduce((n, x) => n + x.length, 0));
-  let offset = 0;
-  for (const item of items) {
-    result.set(item, offset);
-    offset += item.length;
-  }
-  return result;
-}
-function le64(value) {
-  demand2(typeof value === "bigint" && value >= 0n && value < 1n << 64n, "Expected unsigned 64-bit bigint");
-  const result = new Uint8Array(8);
-  for (let i = 0; i < 8; i++, value >>= 8n) result[i] = Number(value & 255n);
-  return result;
-}
-var same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
-function layout(form) {
-  const deposit = form === "D0" || form === "D1";
-  demand2(deposit || /^T[1-4]$/.test(form), "Unsupported C4 publication form");
-  const count = deposit ? 1 : Number(form[1]);
-  return { deposit, count, recordsAt: 34 + count * 32, end: 34 + count * 252 };
-}
-function compactRecord(record) {
-  bytes3(record, 1024, "HPKE record");
-  demand2(same(record.slice(0, 3), Uint8Array.of(1, 217, 0)) && record.slice(220).every((x) => x === 0), "Noncanonical HPKE record");
-  return record.slice(0, 220);
-}
-function c4Context({ domain, assetId, unit: unit2, registryRoot = new Uint8Array(32) }) {
-  bytes3(domain, 32, "Domain");
-  bytes3(assetId, 32, "Asset ID");
-  bytes3(registryRoot, 32, "Registry root");
-  decodeField(registryRoot);
-  demand2(typeof unit2 === "bigint" && Array.from({ length: 9 }, (_, i) => 10n ** BigInt(i)).includes(unit2), "Invalid asset quantum");
-  return poseidonBytes(concat4(utf84("NeuraiPoolCtx"), Uint8Array.of(1), domain, assetId, le64(unit2), registryRoot));
-}
-function decodeC4Publication(form, blob) {
-  bytes3(blob, 4096, "C4 publication");
-  const spec = layout(form);
-  demand2(blob[0] === 2 && blob[1] === spec.count, "C4 version/count mismatch");
-  demand2(blob.slice(spec.end).every((x) => x === 0), "Noncanonical C4 padding");
-  const nf = spec.deposit ? null : blob.slice(2, 34);
-  if (spec.deposit) demand2(blob.slice(2, 34).every((x) => x === 0), "Deposit cannot carry a nullifier");
-  else demand2(decodeField(nf) !== 0n, "Zero nullifier");
-  const cms = [], records = [];
-  for (let i = 0; i < spec.count; i++) {
-    const cm = blob.slice(34 + i * 32, 66 + i * 32);
-    demand2(decodeField(cm) !== 0n && !cms.some((other) => same(other, cm)), "Zero or duplicate commitment");
-    cms.push(cm);
-    const record = new Uint8Array(1024);
-    record.set(blob.slice(spec.recordsAt + i * 220, spec.recordsAt + (i + 1) * 220));
-    compactRecord(record);
-    records.push(record);
-  }
-  return { cms, records, nf };
-}
-function encodeC4Publication(form, { cms, records, nf = null }) {
-  const spec = layout(form);
-  demand2(Array.isArray(cms) && Array.isArray(records) && cms.length === spec.count && records.length === spec.count, "Wrong note count");
-  demand2(spec.deposit ? nf === null : nf instanceof Uint8Array, "Wrong nullifier presence");
-  const result = new Uint8Array(4096);
-  result.set([2, spec.count]);
-  if (!spec.deposit) result.set(bytes3(nf, 32, "Nullifier"), 2);
-  cms.forEach((cm, i) => result.set(bytes3(cm, 32, "Commitment"), 34 + i * 32));
-  records.forEach((record, i) => result.set(compactRecord(record), spec.recordsAt + i * 220));
-  decodeC4Publication(form, result);
-  return result;
-}
-function c4PublicationHash(form, blob) {
-  decodeC4Publication(form, blob);
-  const seed = poseidonBytes(utf84("NIP045/dat"));
-  return poseidonBytes(concat4(poseidonBytes(concat4(seed, blob.slice(0, 2048))), blob.slice(2048)));
-}
-
-// src/c4.js
-var C4_FORMS = ["D0", "D1", "T1", "T2", "T3", "T4", "W_partial", "W_full"];
-var hex2 = (x) => Array.from(x, (b) => b.toString(16).padStart(2, "0")).join("");
-function unhex2(x) {
-  if (typeof x !== "string" || !/^(?:[0-9a-f]{2})*$/i.test(x)) throw new Error("Invalid hex");
-  return Uint8Array.from(x.match(/../g) ?? [], (b) => parseInt(b, 16));
-}
-function cat2(...xs) {
-  const r = new Uint8Array(xs.reduce((n, x) => n + x.length, 0));
-  let i = 0;
-  for (const x of xs) {
-    r.set(x, i);
-    i += x.length;
-  }
-  return r;
-}
-var utf85 = (x) => new TextEncoder().encode(x);
-var demand3 = (ok, why) => {
-  if (!ok) throw new Error(why);
-};
-function le2(x, size) {
-  let n = BigInt(x);
-  demand3(n >= 0n && n < 1n << BigInt(size * 8), "Integer overflow");
-  const b = new Uint8Array(size);
-  for (let i = 0; i < size; i++) {
-    b[i] = Number(n & 255n);
-    n >>= 8n;
-  }
-  return b;
-}
-function compact2(n) {
-  return n < 253 ? le2(n, 1) : n <= 65535 ? cat2(le2(253, 1), le2(n, 2)) : cat2(le2(254, 1), le2(n, 4));
-}
-var variable2 = (b) => cat2(compact2(b.length), b);
-function push2(b) {
-  return cat2(b.length < 76 ? le2(b.length, 1) : b.length <= 255 ? cat2(le2(76, 1), le2(b.length, 1)) : cat2(le2(77, 1), le2(b.length, 2)), b);
-}
-function tagged2(tag2, data) {
-  const t = sha256(utf85(tag2));
-  return sha256(cat2(t, t, data));
-}
-var p2pkh2 = (x) => /^76a914[0-9a-f]{40}88ac$/.test(x);
-var transparent = (x) => p2pkh2(x) || /^(?:52|53)20[0-9a-f]{64}$/.test(x);
-function c4DustAtomic(scriptHex, feePerKb = "3000") {
-  demand3((transparent(scriptHex) || /^5120[0-9a-f]{64}$/.test(scriptHex)) && typeof feePerKb === "string" && /^(0|[1-9][0-9]*)$/.test(feePerKb), "Invalid dust policy input");
-  const size = p2pkh2(scriptHex) ? 182n : /^(?:51|52)/.test(scriptHex) ? 1020n : 112n;
-  const rate = BigInt(feePerKb), fee = size * rate / 1000n;
-  return fee === 0n && rate > 0n ? 1n : fee;
-}
-var decimal2 = (x) => typeof x === "bigint" ? x.toString() : Array.isArray(x) ? x.map(decimal2) : x && typeof x === "object" ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, decimal2(v)])) : x;
-function validateC4Manifest(m, { expectedGenesis = RESET_TESTNET_GENESIS, expectedCommitment } = {}) {
-  demand3(typeof expectedCommitment === "string" && /^[0-9a-f]{64}$/.test(expectedCommitment) && m?.commitment === expectedCommitment, "An independently pinned pool commitment is required");
-  demand3(m?.schema === "neurai-c4-xna-test-v1" && m.testOnly === true && m.profile === "xna", "Only experimental C4 XNA is supported");
-  demand3(/^[0-9a-f]{64}$/.test(expectedGenesis) && m.genesis === expectedGenesis, "Unexpected chain genesis");
-  demand3(m.unit === "1" && m.registryRoot === "00".repeat(32), "XNA context must have unit one and no registry");
-  demand3(/^[A-Z0-9_]+#POOL$/.test(m.identity) && m.identity.length <= 30, "Invalid UNIQUE identity");
-  demand3(/^[0-9a-f]{64}$/.test(m.issuance?.txid) && Number.isSafeInteger(m.issuance?.vout) && m.issuance.vout >= 0 && m.issuance.vout <= 4294967295, "Pinned issuance outpoint required");
-  const domain = sha256(cat2(utf85("NIP043/instance/v3"), unhex2(m.genesis).reverse(), unhex2(m.issuance.txid).reverse(), le2(m.issuance.vout, 4), variable2(utf85(m.identity))));
-  const assetId = sha256(cat2(utf85("NeuraiPoolAsset/v2"), Uint8Array.of(0, 0)));
-  demand3(hex2(domain) === m.domain && hex2(assetId) === m.assetId, "Wrong instance domain or native asset ID");
-  demand3(hex2(c4Context({ domain, assetId, unit: 1n })) === m.context, "Context mismatch");
-  demand3(/^[0-9a-f]{64}$/.test(m.birth) && Number.isSafeInteger(m.birthHeight) && m.birthHeight > 0, "Pinned birth required");
-  demand3(/^[0-9a-f]{64}$/.test(m.commitment) && /^[0-9a-f]{64}$/.test(m.reserveCommitment), "Bad commitments");
-  demand3(C4_FORMS.every((f) => m.forms?.[f]) && Object.keys(m.forms).length === 8, "Eight circuit forms required");
-  for (const f of C4_FORMS) {
-    const entry = m.forms[f], script = unhex2(entry.script), control = unhex2(entry.control), vk = unhex2(entry.vk);
-    demand3(script.length > 0 && script.length <= 1e4 && control[0] === 1 && (control.length - 1) % 32 === 0, "Invalid MAST leaf");
-    let root = tagged2("NeuraiAuthLeaf", cat2(le2(1, 1), variable2(script)));
-    for (let at = 1; at < control.length; at += 32) {
-      const sibling = control.slice(at, at + 32);
-      root = tagged2("NeuraiAuthBranch", hex2(root) < hex2(sibling) ? cat2(root, sibling) : cat2(sibling, root));
-    }
-    demand3(hex2(tagged2("NeuraiAuthScript", cat2(le2(4, 1), le2(0, 1), root))) === m.commitment, "MAST commitment mismatch");
-    demand3(hex2(sha256(vk)) === entry.vkHash && entry.script.includes(entry.vkHash), "VK commitment mismatch");
-    demand3(entry.script.includes(m.context), "Missing pinned context in leaf");
-  }
-  demand3(hex2(tagged2("NeuraiAuthScript", cat2(le2(1, 1), le2(0, 1), sha256(unhex2(m.guard))))) === m.reserveCommitment, "Reserve commitment mismatch");
-  return m;
-}
-function c4StateScript(m, digest) {
-  const payload = cat2(utf85("xnat"), variable2(utf85(m.identity)), le2(1e8, 8), unhex2("5420"), digest);
-  return hex2(cat2(unhex2("5120" + m.commitment + "c0"), push2(payload), unhex2("75")));
-}
-function c4Path(slots, index) {
-  let empty2 = new Uint8Array(32), layer = new Map(slots);
-  const siblings = [];
-  for (let d = 0; d < 32; d++) {
-    siblings.push(decodeField(layer.get(index ^ 1) ?? empty2));
-    layer = new Map([...new Set([...layer.keys()].map((i) => Math.floor(i / 2)))].map((i) => [i, poolTreeNode(layer.get(i * 2) ?? empty2, layer.get(i * 2 + 1) ?? empty2)]));
-    empty2 = poolTreeNode(empty2, empty2);
-    index = Math.floor(index / 2);
-  }
-  return siblings;
-}
-function insert2(kind, entries, value) {
-  const updated = poolIndexedInsert(kind, entries, value);
-  const index = entries.size;
-  let pred = -1, pv = -1n;
-  for (const [i, e] of entries) if (e[0] < value && e[0] > pv) {
-    pred = i;
-    pv = e[0];
-  }
-  const [predValue, predNextValue, predNextIndex] = entries.get(pred);
-  const slots = new Map([...entries].map(([i, e]) => [i, poolIndexedLeaf(kind, ...e)]));
-  const predPath = c4Path(slots, pred);
-  slots.set(pred, poolIndexedLeaf(kind, predValue, value, index));
-  return [{ predIndex: pred, predValue, predNextValue, predNextIndex, predPath, emptyPath: c4Path(slots, index) }, updated];
-}
-function add3(state, note) {
-  const cm = noteCommitment(note), notePath = c4Path(state.slots, state.slots.size);
-  const [fields, seen] = insert2("cm", state.seen, decodeField(cm));
-  state.seen = seen;
-  state.slots.set(state.slots.size, cm);
-  state.mode = 1;
-  return { notePath, ...fields };
-}
-function spend2(state, note, secret) {
-  const cm = hex2(noteCommitment(note));
-  const noteIndex = [...state.slots].find(([, c]) => hex2(c) === cm)?.[0];
-  demand3(noteIndex !== void 0, "Note is not in the confirmed pool");
-  const nf = decodeField(noteNullifier(note, secret));
-  const notePath = c4Path(state.slots, noteIndex);
-  const [fields, nfs] = insert2("nf", state.nfs, nf);
-  state.nfs = nfs;
-  return { noteIndex, notePath, nf, ...fields };
-}
-function states2(old, state) {
-  return { oldState: Array.from(poolStateOpening(old)), newState: Array.from(poolStateOpening(state)), S_old: decodeField(poolStateDigest(old)), S_new: decodeField(poolStateDigest(state)) };
-}
-function c4Publication(form, created, nf) {
-  return encodeC4Publication(form, { cms: created.map((x) => x.cm), records: created.map((x) => x.record), nf: form[0] === "D" ? null : encodeField(nf) });
-}
-function coin2(u) {
-  demand3(u && /^[0-9a-f]{64}$/.test(u.txid) && Number.isSafeInteger(u.vout) && u.vout >= 0 && u.vout <= 4294967295 && transparent(u.scriptHex), "A confirmed Legacy/PQ/ECDSA XNA coin is required");
-  demand3(typeof u.valueSats === "string" && /^[1-9][0-9]*$/.test(u.valueSats), "Exact coin value required");
-  return u;
-}
-function prepareC4({ manifest, scan, form, created = [], consumed, secret, funding, sponsor, payout, feeAtomic, dustRelayFeePerKb = "3000", expectedGenesis = RESET_TESTNET_GENESIS, expectedCommitment }) {
-  const m = validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
-  demand3(C4_FORMS.includes(form), "Unknown form");
-  const old = scan.state, state = { slots: new Map(old.slots), seen: new Map(old.seen), nfs: new Map(old.nfs), mode: old.mode };
-  const reserve = BigInt(scan.reserveAtomic);
-  let nextReserve = reserve, amount = 0n, data;
-  demand3(form === "D0" === (reserve === 0n), "Pool state changed: rescan required");
-  demand3(form !== "D0" || old.mode === 0, "Pool mode mismatch");
-  for (const fresh of created) {
-    demand3(hex2(noteCommitment(fresh.note)) === hex2(fresh.cm), "Note commitment mismatch");
-    const p = decodeNote(fresh.note);
-    demand3(hex2(p.domain) === m.domain && hex2(p.assetId) === m.assetId, "Note belongs to another domain");
-  }
-  if (form[0] === "D") {
-    demand3(created.length === 1 && !consumed, "Invalid deposit notes");
-    const x = created[0];
-    amount = decodeNote(x.note).amountAtomic;
-    data = {
-      ...add3(state, x.note),
-      ...states2(old, state),
-      note: Array.from(x.note),
-      cm: decodeField(x.cm),
-      amount,
-      dep: decodeField(poseidonBytes(cat2(utf85(NEURAI_POOL_HASH_LABELS.deposit), le2(amount, 8), x.cm))),
-      wdr: decodeField(poseidonBytes(utf85(NEURAI_POOL_HASH_LABELS.withdrawal))),
-      req: decodeField(poseidonBytes(utf85(NEURAI_POOL_HASH_LABELS.request)))
-    };
-    coin2(funding);
-    demand3(BigInt(funding.valueSats) === amount, "Deposit input must match the note amount exactly");
-    nextReserve += amount;
-  } else {
-    demand3(consumed?.note && !consumed.spent, "Select an unspent owned note");
-    const note = typeof consumed.note === "string" ? unhex2(consumed.note) : consumed.note;
-    const parsed = decodeNote(note);
-    demand3(hex2(parsed.domain) === m.domain && hex2(parsed.assetId) === m.assetId, "Consumed note domain mismatch");
-    const spent = spend2(state, note, secret);
-    amount = parsed.amountAtomic;
-    if (form[0] === "T") {
-      demand3(created.length === Number(form[1]) && created.reduce((sum, x) => sum + decodeNote(x.note).amountAtomic, 0n) === amount, "Transfer amounts must conserve the selected note");
+      demand2(created.length === Number(form[1]) && created.reduce((sum, x) => sum + decodeNote(x.note).amountAtomic, 0n) === amount, "Transfer amounts must conserve the selected note");
       data = { oldState: Array.from(poolStateOpening(old)), S_old: decodeField(poolStateDigest(old)), states: [Array.from(poolStateOpening(state))], sk: Array.from(secret), spentNote: Array.from(note), spentCm: decodeField(noteCommitment(note)), spentIndex: spent.noteIndex, spentPath: spent.notePath, nf: spent.nf, cms: [], notes: [], amounts: [], notePaths: [], predIndices: [], predValues: [], predNextValues: [], predNextIndices: [], predPaths: [], emptyPaths: [] };
       for (const k of ["predIndex", "predValue", "predNextValue", "predNextIndex", "predPath", "emptyPath"]) data["nf" + k[0].toUpperCase() + k.slice(1)] = spent[k];
       const mapping = { notePath: "notePaths", predIndex: "predIndices", predValue: "predValues", predNextValue: "predNextValues", predNextIndex: "predNextIndices", predPath: "predPaths", emptyPath: "emptyPaths" };
       for (const fresh of created) {
-        const fields = add3(state, fresh.note);
+        const fields = add2(state, fresh.note);
         for (const [k, v] of Object.entries(fields)) data[mapping[k]].push(v);
         data.cms.push(decodeField(fresh.cm));
         data.notes.push(Array.from(fresh.note));
@@ -5847,17 +5594,17 @@ function prepareC4({ manifest, scan, form, created = [], consumed, secret, fundi
       }
       data.S_new = decodeField(poolStateDigest(state));
     } else {
-      demand3(created.length === 0 && transparent(payout), "Withdrawal requires a Legacy/PQ/ECDSA destination");
+      demand2(created.length === 0 && transparent(payout), "Withdrawal requires a Legacy/PQ/ECDSA destination");
       nextReserve -= amount;
-      demand3(nextReserve >= 0n && form === "W_full" === (nextReserve === 0n), "Wrong withdrawal form");
+      demand2(nextReserve >= 0n && form === "W_full" === (nextReserve === 0n), "Wrong withdrawal form");
       if (form === "W_full") state.mode = 0;
-      data = { ...spent, ...states2(old, state), note: Array.from(note), sk: Array.from(secret), cm: decodeField(noteCommitment(note)), amount, reserve_in: reserve, reserve_out: nextReserve };
+      data = { ...spent, ...states(old, state), note: Array.from(note), sk: Array.from(secret), cm: decodeField(noteCommitment(note)), amount, reserve_in: reserve, reserve_out: nextReserve };
     }
   }
-  demand3(nextReserve <= 2100000000000000000n, "Reserve exceeds money range");
-  data.ctx = decodeField(unhex2(m.context));
-  data.D = Array.from(unhex2(m.domain));
-  data.AID = Array.from(unhex2(m.assetId));
+  demand2(nextReserve <= 2100000000000000000n, "Reserve exceeds money range");
+  data.ctx = decodeField(unhex(m.context));
+  data.D = Array.from(unhex(m.domain));
+  data.AID = Array.from(unhex(m.assetId));
   data.unit = 1n;
   data.registryRoot = Array(32).fill(0);
   let blob;
@@ -5865,25 +5612,25 @@ function prepareC4({ manifest, scan, form, created = [], consumed, secret, fundi
     blob = c4Publication(form, created, data.nf);
     data.data_hash = decodeField(c4PublicationHash(form, blob));
   }
-  coin2(sponsor);
-  demand3(typeof feeAtomic === "string" && /^[1-9][0-9]*$/.test(feeAtomic), "Exact positive fee required");
+  coin(sponsor);
+  demand2(typeof feeAtomic === "string" && /^[1-9][0-9]*$/.test(feeAtomic), "Exact positive fee required");
   const fee = BigInt(feeAtomic);
-  demand3(fee <= 100000000n && BigInt(sponsor.valueSats) - fee >= c4DustAtomic(sponsor.scriptHex, dustRelayFeePerKb), "Fee must be at most 1 XNA and leave non-dust sponsor change");
+  demand2(fee <= 100000000n && BigInt(sponsor.valueSats) - fee >= c4DustAtomic(sponsor.scriptHex, dustRelayFeePerKb), "Fee must be at most 1 XNA and leave non-dust sponsor change");
   const inputs = [{ txid: old.stateOutpoint[0], vout: 0 }];
   if (form !== "D0") {
-    demand3(old.reserveOutpoint?.[0] === old.stateOutpoint[0] && old.reserveOutpoint[1] === 1, "Noncanonical reserve");
+    demand2(old.reserveOutpoint?.[0] === old.stateOutpoint[0] && old.reserveOutpoint[1] === 1, "Noncanonical reserve");
     inputs.push({ txid: old.reserveOutpoint[0], vout: 1 });
   }
   if (form[0] === "D") inputs.push(funding);
   inputs.push(sponsor);
-  demand3(new Set(inputs.map((x) => x.txid + ":" + x.vout)).size === inputs.length, "Duplicate transaction input");
+  demand2(new Set(inputs.map((x) => x.txid + ":" + x.vout)).size === inputs.length, "Duplicate transaction input");
   const outputs = [{ valueSats: 0n, scriptHex: c4StateScript(m, encodeField(data.S_new)) }];
   if (form !== "W_full") {
-    demand3(nextReserve >= c4DustAtomic("5120" + m.reserveCommitment, dustRelayFeePerKb), "Reserve output would be dust under the selected policy");
+    demand2(nextReserve >= c4DustAtomic("5120" + m.reserveCommitment, dustRelayFeePerKb), "Reserve output would be dust under the selected policy");
     outputs.push({ valueSats: nextReserve, scriptHex: "5120" + m.reserveCommitment });
   }
   if (form[0] === "W") {
-    demand3(amount >= c4DustAtomic(payout, dustRelayFeePerKb), "Withdrawal would be dust under the selected policy");
+    demand2(amount >= c4DustAtomic(payout, dustRelayFeePerKb), "Withdrawal would be dust under the selected policy");
     outputs.push({ valueSats: amount, scriptHex: payout });
   }
   outputs.push({ valueSats: BigInt(sponsor.valueSats) - fee, scriptHex: sponsor.scriptHex });
@@ -5893,32 +5640,32 @@ function prepareC4({ manifest, scan, form, created = [], consumed, secret, fundi
   if (form[0] === "D") publics.push(data.dep, data.wdr, data.req, data.data_hash, data.anchor, amount);
   else if (form[0] === "T") publics.push(data.nf, data.data_hash, data.anchor, ...created.map((x) => decodeField(x.cm)));
   else publics.push(data.nf, data.anchor, amount, reserve, nextReserve);
-  return { state, form, inputs, outputs, template, input: decimal2(data), publicSignals: publics.map(String), blob, nf: data.nf === void 0 ? void 0 : encodeField(data.nf), feeAtomic, manifest: m };
+  return { state, form, inputs, outputs, template, input: decimal(data), publicSignals: publics.map(String), blob, nf: data.nf === void 0 ? void 0 : encodeField(data.nf), feeAtomic, manifest: m };
 }
-var FP2 = 21888242871839275222246405745257275088696311157297823662689037894645226208583n;
-function g12(p) {
+var FP = 21888242871839275222246405745257275088696311157297823662689037894645226208583n;
+function g1(p) {
   const [x, y] = p.map(BigInt);
-  demand3(x >= 0n && x < FP2 && y >= 0n && y < FP2 && y * y % FP2 === (x * x % FP2 * x + 3n) % FP2, "Invalid G1 proof point");
-  return le2(x | (y > FP2 - y ? 1n << 255n : 0n), 32);
+  demand2(x >= 0n && x < FP && y >= 0n && y < FP && y * y % FP === (x * x % FP * x + 3n) % FP, "Invalid G1 proof point");
+  return le(x | (y > FP - y ? 1n << 255n : 0n), 32);
 }
-function g22(p) {
+function g2(p) {
   const [x, y] = p.map((q) => q.map(BigInt));
-  demand3([...x, ...y].every((v) => v >= 0n && v < FP2), "Invalid G2 coordinate");
-  const n = y.map((v) => (FP2 - v) % FP2);
+  demand2([...x, ...y].every((v) => v >= 0n && v < FP), "Invalid G2 coordinate");
+  const n = y.map((v) => (FP - v) % FP);
   const sign = y[1] > n[1] || y[1] === n[1] && y[0] > n[0];
-  return cat2(le2(x[0], 32), le2(x[1] | (sign ? 1n << 255n : 0n), 32));
+  return cat(le(x[0], 32), le(x[1] | (sign ? 1n << 255n : 0n), 32));
 }
 function c4ProofBytes(proof) {
-  return cat2(g12(proof.pi_a), g22(proof.pi_b), g12(proof.pi_c));
+  return cat(g1(proof.pi_a), g2(proof.pi_b), g1(proof.pi_c));
 }
 function finishC4(prepared, proof, publicSignals) {
-  demand3(JSON.stringify(publicSignals.map(String)) === JSON.stringify(prepared.publicSignals), "Proof public inputs differ from the transaction");
+  demand2(JSON.stringify(publicSignals.map(String)) === JSON.stringify(prepared.publicSignals), "Proof public inputs differ from the transaction");
   const { form, inputs, outputs, template, manifest: m } = prepared, entry = m.forms[form];
   const args = prepared.blob ? [prepared.blob.slice(0, 2048), prepared.blob.slice(2048)] : [prepared.nf];
-  const own = [unhex2("10"), c4ProofBytes(proof), unhex2(entry.vk), ...args, template.prevouts, unhex2(entry.script), unhex2(entry.control)];
-  const witnesses = [own, ...form === "D0" ? [] : [[unhex2("00"), unhex2(m.guard)]], ...form[0] === "D" ? [[]] : [], []];
-  demand3(witnesses.length === inputs.length, "Witness count mismatch");
-  return hex2(cat2(le2(3, 4), unhex2("0001"), compact2(inputs.length), ...inputs.map((x) => cat2(unhex2(x.txid).reverse(), le2(x.vout, 4), le2(0, 1), unhex2("ffffffff"))), compact2(outputs.length), template.outputs, le2(0, 1), ...witnesses.map((w) => cat2(compact2(w.length), ...w.map(variable2))), le2(0, 4)));
+  const own = [unhex("10"), c4ProofBytes(proof), unhex(entry.vk), ...args, template.prevouts, unhex(entry.script), unhex(entry.control)];
+  const witnesses = [own, ...form === "D0" ? [] : [[unhex("00"), unhex(m.guard)]], ...form[0] === "D" ? [[]] : [], []];
+  demand2(witnesses.length === inputs.length, "Witness count mismatch");
+  return hex(cat(le(3, 4), unhex("0001"), compact(inputs.length), ...inputs.map((x) => cat(unhex(x.txid).reverse(), le(x.vout, 4), le(0, 1), unhex("ffffffff"))), compact(outputs.length), template.outputs, le(0, 1), ...witnesses.map((w) => cat(compact(w.length), ...w.map(variable))), le(0, 4)));
 }
 
 // src/checkpoint-crypto.js
@@ -5926,8 +5673,8 @@ var encoder2 = new TextEncoder();
 var decoder2 = new TextDecoder("utf-8", { fatal: true });
 var AAD2 = encoder2.encode("Neurai/privacy/scan-checkpoint/v1");
 var MAX_BYTES = 32 * 1024 * 1024;
-var hex3 = (bytes4) => Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
-function unhex3(value) {
+var hex2 = (bytes4) => Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
+function unhex2(value) {
   if (typeof value !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(value)) throw new Error("Invalid scan checkpoint");
   return Uint8Array.from(value.match(/../g), (pair2) => parseInt(pair2, 16));
 }
@@ -5937,7 +5684,7 @@ function sealScanCheckpoint(checkpoint, key) {
   if (plaintext.length > MAX_BYTES) throw new RangeError("Scan checkpoint is too large");
   const nonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
   try {
-    return JSON.stringify({ version: 1, nonce: hex3(nonce), ciphertext: hex3(chacha20poly1305(key, nonce, AAD2).encrypt(plaintext)) });
+    return JSON.stringify({ version: 1, nonce: hex2(nonce), ciphertext: hex2(chacha20poly1305(key, nonce, AAD2).encrypt(plaintext)) });
   } finally {
     plaintext.fill(0);
   }
@@ -5946,8 +5693,8 @@ function openScanCheckpoint(encoded, key) {
   if (typeof encoded !== "string" || encoded.length > (MAX_BYTES + 16) * 2 + 100) throw new Error("Invalid scan checkpoint");
   const envelope = JSON.parse(encoded);
   if (envelope?.version !== 1) throw new Error("Unsupported scan checkpoint");
-  const nonce = unhex3(envelope.nonce);
-  const ciphertext = unhex3(envelope.ciphertext);
+  const nonce = unhex2(envelope.nonce);
+  const ciphertext = unhex2(envelope.ciphertext);
   if (nonce.length !== 12 || ciphertext.length < 16 || ciphertext.length > MAX_BYTES + 16) throw new Error("Invalid scan checkpoint");
   const plaintext = chacha20poly1305(key, nonce, AAD2).decrypt(ciphertext);
   try {
@@ -5964,7 +5711,7 @@ function bytesFromHex(value, name) {
   }
   return Uint8Array.from(value.match(/../g), (byte) => parseInt(byte, 16));
 }
-function hex4(bytes4) {
+function hex3(bytes4) {
   return Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 function equal2(a, b) {
@@ -5993,7 +5740,7 @@ var BrowserTestIdentity = class _BrowserTestIdentity {
     const spendSecret = globalThis.crypto.getRandomValues(new Uint8Array(32));
     const viewSeed = globalThis.crypto.getRandomValues(new Uint8Array(32));
     try {
-      const backup = await sealVault({ spend_key: hex4(spendSecret), view_seed: hex4(viewSeed) }, password);
+      const backup = await sealVault({ spend_key: hex3(spendSecret), view_seed: hex3(viewSeed) }, password);
       return new _BrowserTestIdentity(spendSecret, viewSeed, d, asset, backup);
     } finally {
       spendSecret.fill(0);
@@ -6019,10 +5766,10 @@ var BrowserTestIdentity = class _BrowserTestIdentity {
   recipient() {
     this.#assertOpen();
     return {
-      domain: hex4(this.#domain),
-      asset_id: hex4(this.#assetId),
-      owner: hex4(deriveOwner(this.#domain, this.#spendSecret)),
-      view_pub: hex4(deriveViewPublic(this.#viewSeed))
+      domain: hex3(this.#domain),
+      asset_id: hex3(this.#assetId),
+      owner: hex3(deriveOwner(this.#domain, this.#spendSecret)),
+      view_pub: hex3(deriveViewPublic(this.#viewSeed))
     };
   }
   /** Return the existing encrypted JSON backup; the plaintext keys never leave this class. */
@@ -6051,17 +5798,9 @@ var BrowserTestIdentity = class _BrowserTestIdentity {
     });
   }
   /** Build private circuit inputs locally; call only from the dedicated wallet worker. */
-  prepareC3(options) {
-    this.#assertOpen();
-    if (options.manifest.domain !== hex4(this.#domain) || options.manifest.assetId !== hex4(this.#assetId)) {
-      throw new Error("wallet belongs to another pool instance");
-    }
-    return prepareC3({ ...options, secret: this.#spendSecret });
-  }
-  /** Build private circuit inputs locally; call only from the dedicated wallet worker. */
   prepareC4(options) {
     this.#assertOpen();
-    if (options.manifest.domain !== hex4(this.#domain) || options.manifest.assetId !== hex4(this.#assetId)) {
+    if (options.manifest.domain !== hex3(this.#domain) || options.manifest.assetId !== hex3(this.#assetId)) {
       throw new Error("wallet belongs to another pool instance");
     }
     return prepareC4({ ...options, secret: this.#spendSecret });
@@ -8890,8 +8629,8 @@ async function pbkdf2Async(hash, password, salt, opts) {
 }
 
 // src/zk-wallet.js
-var utf86 = new TextEncoder();
-var label = (name) => utf86.encode("NeuraiZK/v2/" + name);
+var utf85 = new TextEncoder();
+var label = (name) => utf85.encode("NeuraiZK/v2/" + name);
 var NZK_DERIVATION = "NeuraiZK/v2";
 var NZK_FAMILIES = Object.freeze({ legacy: 0, ecdsa: 1, pq: 2 });
 function familyByte(family) {
@@ -8935,7 +8674,7 @@ function u32le(value) {
   new DataView(out.buffer).setUint32(0, value, true);
   return out;
 }
-function hex5(bytes4) {
+function hex4(bytes4) {
   return Array.from(bytes4, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 function bytes324(value, name) {
@@ -8944,7 +8683,7 @@ function bytes324(value, name) {
   return fail(name + " must be 32 bytes");
 }
 function beInt(bytes4) {
-  return BigInt("0x" + (hex5(bytes4) || "0"));
+  return BigInt("0x" + (hex4(bytes4) || "0"));
 }
 function leInt(bytes4) {
   return beInt(Uint8Array.from(bytes4).reverse());
@@ -9019,15 +8758,15 @@ async function walletSeedFromMnemonic(mnemonic, passphrase = "") {
   if (!validateMnemonic(canonical2, wordlist)) fail("invalid English BIP39 mnemonic");
   return pbkdf2Async(
     sha512,
-    utf86.encode(canonical2),
-    utf86.encode("mnemonic" + passphrase.normalize("NFKD")),
+    utf85.encode(canonical2),
+    utf85.encode("mnemonic" + passphrase.normalize("NFKD")),
     { c: 2048, dkLen: 64 }
   );
 }
 async function deriveZkRoot(seed, zkPassphrase = "") {
   if (!(seed instanceof Uint8Array) || seed.length !== 64) fail("wallet seed must be 64 bytes");
   if (typeof zkPassphrase !== "string") fail("ZK passphrase must be a string");
-  const z = utf86.encode(zkPassphrase.normalize("NFKD"));
+  const z = utf85.encode(zkPassphrase.normalize("NFKD"));
   if (z.length > 4294967295) fail("ZK passphrase is too long");
   const password = concat5(seed, u32le(z.length), z);
   try {
@@ -9042,7 +8781,7 @@ function accountPrk(root) {
   return extract(sha256, root, label("account"));
 }
 function fingerprintFromPrk(prk, options) {
-  return hex5(sha256(expand(sha256, prk, concat5(label("fingerprint"), accountScope(options)), 32)).subarray(0, 4));
+  return hex4(sha256(expand(sha256, prk, concat5(label("fingerprint"), accountScope(options)), 32)).subarray(0, 4));
 }
 function zkFingerprint(root, options) {
   const prk = accountPrk(root);
@@ -9071,7 +8810,7 @@ function deriveZkAddressKeys(root, options) {
   }
 }
 function nzkInstanceTag(domain, assetId) {
-  return sha256(concat5(utf86.encode("NeuraiZK/v1/instance"), bytes324(domain, "domain"), bytes324(assetId, "assetId"))).subarray(0, 4);
+  return sha256(concat5(utf85.encode("NeuraiZK/v1/instance"), bytes324(domain, "domain"), bytes324(assetId, "assetId"))).subarray(0, 4);
 }
 function encodeNzkAddress(descriptor2, network) {
   if (!descriptor2 || typeof descriptor2 !== "object") fail("descriptor required");
@@ -9102,10 +8841,10 @@ function decodeNzkAddress(address, { network, domain, assetId }) {
   checkOwner(owner);
   checkViewPublic(viewPub);
   return {
-    domain: hex5(bytes324(domain, "domain")),
-    asset_id: hex5(bytes324(assetId, "assetId")),
-    owner: hex5(owner),
-    view_pub: hex5(viewPub)
+    domain: hex4(bytes324(domain, "domain")),
+    asset_id: hex4(bytes324(assetId, "assetId")),
+    owner: hex4(owner),
+    view_pub: hex4(viewPub)
   };
 }
 function parseRecipient(input, { network, domain, assetId }) {
@@ -9126,12 +8865,12 @@ function parseRecipient(input, { network, domain, assetId }) {
     fail("recipient must be an nzk address or a descriptor");
   }
   const normalized = {
-    domain: hex5(bytes324(descriptor2.domain, "domain")),
-    asset_id: hex5(bytes324(descriptor2.asset_id, "asset_id")),
-    owner: hex5(bytes324(descriptor2.owner, "owner")),
-    view_pub: hex5(bytes324(descriptor2.view_pub, "view_pub"))
+    domain: hex4(bytes324(descriptor2.domain, "domain")),
+    asset_id: hex4(bytes324(descriptor2.asset_id, "asset_id")),
+    owner: hex4(bytes324(descriptor2.owner, "owner")),
+    view_pub: hex4(bytes324(descriptor2.view_pub, "view_pub"))
   };
-  if (normalized.domain !== hex5(bytes324(domain, "domain")) || normalized.asset_id !== hex5(bytes324(assetId, "assetId"))) {
+  if (normalized.domain !== hex4(bytes324(domain, "domain")) || normalized.asset_id !== hex4(bytes324(assetId, "assetId"))) {
     fail("recipient belongs to another pool instance");
   }
   checkOwner(bytes324(normalized.owner, "owner"));
@@ -9157,12 +8896,12 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
     this.#family = family;
     this.#prk = prk.slice();
     this.#account = index31(account, "account");
-    this.#domain = hex5(bytes324(domain, "domain"));
-    this.#assetId = hex5(bytes324(assetId, "assetId"));
+    this.#domain = hex4(bytes324(domain, "domain"));
+    this.#assetId = hex4(bytes324(assetId, "assetId"));
     hrpFor(network);
     this.#network = network;
     this.#fingerprint = fingerprintFromPrk(this.#prk, { family, account, domain, assetId });
-    this.#storageId = hex5(sha256(expand(sha256, this.#prk, concat5(label("storage"), scope), 32)));
+    this.#storageId = hex4(sha256(expand(sha256, this.#prk, concat5(label("storage"), scope), 32)));
     if (gap !== void 0) this.setGap(gap);
     if (issued !== void 0) this.setIssued(issued);
   }
@@ -9341,9 +9080,6 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
     if (!address || address.chain !== CHAIN_RECEIVING && address.chain !== CHAIN_CHANGE) fail("note has no known address");
     return this.identityAt(address.chain, index31(address.index, "address index"));
   }
-  prepareC3(options) {
-    return this.spendingIdentity(options.consumed).prepareC3(options);
-  }
   prepareC4(options) {
     return this.spendingIdentity(options.consumed).prepareC4(options);
   }
@@ -9427,13 +9163,11 @@ function formatXna(satoshis) {
 }
 
 // src/pool-client.js
-var strictScript = /^(?:52|53)20[0-9a-f]{64}$/;
-function accepts(script, profile) {
-  if (profile !== "C3" && profile !== "C4") throw new Error("Unknown pool profile");
-  return LEGACY_P2PKH.test(script) || profile === "C4" && strictScript.test(script);
-}
 var LEGACY_P2PKH = /^76a914[0-9a-f]{40}88ac$/;
+var STRICT_SCRIPT = /^(?:52|53)20[0-9a-f]{64}$/;
+var accepts = (script) => LEGACY_P2PKH.test(script) || STRICT_SCRIPT.test(script);
 var MIN_SPONSOR_CHANGE_ATOMIC = 546n;
+var minimumChange = (script) => script.startsWith("5220") ? 3060n : script.startsWith("5320") ? 336n : MIN_SPONSOR_CHANGE_ATOMIC;
 var POOL_READ_RPC_METHODS = Object.freeze([
   "getblockhash",
   "getbestblockhash",
@@ -9454,41 +9188,41 @@ function message(error) {
 async function assertPoolChain(rpc, manifest) {
   if (await rpc("getblockhash", [0]) !== manifest.genesis) throw new Error("RPC node is not on the network of this pool");
 }
-async function confirmedPoolCoins(rpc, utxos, { baseCurrency, profile = "C3" }) {
+async function confirmedPoolCoins(rpc, utxos, { baseCurrency }) {
   const coins = [];
   for (const row of utxos) {
-    if (!accepts(row.script, profile) || row.assetName !== baseCurrency) continue;
+    if (!accepts(row.script) || row.assetName !== baseCurrency) continue;
     const live = await rpc("gettxout", [row.txid, row.outputIndex, true]);
     if (!live || live.confirmations < 1) continue;
-    const coin3 = { ...row, vout: row.outputIndex, valueSats: String(row.satoshis), scriptHex: row.script };
-    coins.push(coin3);
+    const coin2 = { ...row, vout: row.outputIndex, valueSats: String(row.satoshis), scriptHex: row.script };
+    coins.push(coin2);
   }
   return coins;
 }
-function selectPoolCoins(coins, { action, amountAtomic, feeAtomic, profile = "C3" }) {
+function selectPoolCoins(coins, { action, amountAtomic, feeAtomic }) {
   const fee = BigInt(feeAtomic);
   if (fee < 0n) throw new Error("Fee must not be negative");
-  coins = coins.filter((c) => accepts(c.scriptHex, profile));
+  coins = coins.filter((c) => accepts(c.scriptHex));
   let funding;
   if (action === "deposit") {
     const wanted = String(BigInt(amountAtomic));
     funding = coins.find((c) => c.valueSats === wanted);
     if (!funding) throw new Error("No confirmed coin matches this deposit. Prepare an exact deposit coin, wait for its confirmation and retry.");
   }
-  const sponsor = coins.find((c) => c !== funding && BigInt(c.valueSats) >= fee + (profile === "C4" ? c.scriptHex.startsWith("5220") ? 3060n : c.scriptHex.startsWith("5320") ? 336n : 546n : MIN_SPONSOR_CHANGE_ATOMIC));
+  const sponsor = coins.find((c) => c !== funding && BigInt(c.valueSats) >= fee + minimumChange(c.scriptHex));
   if (!sponsor) throw new Error("A separate confirmed supported XNA coin is needed for the fee");
   return { funding, sponsor };
 }
-async function checkPoolCoin(rpc, coin3, { profile = "C3" } = {}) {
-  const live = await rpc("gettxout", [coin3.txid, coin3.vout, true]);
-  if (!live || live.confirmations < 1 || live.scriptPubKey?.hex !== coin3.scriptHex || !accepts(coin3.scriptHex, profile)) {
+async function checkPoolCoin(rpc, coin2) {
+  const live = await rpc("gettxout", [coin2.txid, coin2.vout, true]);
+  if (!live || live.confirmations < 1 || live.scriptPubKey?.hex !== coin2.scriptHex || !accepts(coin2.scriptHex)) {
     throw new Error("Funding coin is spent, unconfirmed or unsupported");
   }
-  if (rpcAmountToSatoshis(live.value).toString() !== String(coin3.valueSats)) throw new Error("Funding value mismatch");
+  if (rpcAmountToSatoshis(live.value).toString() !== String(coin2.valueSats)) throw new Error("Funding value mismatch");
 }
-async function withdrawalScript(rpc, address, { profile = "C3" } = {}) {
+async function withdrawalScript(rpc, address) {
   const result = await rpc("validateaddress", [String(address ?? "").trim()]);
-  if (!result?.isvalid || !accepts(result.scriptPubKey ?? "", profile)) throw new Error(profile === "C3" ? "Withdrawals from this pool require a Legacy address" : "Withdrawals from this pool require a Legacy, PQ or ECDSA address");
+  if (!result?.isvalid || !accepts(result.scriptPubKey ?? "")) throw new Error("Withdrawals from this pool require a Legacy, PQ or ECDSA address");
   return result.scriptPubKey;
 }
 async function recheckInputs(rpc, manifest, points) {
@@ -9580,7 +9314,7 @@ function saveRotation(storage, key, { gap, issued }) {
   }
 }
 
-// src/c3-testnet.js
+// src/c4-testnet.js
 function deepFreeze(value) {
   if (value && typeof value === "object") {
     Object.values(value).forEach(deepFreeze);
@@ -9588,237 +9322,223 @@ function deepFreeze(value) {
   }
   return value;
 }
-var C3_TESTNET_NETWORK = "testnet";
-var C3_TEST_DEPOSIT_LIMIT_ATOMIC = 2100000000000000000n;
-var C3_TESTNET_MANIFEST = deepFreeze({
-  "schema": "neurai-c3-xna-test-v1",
+var C4_TESTNET_NETWORK = "testnet";
+var C4_TESTNET_COMMITMENT = "a627eac63b0817abe9d07584690d4b418325ed00df08f5f18e2ac0ab58ff5ae4";
+var C4_TESTNET_MANIFEST = deepFreeze({
+  "schema": "neurai-c4-xna-test-v1",
+  "testOnly": true,
   "profile": "xna",
   "genesis": "0000008b384aeffecdab182575dc4e86c9f07f90318c65088532660ed9a8a021",
-  "domain": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
-  "assetId": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
-  "identity": "C3TESTX260929A#POOL",
-  "birth": "e9de95d9393df98544967cf11994c9b61118ea54584f9a63c03e7604ff72c33e",
-  "birthHeight": 7761,
-  "commitment": "91db197b37793b95cfa5d86c93fe4ca204165d3af429125f88336646d2374e34",
+  "unit": "1",
+  "registryRoot": "0000000000000000000000000000000000000000000000000000000000000000",
+  "identity": "C4TESTX260930A#POOL",
+  "issuance": {
+    "txid": "42a607fe7f5e7134f0f3b033c4989ebbc8cf24889c9cc0a17660bdbdc071401d",
+    "vout": 3
+  },
+  "domain": "a6897e07f5b084c97f3d55ff0ffa5e07e55fffd5858c95f576c5ace1123efe0f",
+  "assetId": "4c2f545490a62c5f534981996a8b140fd28dfab8aa051e86da40248bdd687bff",
+  "context": "1a145315ccbf33410a65d719312c332522c5cbb2cb5d0b62483390238110016f",
+  "birth": "6985d9a0e71cfec44b4effd86f72b08d79191bfdb14fd5238d187390f021aac2",
+  "birthHeight": 11540,
+  "commitment": "a627eac63b0817abe9d07584690d4b418325ed00df08f5f18e2ac0ab58ff5ae4",
+  "address": "tnc1p5cn7433mpqt6h6wswkzxjr2tgxpjtmgqmuy0tuvw9tq2kk8lttjqxvdz4w",
+  "reserveCommitment": "1b6f93cb51fb572f16dfb924c7fdaee4ffa1fe635f2e92bf3c848c797078778e",
+  "guard": "0052c420a627eac63b0817abe9d07584690d4b418325ed00df08f5f18e2ac0ab58ff5ae4880051cf13433454455354583236303933304123504f4f4c880051ce13433454455354583236303933304123504f4f4c8800d50052c48851",
   "forms": {
     "D0": {
-      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433354455354583236303932394123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433354455354583236303932394123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05388d1538851798277016c8842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433354455354583236303932394123504f4f4c880051ce13433354455354583236303932394123504f4f4c8800d50052c488517ea87ea85153c400798277011988007900b77753b7750376a9148800790117b77752b7750288ac8851d600a06951cd02512053797e8851cc00a06951cc08000052acdfb2241da16951cc51d6885253c400798277011988007900b77753b7750376a9148800790117b77752b7750288ac8852cd51798852cc00a26952cc52d6a16956798277020008885579827702000888567900b77756b775060100000001008856790126b77702a000b7754ca00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088567902c604b777023a03b7754d3a030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088557900b777020008b7754d0008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088567902c600b77753b7750301d90088567902a201b777022403b7754d2403000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000885779a820d8726a703ac2714e0e74d7aa64dd2441b5e5e992ec8eff6683e428b4286e3a8c88587958790058cf0058ce0b4e49503034352f6465700151d60800000000000000007e00b77758b7757e5b7956b7770120b7757ec90b4e49503034352f77647200c90b4e49503034352f72657100c90b4e49503034352f64617402c95e797ec95d797ec9021f01b5c91800000000000000000000000000000000000000000000000051d60800000000000000007e00b77758b775bc7e5851c3696d6d6d6d7551",
-      "control": "01b35fa14e9e488ac96f5bc4e6f13ead6640eb8ccba5b904f8a269d3d0d46d36a56fb0d8ea2343868b764499a0fa2b7816750f620239ece6439c3971c63e8f02d8e8e4bb91cd8cea20a19c3ae037d25622637bb1b40edc6d9c5fa1f78d03d6dce4",
-      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e19c2a96ba1ad27cc9660e2b72e8b4c9019a8524601bd94f6168ffbd4c8dcbc361751fc9bc2f78fc8eddda98f6037472f842352ba7a27f5fcd388a2aead47688801090000000000000070d4e3a3ab916d6084f6e4a76b37ebbd3df293cdf5b68f78b439bc1e540d561ce356c1025c531daa6407ae6719437d71f5fcae4fb99edded95446bc5fd16499f1bc0447a5c25b2ecb4df389eae787c53b1b922bbe4a5a9ad45acfd0d56fe1325323856410f524fc44e11ad7404c490ef4253bb70fc21acd454339a212a950c22306d539e8655549f0a5a7e21a1d8b294e7d6ca2cc9fa0d28c7f07426159e44a04f39e615f5f7823caecd902aca311dd3b783b96c66bac8a3d9c2b5ba8f75a38c0f354996fefda2befb153332a970fe569f9ea499daf5b5fa931d7ace3e6319940ca08448f8a0401e8305d94f4e5d24d96cd10a72eb69f11ebbdf02b50f22aa1e300b8d0f613efd9f716a9e959809cd065a0c57ac6ddeb016aee627635e08d21b",
-      "vkHash": "d8726a703ac2714e0e74d7aa64dd2441b5e5e992ec8eff6683e428b4286e3a8c"
+      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05388d1538851798277016c8842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433454455354583236303933304123504f4f4c880051ce13433454455354583236303933304123504f4f4c8800d50052c488517ea87ea85153c4007982770119876300798277011988007900b77753b7750376a9148800790117b77752b7750288ac886700798277012288007900b77752b77502522087517900b77752b775025320879b696851d600a06951cd02512053797e8851cc00a06951cc08000052acdfb2241da16951cc51d6885253c4007982770119876300798277011988007900b77753b7750376a9148800790117b77752b7750288ac886700798277012288007900b77752b77502522087517900b77752b775025320879b696852cd51798852cc00a26952cc52d6a16956798277020008885579827702000888567900b77752b775020201885679021e01b77702e206b7754de2060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088557900b777020008b7754d0008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088567952b7770120b7752000000000000000000000000000000000000000000000000000000000000000008856790142b77753b7750301d900885779a82033a67f8c27fb6efa756547d85b76c170e2de787138ccb78e62ce8ae11efa8bdf8858795879201a145315ccbf33410a65d719312c332522c5cbb2cb5d0b62483390238110016f0058cf0058ce0b4e49503034352f6465700151d60800000000000000007e00b77758b7757e5c790122b7770120b7757ec90b4e49503034352f77647200c90b4e49503034352f72657100c90b4e49503034352f64617403c95f797ec95e797ec9021f01b5c91800000000000000000000000000000000000000000000000051d60800000000000000007e00b77758b775bc7e5951c3696d6d6d6d7551",
+      "control": "01cc6e6fed1aed7e7dd8dd3b54258f1562eda483aaab380f3fbcba5296d09948286498ebbdade38d1f6f7e8f111f3f8ab6dcd2fac9f3e81a1cc08fba1351f414d5743f1484ce7ebe8bec8a17ad89bf7fe098a17455f9a2e54b212a76e0cbfe0dce",
+      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e190c268c82003090d037ceef20957335635c05463ab01fec4bd45549189dd2cf0472b75a647498668a968e008458d4b5256972a4b4a8974e57bdb729b9fb596a100a00000000000000756df467f9bb357c2332d6f05dfe1628947c9c77671a75bcc15213bb89bb2e853ffb77e1afe3792c6f07af28e1dde8087ba6fb2f4eb8e0dca9f6782ed1ad981e5e3f36a48fb4d93dd7d943146ebfe50f3b6ce904c1935f035982e140fedb1ba355b243e1531dfcd4bfd7a91854f694de1a4d87ac46083297cb76bb3a9dc4fa98ca356c11c34ece2d05752a169dee23ec6b9cc76d04551d68fd4f17bde2ac46217d7f10f702822b9e58145e2677194b2e278a7072041ae27d313d44a066cc329f37c8982e827e548a374d28eee8981f0ad8f4d3406fe5d2fdc305a08cf49efe94d44f335aa41200f8669ac7bb070c008dea7acbd453d7f94fc65c832e9c1ab8a564f1fb2bedc9b065919351c8ae820340962708749e5f4ba725b44dab5c5403a354391e8c2d4ec8553a53b57de90e3f38888e6fd1cbf2188680d7cec9e0c3fc29",
+      "vkHash": "33a67f8c27fb6efa756547d85b76c170e2de787138ccb78e62ce8ae11efa8bdf"
     },
     "D1": {
-      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433354455354583236303932394123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433354455354583236303932394123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05488d15388517982770290008842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088517900b7770120b77552790124b7770120b7758851790144b77754b775040100000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433354455354583236303932394123504f4f4c880051ce13433354455354583236303932394123504f4f4c8800d50052c488517ea87ea85153c402512052797e8851d600a06951d608000052acdfb2241da1695253c400798277011988007900b77753b7750376a9148800790117b77752b7750288ac8852d600a06951cd02512053797e8851cc00a06951cc08000052acdfb2241da16951cc51d652d693885353c400798277011988007900b77753b7750376a9148800790117b77752b7750288ac8852cd51798852cc00a26952cc53d6a16956798277020008885579827702000888567900b77756b775060100000001008856790126b77702a000b7754ca00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088567902c604b777023a03b7754d3a030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088557900b777020008b7754d0008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088567902c600b77753b7750301d90088567902a201b777022403b7754d2403000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000885779a8204d498f558925f5c8bbc2359bee76a6b4d8d6aee57950524b435b1a27209a50b788587958790058cf0058ce0b4e49503034352f6465700152d60800000000000000007e00b77758b7757e5b7956b7770120b7757ec90b4e49503034352f77647200c90b4e49503034352f72657100c90b4e49503034352f64617402c95e797ec95d797ec9021f01b5c91800000000000000000000000000000000000000000000000052d60800000000000000007e00b77758b775bc7e5851c3696d6d6d6d7551",
-      "control": "019d85973a8192b5ccb1952ba1ec7473381bd822515dabb0c50979bb4a9288c9da6fb0d8ea2343868b764499a0fa2b7816750f620239ece6439c3971c63e8f02d8e8e4bb91cd8cea20a19c3ae037d25622637bb1b40edc6d9c5fa1f78d03d6dce4",
-      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e19b76c4cf480b56928e37cce99dd87e7027c2bb3eb6e9cd391125d6360d14b64090f19fb71743c2cc5101fa4ef0d7458eb287a9566cdc25d772b03ce02ee5ff3090900000000000000c873cafa74527fae7e5b76530e672c8bdc835fdd5f028f8b3bbf34db13e81816e356c1025c531daa6407ae6719437d71f5fcae4fb99edded95446bc5fd16499f1bc0447a5c25b2ecb4df389eae787c53b1b922bbe4a5a9ad45acfd0d56fe1325323856410f524fc44e11ad7404c490ef4253bb70fc21acd454339a212a950c226d4396d6c89ee7cc7655134baada2cde20f759630b7292b8a8d836fa37068890205e2a9d5528b2ff423afa002185e53f1bc16637e2b7205957be32117a4d87890f354996fefda2befb153332a970fe569f9ea499daf5b5fa931d7ace3e6319940ca08448f8a0401e8305d94f4e5d24d96cd10a72eb69f11ebbdf02b50f22aa1e300b8d0f613efd9f716a9e959809cd065a0c57ac6ddeb016aee627635e08d21b",
-      "vkHash": "4d498f558925f5c8bbc2359bee76a6b4d8d6aee57950524b435b1a27209a50b7"
-    },
-    "T2": {
-      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433354455354583236303932394123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433354455354583236303932394123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05388d1538851798277016c8842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088517900b7770120b77552790124b7770120b7758851790144b77754b775040100000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433354455354583236303932394123504f4f4c880051ce13433354455354583236303932394123504f4f4c8800d50052c488517ea87ea85153c402512052797e8851d600a06951d608000052acdfb2241da16951cd02512052797e8851cc00a06951cc08000052acdfb2241da16951cc51d6885253c400798277011988007900b77753b7750376a9148800790117b77752b7750288ac8852cd51798852cc00a26952cc52d6a16955798277020008885479827702000888557900b77752b7750201028854790162b777029e07b7754d9e070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008855790162b77753b7750301d900885579023e01b777022403b7754d2403000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000885579026204b77753b7750301d900885579023e05b77702c202b7754dc2020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088547900b7770162b7754c620000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000885679a8206b7057403f3f7bb4ab9340a3b46205470795f72c4d4be015889518c12496ee9f88577957790058cf0058ce597952b7770120b7750b4e49503034352f64617402c95b797ec95a797ec9021f01b5c95c790122b7770120b7755d790142b7770120b7755751c3696d6d6d6d51",
-      "control": "0117659ddfc81042da69242b3489251a9a14b1c839c966ee1254b801bfde69dfcc8bb018d8ee07123b8fc1e6d0b83fbe4d0b1d04afd6f5b66db65669ce47ce54ffe8e4bb91cd8cea20a19c3ae037d25622637bb1b40edc6d9c5fa1f78d03d6dce4",
-      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e194340b2d53c986c5ca0444d05d14d47f9c2ea2d22da05762349f693f08d853d203310662c1ceeef5e9e03699286964c8081ce57d4faaa4ae2d45c3a773b058e8e0800000000000000e9a13010ba1225263a09c3e980c9c9739bc892e6bd32c6fac1947ea7e09cca0fdef901d0301c1422efa632ac897d0d2be8c0f7698ea8dc626e8f8c7215036aaa9d3ec5854d1649e7b22f692d6001ea1ce3114803699b3445617abd3cccd3230c94bfc35d6526388b0a267c84eb73bc2e7a792671763633595ae5759a90e18e0dab97b7314d5403b383e8ecce504cdbdd0463da99be73844e11db291d8250e512f9c94da7904c1ac32d74d4c07beb8b2f5d306ca653b781192b0df0fada963802b33936a32fe01a283c78e470892a8d7d81ffad772ff0da7aa753a7455579068305f86df9d4a16060fc5de2cb0c926a5c22071aac11ed62f769e5a1b29a715821",
-      "vkHash": "6b7057403f3f7bb4ab9340a3b46205470795f72c4d4be015889518c12496ee9f"
+      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05488d15388517982770290008842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088517900b7770120b77552790124b7770120b7758851790144b77754b775040100000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433454455354583236303933304123504f4f4c880051ce13433454455354583236303933304123504f4f4c8800d50052c488517ea87ea85153c402512052797e8851d600a06951d608000052acdfb2241da1695253c4007982770119876300798277011988007900b77753b7750376a9148800790117b77752b7750288ac886700798277012288007900b77752b77502522087517900b77752b775025320879b696852d600a06951cd02512053797e8851cc00a06951cc08000052acdfb2241da16951cc51d652d693885353c4007982770119876300798277011988007900b77753b7750376a9148800790117b77752b7750288ac886700798277012288007900b77752b77502522087517900b77752b775025320879b696852cd51798852cc00a26952cc53d6a16956798277020008885579827702000888567900b77752b775020201885679021e01b77702e206b7754de2060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088557900b777020008b7754d0008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088567952b7770120b7752000000000000000000000000000000000000000000000000000000000000000008856790142b77753b7750301d900885779a820187c179623e7a6438882ae30dd8bfc8a6c8ad9c08fccb6eb1572cb92b158bd4d8858795879201a145315ccbf33410a65d719312c332522c5cbb2cb5d0b62483390238110016f0058cf0058ce0b4e49503034352f6465700152d60800000000000000007e00b77758b7757e5c790122b7770120b7757ec90b4e49503034352f77647200c90b4e49503034352f72657100c90b4e49503034352f64617403c95f797ec95e797ec9021f01b5c91800000000000000000000000000000000000000000000000052d60800000000000000007e00b77758b775bc7e5951c3696d6d6d6d7551",
+      "control": "014737a9a4d834842f69a01c441799b0811cd8a56019d9a75135bccf8abd3fbdaa6498ebbdade38d1f6f7e8f111f3f8ab6dcd2fac9f3e81a1cc08fba1351f414d5743f1484ce7ebe8bec8a17ad89bf7fe098a17455f9a2e54b212a76e0cbfe0dce",
+      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e191aa502c3c5bf7bb8ddf8824d4bdaa01a732eb3dd8f2d44425bcf74e23fbf111595e55905e21874d6e4eb9b9d1e136a425a358ff435dc1066edf2bc642f1373180a000000000000000dcaf958da6f542d5c07886fe7436eb0ac03da1afc22893060c9ba6911fe63883ffb77e1afe3792c6f07af28e1dde8087ba6fb2f4eb8e0dca9f6782ed1ad981e5e3f36a48fb4d93dd7d943146ebfe50f3b6ce904c1935f035982e140fedb1ba355b243e1531dfcd4bfd7a91854f694de1a4d87ac46083297cb76bb3a9dc4fa98ca356c11c34ece2d05752a169dee23ec6b9cc76d04551d68fd4f17bde2ac4621c6b107ac6c76b874514ec96b0b43d2b64e7fc777269e09b286bfe849ac729421e89fcf20810c0250428711081b6eed4d75ba0e2abcdf00e661c9fdbd523bbfa3d44f335aa41200f8669ac7bb070c008dea7acbd453d7f94fc65c832e9c1ab8a564f1fb2bedc9b065919351c8ae820340962708749e5f4ba725b44dab5c5403a354391e8c2d4ec8553a53b57de90e3f38888e6fd1cbf2188680d7cec9e0c3fc29",
+      "vkHash": "187c179623e7a6438882ae30dd8bfc8a6c8ad9c08fccb6eb1572cb92b158bd4d"
     },
     "T1": {
-      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433354455354583236303932394123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433354455354583236303932394123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05388d1538851798277016c8842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088517900b7770120b77552790124b7770120b7758851790144b77754b775040100000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433354455354583236303932394123504f4f4c880051ce13433354455354583236303932394123504f4f4c8800d50052c488517ea87ea85153c402512052797e8851d600a06951d608000052acdfb2241da16951cd02512052797e8851cc00a06951cc08000052acdfb2241da16951cc51d6885253c400798277011988007900b77753b7750376a9148800790117b77752b7750288ac8852cd51798852cc00a26952cc52d6a16955798277020008885479827702000888557900b77752b7750201018855790142b7770120b775200000000000000000000000000000000000000000000000000000000000000000885579026204b777029e03b7754d9e03000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088547900b777020008b7754d000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008855790162b77753b7750301d900885579023e01b777022403b7754d2403000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000885679a82087a5842ef8d20f78b98c11ef61d6ea1c6bff15668b9723b89f846930628ec93888577957790058cf0058ce597952b7770120b7750b4e49503034352f64617402c95b797ec95a797ec9021f01b5c95c790122b7770120b7755651c3696d6d6d6d51",
-      "control": "011a46aca4957ecde4d65f83a31d630927ba97982048064bcf67543268f48353b88bb018d8ee07123b8fc1e6d0b83fbe4d0b1d04afd6f5b66db65669ce47ce54ffe8e4bb91cd8cea20a19c3ae037d25622637bb1b40edc6d9c5fa1f78d03d6dce4",
-      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e19c53be4126e5310adde94f7833ed5735457c3aef1500a2b07083f962fd9e15f0298b9dbd4a92a2e153cfc17d0b5d65ad5c1e1dd39bd745b108c28ed63037d278f070000000000000030fa8d846bb0246d2001d4b96a82b6895b7e5f29467621a7713bd1066b8e00a4f9eff745ba8cfed5d0a356726c4f20e851ec9c19c86cad9a46770be98373cb0d47624e51490494f1037cc5c7f436e7a15dcfb9220c8bd1907819bdf943ed6d9d26409a04273c8a74efd69d9cddca629aa96b670202693043c39051bf60175d246453a8d3929aab2bdd9f07717f5330678e289c05cfd4203fcd96c4321dd3079805bb9b265de904a61708f4cd4a698bf896933087118de9b93f7ca55d7c943492e82f5d56c6629a18e4e6676307b3e155bc7dc17837d4fed392148fa533036b87",
-      "vkHash": "87a5842ef8d20f78b98c11ef61d6ea1c6bff15668b9723b89f846930628ec938"
+      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05388d1538851798277016c8842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088517900b7770120b77552790124b7770120b7758851790144b77754b775040100000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433454455354583236303933304123504f4f4c880051ce13433454455354583236303933304123504f4f4c8800d50052c488517ea87ea85153c402512052797e8851d600a06951d608000052acdfb2241da16951cd02512052797e8851cc00a06951cc08000052acdfb2241da16951cc51d6885253c4007982770119876300798277011988007900b77753b7750376a9148800790117b77752b7750288ac886700798277012288007900b77752b77502522087517900b77752b775025320879b696852cd51798852cc00a26952cc52d6a16955798277020008885479827702000888557900b77752b775020201885579021e01b77702e206b7754de2060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088547900b777020008b7754d000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008855790142b77753b7750301d900885679a8200dd8efed2a27db9a33fadec570f8e994140b49a047dcc810a0f932a85065f49d8857795779201a145315ccbf33410a65d719312c332522c5cbb2cb5d0b62483390238110016f0058cf0058ce5a7952b7770120b7750b4e49503034352f64617403c95c797ec95b797ec9021f01b5c95d790122b7770120b7755751c3696d6d6d6d51",
+      "control": "01a601fb4361052409479cb96b75cfed3586c0d9e5821f8caf8883f528aca69a94630092b577e38642d38e7446d8239b656a16afd945684deb206033430f4d7f7d743f1484ce7ebe8bec8a17ad89bf7fe098a17455f9a2e54b212a76e0cbfe0dce",
+      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e19fc6a279e5053822c63b2545b1c3a47f9f977d02010ae788279d2a385e21ba1111d9ea7a2877107d09bb95c175547e6658abf3339bdde20f54177781994b6f71d0800000000000000043331cdecd2620063e4f53bf14f70f083a6e8894fb3d2e6f44c561d3422710c801d2825edecf3f135f9663c34719eecf225f3006f27050a12edccc9f0aef299906a6a7d3c66d788f4bd1fdef78c41619f000c2979217c16fad941d1ac69ad997bcaff002301e7398b3e2adbcceb6f8dc86282ea21d255088cbb19a9ed56ef8ea04b2004315a0c3ffbcf7604051e042c9792dc8fdc8247caf31b014976952d0a7ac86df441b011c7b7f9544d83b0889af852d8e19e2c4631858e15f4142cba1534f8084937b05d52df746b144412fd9032ade85fdf72f583bd33eabbe065ee8ef982891b52d8856615d252bfdd9400983fcd7a9bbe32637a554074f4c31e5a22",
+      "vkHash": "0dd8efed2a27db9a33fadec570f8e994140b49a047dcc810a0f932a85065f49d"
+    },
+    "T2": {
+      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05388d1538851798277016c8842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088517900b7770120b77552790124b7770120b7758851790144b77754b775040100000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433454455354583236303933304123504f4f4c880051ce13433454455354583236303933304123504f4f4c8800d50052c488517ea87ea85153c402512052797e8851d600a06951d608000052acdfb2241da16951cd02512052797e8851cc00a06951cc08000052acdfb2241da16951cc51d6885253c4007982770119876300798277011988007900b77753b7750376a9148800790117b77752b7750288ac886700798277012288007900b77752b77502522087517900b77752b775025320879b696852cd51798852cc00a26952cc52d6a16955798277020008885479827702000888557900b77752b775020202885579021a02b77702e605b7754de6050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088547900b777020008b7754d000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008855790162b77753b7750301d900885579023e01b77753b7750301d900885679a820033f70de5bb6dcf35aef202ff9a7af1eb4729e1fb543b9ce39a8114a53cf1d9a8857795779201a145315ccbf33410a65d719312c332522c5cbb2cb5d0b62483390238110016f0058cf0058ce5a7952b7770120b7750b4e49503034352f64617403c95c797ec95b797ec9021f01b5c95d790122b7770120b7755e790142b7770120b7755851c3696d6d6d6d51",
+      "control": "01e38bcfb1fc9f59a955f4ac4079710ba3df1a999d7b860af1f845f0238dad1824630092b577e38642d38e7446d8239b656a16afd945684deb206033430f4d7f7d743f1484ce7ebe8bec8a17ad89bf7fe098a17455f9a2e54b212a76e0cbfe0dce",
+      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e19491fa03ebe18219250ed5f1b3c8504dcd18da09c55243285a7f347859361bd135578b2434ff654a491c98a9fbba6f444714f50683dd6df83fd0c07c8e6f4f2010900000000000000f1bf0e236a47633b1c70e76f0fda4b3cc89f8d372e36bfc5059c1da955d03c074f9d22a947a1fd7d85c3e9173d05398c947eba3aa809b051e8834db83c9b578e4488e401f40904f8234dd896796e353dacde5d5818cb097f1261df1dd69482113cbf0f1c2eead793628b9a2923449747263fe6866f3ad457cceec9aebbf1368422b0a028c2f21a5f09d4e6855c56462555327b353a06c7004877f76ec0e49d130fc413b6185d86195d665726812cbe31008e32fbe57003b8d25288a92b419f29ef6725906abdd512d24336fb47434a7ee121178b9639a6bcafeef259bbf83019be64baa219bb8642435a55df7ee3ed21dac20c2998ad49d56b146af9e48f37a0fa657f62581a48c1a06f0156452d46d9c92d7149b08ffe1ffa2d2ffff80f9597",
+      "vkHash": "033f70de5bb6dcf35aef202ff9a7af1eb4729e1fb543b9ce39a8114a53cf1d9a"
+    },
+    "T3": {
+      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05388d1538851798277016c8842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088517900b7770120b77552790124b7770120b7758851790144b77754b775040100000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433454455354583236303933304123504f4f4c880051ce13433454455354583236303933304123504f4f4c8800d50052c488517ea87ea85153c402512052797e8851d600a06951d608000052acdfb2241da16951cd02512052797e8851cc00a06951cc08000052acdfb2241da16951cc51d6885253c4007982770119876300798277011988007900b77753b7750376a9148800790117b77752b7750288ac886700798277012288007900b77752b77502522087517900b77752b775025320879b696852cd51798852cc00a26952cc52d6a16955798277020008885479827702000888557900b77752b775020203885579021603b77702ea04b7754dea040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088547900b777020008b7754d00080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000885579028200b77753b7750301d900885579025e01b77753b7750301d900885579023a02b77753b7750301d900885679a82037862db47d76de0d7027bbb5a2b6be0073222f048e87a98d8b42937884c06bd68857795779201a145315ccbf33410a65d719312c332522c5cbb2cb5d0b62483390238110016f0058cf0058ce5a7952b7770120b7750b4e49503034352f64617403c95c797ec95b797ec9021f01b5c95d790122b7770120b7755e790142b7770120b7755f790162b7770120b7755951c3696d6d6d6d51",
+      "control": "0135bd33a21b3f791688e6f91228a944d7901eba09b1077173d594fdd2c9a24cf9d2fc0bdfe7b539c3846aedc1865e11b27a8907d40a7e59dad94690a898b548e622798b2fb2e057ca5b3646d1efb74a383dd1b9a9838b05f3358614bab1d00165",
+      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e19780c5e3f44e138b405e5492d714bb23fd2d38d5a9c3792fdbebc818fede2f6049e698edab260e6ca5984d3876f5976293b93f9f2f52aecb4c7039ace2263ffab0a000000000000004f096a138b65445cec6c58d708a911217d53aad41d48b362b560af321ca0c80d576061a6ce14fd3ecaeb4d615c477912c80d2f48848bf7a6acfd939a2ac351a83837dffd9e1fa40e2da9b45e3930f2e94adc7227422eee66feeeb04be6dc6d1f36089af3dc5bc502efec7e423ec1698718f825396b9d59cf7dc327eb83eb2b895aaaa4793125da8e1eb488e62deab0a6442e58259cf63d0be19c83c01140090015ae5a029d421b435675d94850f81293a66fe19cb24e7e07b6be4fa139fbfe1a189ab08386c52fc64a26c3f9fd490f2780dfc18fa17c6369e528744aaef74510b052d88e03f1fae71a201bb0582d741730c3e98e0105e94cc6be291eb04b0727ee4322b6a8d083da5c3d4a8814ee7c102473a6fee71e443f8d5a46e57c01e41197d7181f58a9db6b7e8fde1811f217b74f835db5b3626a99a32cf77f665f822e",
+      "vkHash": "37862db47d76de0d7027bbb5a2b6be0073222f048e87a98d8b42937884c06bd6"
+    },
+    "T4": {
+      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05388d1538851798277016c8842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088517900b7770120b77552790124b7770120b7758851790144b77754b775040100000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433454455354583236303933304123504f4f4c880051ce13433454455354583236303933304123504f4f4c8800d50052c488517ea87ea85153c402512052797e8851d600a06951d608000052acdfb2241da16951cd02512052797e8851cc00a06951cc08000052acdfb2241da16951cc51d6885253c4007982770119876300798277011988007900b77753b7750376a9148800790117b77752b7750288ac886700798277012288007900b77752b77502522087517900b77752b775025320879b696852cd51798852cc00a26952cc52d6a16955798277020008885479827702000888557900b77752b775020204885579021204b77702ee03b7754dee030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088547900b777020008b7754d0008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088557902a200b77753b7750301d900885579027e01b77753b7750301d900885579025a02b77753b7750301d900885579023603b77753b7750301d900885679a820fdf008981bdb001ab52cc8b3be1ebaf8a3e8493956ada9bfe2b111e22b76bc428857795779201a145315ccbf33410a65d719312c332522c5cbb2cb5d0b62483390238110016f0058cf0058ce5a7952b7770120b7750b4e49503034352f64617403c95c797ec95b797ec9021f01b5c95d790122b7770120b7755e790142b7770120b7755f790162b7770120b7756079028200b7770120b7755a51c3696d6d6d6d51",
+      "control": "0124f1b604f7e8f4af7754d81845f41312f760360120836d5d0f57305011865f0ed2fc0bdfe7b539c3846aedc1865e11b27a8907d40a7e59dad94690a898b548e622798b2fb2e057ca5b3646d1efb74a383dd1b9a9838b05f3358614bab1d00165",
+      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e19e93a767fcef270aa25cb831a7fb33dee3ec3094985609461412e03c3ad1a1a024a053648396ed352923a1de33b211962a4d7e9dde686ff36be5d04c9329941180b00000000000000df95e08f2b9b81b5689bbc45f4309eca548c4868f99385537d2c1d25be04e81ac53f22977dcca5f22e005a98e87ab105ea851d47dc298ed6d3eb76b65db7f29a8f72b1d76bf76bc36e51e89439532c77e611f180e7c2a5df9d8a1e865a0fbf1cf66c5e9fee6e4aa3fe19dbb684e8b319faf04520b8e38e3ace2d83d10a0e2a9a8cfadf04dd23dc00cf1054cd8d80bf7b623296a42dd95920701c3b38b5f41483e8743f9270e587f8107d998235fe25d98af51283bf3a9d0f893754c5239e719bcd1922b4e5261af06aae85fbdc602da655b378eae3f3263d02d3399adddf5f243ec817a1898f90346dce4b2f6bb5d118155b6a10c06b84203471f7c00cf8a4878f3a54263ace3c1ee5545f65a3c16b92ff787011364edefb8f0190e622d003af1dd9ffa9ffbbed1b3310181b3362a6891a7042148fbee9682221507f45ee900ca313c9855df2584eb59bec995b7d19d2814e273cb8cb62d3dceae9237debef9f",
+      "vkHash": "fdf008981bdb001ab52cc8b3be1ebaf8a3e8493956ada9bfe2b111e22b76bc42"
     },
     "W_partial": {
-      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433354455354583236303932394123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433354455354583236303932394123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05388d1548851798277016c8842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088517900b7770120b77552790124b7770120b7758851790144b77754b775040100000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433354455354583236303932394123504f4f4c880051ce13433354455354583236303932394123504f4f4c8800d50052c488517ea87ea85153c402512052797e8851d600a06951d608000052acdfb2241da16951cd02512052797e8851cc00a06951cc08000052acdfb2241da16952cd00798277011988007900b77753b7750376a9148800790117b77752b7750288ac8852cc00a06951d652cc51cc93885253c400798277011988007900b77753b7750376a9148800790117b77752b7750288ac8853cd51798853cc00a26953cc52d6a1695679a820a748bc6fd9539ababc8729380a7ae97463b3c43e3f57fa4f2325cd1729e2e14588577957790058cf0058ce5979021f01b5c91800000000000000000000000000000000000000000000000052cc0800000000000000007e00b77758b775bc7e1800000000000000000000000000000000000000000000000051d60800000000000000007e00b77758b775bc7e1800000000000000000000000000000000000000000000000051cc0800000000000000007e00b77758b775bc7e5751c3696d6d6d6d51",
-      "control": "01494226e68b4650e9eca000c0f11e41e1fa90f46f3f6fee78c314e697930053f38faa3006f1775997742db4b5fd600bec06e31d7f4c97c30bf1da3518f139470f",
-      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e196f369d727da55ec8bb8eddee6c62f651cc98043c6ec5974683c06335299374008c1655e0d5aea17e4fbadf17cc0a4d5e81034e144dd7703c585e0cb2ecc5059b080000000000000006f7268d7b52f2a3b4053c15eac356917abef10a1575bd11d91b0ee1437da612f93b6cf542dc151f5c55a672ecb4f341c98a71ff60036e8c0b6590b4765f58b0fa5c508cf3462cfab0b384587f260d12017b4f00febc8b95171c41c9b0cd9917f1c4ef1b264931198a1684fae1e01ab538b3a01a995062188ce494ca9552eaa9e1f27695234c87da41a9891cfae04a1efd58363c9b5ad69ac0053987db110e0e771dcc511d6b6af391933f6e8d8a08c5447fc2be86209a8acd6cb523e382d39139eda6e0549d29b394f91d2e8fcc99f777fb47708f77263871e8911422aae71a5b50b95a17b86081e6cd77be54e4fa5b7b84033d5cc560ab767b13877663fb8b",
-      "vkHash": "a748bc6fd9539ababc8729380a7ae97463b3c43e3f57fa4f2325cd1729e2e145"
+      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05388d1548851798277016c8842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088517900b7770120b77552790124b7770120b7758851790144b77754b775040100000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433454455354583236303933304123504f4f4c880051ce13433454455354583236303933304123504f4f4c8800d50052c488517ea87ea85153c402512052797e8851d600a06951d608000052acdfb2241da16951cd02512052797e8851cc00a06951cc08000052acdfb2241da16952cd007982770119876300798277011988007900b77753b7750376a9148800790117b77752b7750288ac886700798277012288007900b77752b77502522087517900b77752b775025320879b696852cc00a06951d652cc51cc93885253c4007982770119876300798277011988007900b77753b7750376a9148800790117b77752b7750288ac886700798277012288007900b77752b77502522087517900b77752b775025320879b696853cd51798853cc00a26953cc52d6a1695679a82039640cf0b0352b1f0f4a66eed4a8bb15f13fccb5998c11a6f3aa537760d1c5538857795779201a145315ccbf33410a65d719312c332522c5cbb2cb5d0b62483390238110016f0058cf0058ce5a79021f01b5c91800000000000000000000000000000000000000000000000052cc0800000000000000007e00b77758b775bc7e1800000000000000000000000000000000000000000000000051d60800000000000000007e00b77758b775bc7e1800000000000000000000000000000000000000000000000051cc0800000000000000007e00b77758b775bc7e5851c3696d6d6d6d51",
+      "control": "018920689337c56bf2580d3e15814e1f40bbff988a2e656ccf2d2251da50248db1547bce3fbff66083a0015a93883a6d4958895a5d4918bcdf709dbe818a8f846622798b2fb2e057ca5b3646d1efb74a383dd1b9a9838b05f3358614bab1d00165",
+      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e1975abf4b67f0899507e68381095cd5133756b6bd09524da07097822af81376316144558ab94d34d8647ef52a0b53d361c980562f3eaf8e1e570c06953f2b415860900000000000000f9e417d91bdda73dfddff07401576a4322fc430876ef8fa291747fd1c00b1501702244551e765b2c3624a0fdf9da58365d5044ae0097d5ab26aede004ef84405e517784f3335ac48de9ed6b8a4737797d6d383d5d20f32070e4ed6947b009ba404239452a80fb015535ae1694c3f1782a609ea6e3836e924e1b3af8603d9d9a0070badbf96cf72cde65a299ae3e581fe631ff519cb19d179d1a1ffc7cbef3caf07ceaad4fec07b63546308c9cd27370b1af4946b7eda38b056309fb1943a3f95c4b27e6e6844863847ab521e60aeeb441052ebf3b71eaece4238bac46e2db8a92b2772dbc8f8329355f2c03f2ee7fd04151e79777879fd74004f9ec1a1222319015ca9e3b14f0e45a697f901db206308f888240926741b676ca7e19a497387a5",
+      "vkHash": "39640cf0b0352b1f0f4a66eed4a8bb15f13fccb5998c11a6f3aa537760d1c553"
     },
     "W_full": {
-      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433354455354583236303932394123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433354455354583236303932394123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05388d1538851798277016c8842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088517900b7770120b77552790124b7770120b7758851790144b77754b775040100000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433354455354583236303932394123504f4f4c880051ce13433354455354583236303932394123504f4f4c8800d50052c488517ea87ea85153c402512052797e8851d600a06951d608000052acdfb2241da16951cd00798277011988007900b77753b7750376a9148800790117b77752b7750288ac8851cc00a06951d651cc0093885253c400798277011988007900b77753b7750376a9148800790117b77752b7750288ac8852cd51798852cc00a26952cc52d6a1695679a8204fa99a3541213b0cea9e903a6ffb4ef3425c3a4772a1823fdd2406af4ea3e7bd88577957790058cf0058ce5979021f01b5c91800000000000000000000000000000000000000000000000051cc0800000000000000007e00b77758b775bc7e1800000000000000000000000000000000000000000000000051d60800000000000000007e00b77758b775bc7e18000000000000000000000000000000000000000000000000000800000000000000007e00b77758b775bc7e5751c3696d6d6d6d51",
-      "control": "015017b97b33ad095bd70a19b0389b2344aa643709af75857e4e8296b2cf2c61a68faa3006f1775997742db4b5fd600bec06e31d7f4c97c30bf1da3518f139470f",
-      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e198516ebd95d756e8b5d7163d4848baa4cdcf7609d418d3db58006a6caffc1051832930ab5befe9cadffdf4ff3414118c6ca388ba988a249dbb0514eb2e944732b0800000000000000eb4483d21e1ab38e690d216a239cab9a5ed05cf3dbfb874a56eafd99b81ef218f93b6cf542dc151f5c55a672ecb4f341c98a71ff60036e8c0b6590b4765f58b0fa5c508cf3462cfab0b384587f260d12017b4f00febc8b95171c41c9b0cd9917f1c4ef1b264931198a1684fae1e01ab538b3a01a995062188ce494ca9552eaa9e1f27695234c87da41a9891cfae04a1efd58363c9b5ad69ac0053987db110e0e771dcc511d6b6af391933f6e8d8a08c5447fc2be86209a8acd6cb523e382d3915ba1a886e11288a1da3dd1d12d8a2506cf8558d75f57a518a334cb0c600e7c9262fcd3beb1b5d94afc67760b1a70f2cf1168653a3671537354ddfa8c4dcb0723",
-      "vkHash": "4fa99a3541213b0cea9e903a6ffb4ef3425c3a4772a1823fdd2406af4ea3e7bd"
+      "script": "52b60058cf827701208853b602512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058cf7e7e01757e8800d600880058ce827701208800cd02512052797e02c0427e18786e617413433454455354583236303933304123504f4f4c0400e1f5050800000000000000007e00b77758b7757e0254207e0058ce7e7e01757e8800cc0088d05388d1538851798277016c8842618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee618cd8231ef0cfb834a51353a65ca5a7442562307a1855525e894a2dd1dcddee04005279aa7ea8020400b58851790120b77754b775040000000088517900b7770120b77552790124b7770120b7758851790144b77754b775040100000088020001b520308542cb639a0e6ac414070f3be7c7e13827c7dde337c4d1202853376519fab18842392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f44392c8f40e348d26fd6d921326074e0f368ffd896785e41e32382f9ff114e6f440100040052c42052797e38880051cf13433454455354583236303933304123504f4f4c880051ce13433454455354583236303933304123504f4f4c8800d50052c488517ea87ea85153c402512052797e8851d600a06951d608000052acdfb2241da16951cd007982770119876300798277011988007900b77753b7750376a9148800790117b77752b7750288ac886700798277012288007900b77752b77502522087517900b77752b775025320879b696851cc00a06951d651cc0093885253c4007982770119876300798277011988007900b77753b7750376a9148800790117b77752b7750288ac886700798277012288007900b77752b77502522087517900b77752b775025320879b696852cd51798852cc00a26952cc52d6a1695679a8203d54391fb4ed9a2cb5d31524929c96cf64eb9b1074fbec522855c86d5bcdcd8c8857795779201a145315ccbf33410a65d719312c332522c5cbb2cb5d0b62483390238110016f0058cf0058ce5a79021f01b5c91800000000000000000000000000000000000000000000000051cc0800000000000000007e00b77758b775bc7e1800000000000000000000000000000000000000000000000051d60800000000000000007e00b77758b775bc7e18000000000000000000000000000000000000000000000000000800000000000000007e00b77758b775bc7e5851c3696d6d6d6d51",
+      "control": "01c3d74bf50854964abe31fc704b701577bdcfc63c4ed3363213108d43d28ad527547bce3fbff66083a0015a93883a6d4958895a5d4918bcdf709dbe818a8f846622798b2fb2e057ca5b3646d1efb74a383dd1b9a9838b05f3358614bab1d00165",
+      "vk": "c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e193ef8a08966d5ac6c99906f73caadd2b2a40ebbc4f17ec3776890a4ce49a1ec067af9fa310a3edda25d9a0bfbe144461f42dc386c8b1d84d02e14fa1951f2632209000000000000005f99c5377477775bceed64339b7c3a8363bf0d292a4a849a4b9906e8eec20b05702244551e765b2c3624a0fdf9da58365d5044ae0097d5ab26aede004ef84405e517784f3335ac48de9ed6b8a4737797d6d383d5d20f32070e4ed6947b009ba404239452a80fb015535ae1694c3f1782a609ea6e3836e924e1b3af8603d9d9a0070badbf96cf72cde65a299ae3e581fe631ff519cb19d179d1a1ffc7cbef3caf07ceaad4fec07b63546308c9cd27370b1af4946b7eda38b056309fb1943a3f95f92fbe3b23d0531ae0d505a32051071163ee3b1afc3921863a8d0c6125c7a9125994a1c0a00ce58102d127a51f437fe42805bdb21e738b8c6d277080b5a0962d047cdc61f36f8d32a5033cc58e42b153951477568c3b931cc3148eaf2460eca1",
+      "vkHash": "3d54391fb4ed9a2cb5d31524929c96cf64eb9b1074fbec522855c86d5bcdcd8c"
     }
-  },
-  "vkHashes": {
-    "D0": "d8726a703ac2714e0e74d7aa64dd2441b5e5e992ec8eff6683e428b4286e3a8c",
-    "D1": "4d498f558925f5c8bbc2359bee76a6b4d8d6aee57950524b435b1a27209a50b7",
-    "T2": "6b7057403f3f7bb4ab9340a3b46205470795f72c4d4be015889518c12496ee9f",
-    "T1": "87a5842ef8d20f78b98c11ef61d6ea1c6bff15668b9723b89f846930628ec938",
-    "W_partial": "a748bc6fd9539ababc8729380a7ae97463b3c43e3f57fa4f2325cd1729e2e145",
-    "W_full": "4fa99a3541213b0cea9e903a6ffb4ef3425c3a4772a1823fdd2406af4ea3e7bd"
-  },
-  "reserveCommitment": "ed6e50c43b2cf090c77f02c7c636e8d368e4911599ac82f53a347eb303ab863e",
-  "address": "tnc1pj8d3j7eh0yaetna9mpkf8ljv5gzpvhf67s53yhugxdnyd53hfc6qvs45ss",
-  "guard": "0052c42091db197b37793b95cfa5d86c93fe4ca204165d3af429125f88336646d2374e34880051cf13433354455354583236303932394123504f4f4c880051ce13433354455354583236303932394123504f4f4c8800d50052c48851"
+  }
 });
-var C3_TESTNET_ARTIFACTS = deepFreeze({
-  "schema": 1,
-  "id": "C3-complete-custody-TEST-3964dd3a9d5f4c4becbb8231e1254d6dbc6f20e03bf27ab5a329595889798637",
-  "warning": "Public synthetic TEST notes and keys. No production or RPC.",
+var C4_TESTNET_ARTIFACTS = deepFreeze({
+  "schema": "C4-browser-TEST",
+  "id": "a627eac63b0817abe9d07584690d4b418325ed00df08f5f18e2ac0ab58ff5ae4",
+  "warning": "PUBLIC TEST keys only",
   "snarkjs": "0.7.6",
   "forms": {
     "D0": {
-      "input": "artifacts/D0/input.json",
-      "public": "artifacts/D0/public.json",
-      "vk": "artifacts/D0/vk.json",
-      "zkey": "artifacts/D0/final.zkey",
-      "wasm": "artifacts/D0/D0.wasm"
+      "wasm": "D0/D0.wasm",
+      "zkey": "D0/final.zkey",
+      "vk": "D0/vk.json"
     },
     "D1": {
-      "input": "artifacts/D1/input.json",
-      "public": "artifacts/D1/public.json",
-      "vk": "artifacts/D1/vk.json",
-      "zkey": "artifacts/D1/final.zkey",
-      "wasm": "artifacts/D1/D1.wasm"
-    },
-    "T2": {
-      "input": "artifacts/T2/input.json",
-      "public": "artifacts/T2/public.json",
-      "vk": "artifacts/T2/vk.json",
-      "zkey": "artifacts/T2/final.zkey",
-      "wasm": "artifacts/T2/T2.wasm"
+      "wasm": "D1/D1.wasm",
+      "zkey": "D1/final.zkey",
+      "vk": "D1/vk.json"
     },
     "T1": {
-      "input": "artifacts/T1/input.json",
-      "public": "artifacts/T1/public.json",
-      "vk": "artifacts/T1/vk.json",
-      "zkey": "artifacts/T1/final.zkey",
-      "wasm": "artifacts/T1/T1.wasm"
+      "wasm": "T1/T1.wasm",
+      "zkey": "T1/final.zkey",
+      "vk": "T1/vk.json"
+    },
+    "T2": {
+      "wasm": "T2/T2.wasm",
+      "zkey": "T2/final.zkey",
+      "vk": "T2/vk.json"
+    },
+    "T3": {
+      "wasm": "T3/T3.wasm",
+      "zkey": "T3/final.zkey",
+      "vk": "T3/vk.json"
+    },
+    "T4": {
+      "wasm": "T4/T4.wasm",
+      "zkey": "T4/final.zkey",
+      "vk": "T4/vk.json"
     },
     "W_partial": {
-      "input": "artifacts/W_partial/input.json",
-      "public": "artifacts/W_partial/public.json",
-      "vk": "artifacts/W_partial/vk.json",
-      "zkey": "artifacts/W_partial/final.zkey",
-      "wasm": "artifacts/W_partial/W_partial.wasm"
+      "wasm": "W_partial/W_partial.wasm",
+      "zkey": "W_partial/final.zkey",
+      "vk": "W_partial/vk.json"
     },
     "W_full": {
-      "input": "artifacts/W_full/input.json",
-      "public": "artifacts/W_full/public.json",
-      "vk": "artifacts/W_full/vk.json",
-      "zkey": "artifacts/W_full/final.zkey",
-      "wasm": "artifacts/W_full/W_full.wasm"
+      "wasm": "W_full/W_full.wasm",
+      "zkey": "W_full/final.zkey",
+      "vk": "W_full/vk.json"
     }
   },
   "files": {
-    "artifacts/D0/input.json": {
-      "bytes": 10929,
-      "sha256": "9912f60e587af27d0f79a68eccd5e145c4ab135c17f253c3f959de221fb03dba"
+    "D0/D0.wasm": {
+      "bytes": 388796,
+      "sha256": "2b78805c590ef8c23307ca8f7fc4ee64af230a5f9cd8e8227f267daf12751f7b"
     },
-    "artifacts/D0/public.json": {
-      "bytes": 571,
-      "sha256": "c9ed7c6d72b8be463becbf308da250effa95e3ab2d098540013a790d339bff48"
+    "D0/final.zkey": {
+      "bytes": 43933874,
+      "sha256": "dd122d025ecca402f1de2f46df4cda243188c2c5481694ada4e303595409f0d1"
     },
-    "artifacts/D0/vk.json": {
-      "bytes": 4209,
-      "sha256": "5bbbdb5c43ac874a1ec21922ffa7b44ab6da1b694a356f1836b25db3e34926d6"
+    "D0/vk.json": {
+      "bytes": 4393,
+      "sha256": "fdee18285ea0246e4624c9032d22c1983efe959f180991da8516cc680d58524d"
     },
-    "artifacts/D0/final.zkey": {
-      "bytes": 42608166,
-      "sha256": "1fd5cc71466157143e9777220d6e467b8f4953791938e233bb44dfd60ad93d15"
+    "D1/D1.wasm": {
+      "bytes": 387224,
+      "sha256": "9dd4e3baa5ef4196d079f12ba0bdf35c518bfc85db03adb570f4bc8514183012"
     },
-    "artifacts/D0/D0.wasm": {
-      "bytes": 372484,
-      "sha256": "82f0f85933cd5e5ab911f25ba771dc8735d024e179ee8f8349f7e77b34ec2f40"
+    "D1/final.zkey": {
+      "bytes": 43933918,
+      "sha256": "81e99cca1664375e0a2e1058cdf06452847a8df945fa55b017b979678a1fedd3"
     },
-    "artifacts/D1/input.json": {
-      "bytes": 11086,
-      "sha256": "2f4ad7e85cba3d0af8eb5aab58e4c51e29e3172f3f56c97dbe85c485c737147f"
+    "D1/vk.json": {
+      "bytes": 4395,
+      "sha256": "2c56a8538af91f19364cab8ba08be3428d255a37e4ea5f11df6a0c5d13ee13fa"
     },
-    "artifacts/D1/public.json": {
-      "bytes": 574,
-      "sha256": "3295111e390f098369d31c5370b570f8be00fd67a223706c20c8a9706272f069"
+    "T1/T1.wasm": {
+      "bytes": 647177,
+      "sha256": "8c22d0ac648b49a0b7d028ba60240a66d1ebac58dea6a6ee32aab0748daa2e1f"
     },
-    "artifacts/D1/vk.json": {
-      "bytes": 4205,
-      "sha256": "f05f0215a10ade72049281dc722506b92c4f290826c8fd10bae9a0c61236d96a"
+    "T1/final.zkey": {
+      "bytes": 75484846,
+      "sha256": "715667541c918a8ef669f08d76f58cad2735c285791523e3cfc0ab388a67ebdf"
     },
-    "artifacts/D1/final.zkey": {
-      "bytes": 42608210,
-      "sha256": "97623c9ff95a53b8c96a610f3bc50cf9b5ba86997cbbe82fb2f14ced18bfa5a7"
+    "T1/vk.json": {
+      "bytes": 4022,
+      "sha256": "4167a808382ffc0195918ffe5bc9d1aa8507284749ae41b27b32e74b6adb61e8"
     },
-    "artifacts/D1/D1.wasm": {
-      "bytes": 370912,
-      "sha256": "cd6e2f6b1e6d2688a4c3b42e16e7649c350fb89cfc358c961e4e8aebce9efb7c"
+    "T2/T2.wasm": {
+      "bytes": 906088,
+      "sha256": "4f6ed8ca6aa568fc469cffafcb179ae7001d360e0ae415d00096d860f153cf69"
     },
-    "artifacts/T2/input.json": {
-      "bytes": 30653,
-      "sha256": "49ae2b0efd2b6d298fb7952780dc72b1b82a5b034b15382184e0b6dcce41b6c4"
+    "T2/final.zkey": {
+      "bytes": 117608582,
+      "sha256": "a247a9ade0625d723d2168c641c252132d79eb718a3f71b0cb08730eec39746c"
     },
-    "artifacts/T2/public.json": {
-      "bytes": 557,
-      "sha256": "bef2a86a9f7817cdf5dcbc6e1a11a73c98852a089dfdcce149e79fdbc2b18c06"
+    "T2/vk.json": {
+      "bytes": 4202,
+      "sha256": "98a8f9c1374b64c741c90d98cad64a40e50fcef0f34961e8e0e46c2d748e72bf"
     },
-    "artifacts/T2/vk.json": {
-      "bytes": 4018,
-      "sha256": "724e0f502d65ad6fa0a5612cf170b4ad21a6a9b5b16ea078a97fd7497f044f2a"
+    "T3/T3.wasm": {
+      "bytes": 1164406,
+      "sha256": "50dcc25025593e407be0316d02e23e3fcc8a198216e46bdcf98d01c51c1a939e"
     },
-    "artifacts/T2/final.zkey": {
-      "bytes": 116465474,
-      "sha256": "50f33d7763475c1ddf1fb05e87e499b70e1f89a9650c97a7f28ce6784404627e"
+    "T3/final.zkey": {
+      "bytes": 151323998,
+      "sha256": "df4c7f962fff5a4192e215bc1736d46534ee24b166493156df606f2a4f250083"
     },
-    "artifacts/T2/T2.wasm": {
-      "bytes": 893553,
-      "sha256": "6647a8eb8b7ab399b5990d1fcf21dabe82c26e240600b2ef7f66388c0aaaa651"
+    "T3/vk.json": {
+      "bytes": 4385,
+      "sha256": "7dc85f1da8b0db4800b14ffcc5afd9f0a8c44599a262edb513efc93c06bbaf14"
     },
-    "artifacts/T1/input.json": {
-      "bytes": 20882,
-      "sha256": "5db8572db8def9fbaadecdcfcd1f668b2e2394bc0db1b8b16f4c15b9567ce5da"
+    "T4/T4.wasm": {
+      "bytes": 1422682,
+      "sha256": "6b3d5277e76640147197b4e37d58c20dee771d153aa13e4724bde49bd2b318d1"
     },
-    "artifacts/T1/public.json": {
-      "bytes": 475,
-      "sha256": "5c515cbb9a5c071e85ac5a1bfa19ad5656522c644bd4460f14c5b41e330ca3d4"
+    "T4/final.zkey": {
+      "bytes": 201816630,
+      "sha256": "71f431c6fbb4c654a2cca397aa2f3c8ec718408fc7c425b8fadb32e9c704fb9a"
     },
-    "artifacts/T1/vk.json": {
-      "bytes": 3844,
-      "sha256": "e141e9e3a87772469e8741aef8db1ada9d8b8ac18fc21729964bd1b74447d689"
+    "T4/vk.json": {
+      "bytes": 4574,
+      "sha256": "774c45232a4a186777ebe33b1a33a4211be1e52881f2bc2789aad348b329d527"
     },
-    "artifacts/T1/final.zkey": {
-      "bytes": 73901870,
-      "sha256": "2686a37134023237e38d369be16b1a201685e6c5f28204a0dc09640690568878"
+    "W_partial/W_partial.wasm": {
+      "bytes": 377728,
+      "sha256": "6aca70bdd9df28c6e8f0024a9ef46775728800f48cf0102b53a6c9af7857166b"
     },
-    "artifacts/T1/T1.wasm": {
-      "bytes": 630183,
-      "sha256": "3b3c4d4379aee4d5a7b8b5e8a7bc26d310a35bf088c732adae940e556a913caf"
+    "W_partial/final.zkey": {
+      "bytes": 42151010,
+      "sha256": "2cb610f712bbd7dcad0bb33399891d1e054a2d3c5b0e59ace009e9bfb7790ee2"
     },
-    "artifacts/W_partial/input.json": {
-      "bytes": 11176,
-      "sha256": "d2ea8f3c5c004aa354e6b3a6d0a2149b2d9c81747a45eb9aafdfe6d5655d0619"
+    "W_partial/vk.json": {
+      "bytes": 4210,
+      "sha256": "97c1218a2db0ffd67958662e01e42940fe6d0e4ebd783470236371b838bfc3cc"
     },
-    "artifacts/W_partial/public.json": {
-      "bytes": 361,
-      "sha256": "9b256ee6b5106a37a76d3108c11fd8e3d4937569655904ffc70d406d98f6be44"
+    "W_full/W_full.wasm": {
+      "bytes": 379232,
+      "sha256": "2879967a6af5463b13b48661ea066ccba7a88efc14e0059ffaabe6e87329ad9e"
     },
-    "artifacts/W_partial/vk.json": {
-      "bytes": 4024,
-      "sha256": "6a468472e65e9c5f259d46664678e3dc192222a12757349d557dd5c3f830a796"
+    "W_full/final.zkey": {
+      "bytes": 42150558,
+      "sha256": "f72dc97fd3df79c8120836b80136c20855aa3b4fa7ebeeb17adfe7a328586a9e"
     },
-    "artifacts/W_partial/final.zkey": {
-      "bytes": 36401594,
-      "sha256": "0ab33eabc01ce14e01515569705566de333ce67776d9084b74b9386ae9794ddc"
-    },
-    "artifacts/W_partial/W_partial.wasm": {
-      "bytes": 358650,
-      "sha256": "5b1b3d9114bd1d5b0d8aa03dd7a28ca7f69a1dda35806d04f349c3113a6b6db3"
-    },
-    "artifacts/W_full/input.json": {
-      "bytes": 11175,
-      "sha256": "baf34d0db982d05e0e7b03a157398086cb1f285df4191ffd1c7aebbdf29fe255"
-    },
-    "artifacts/W_full/public.json": {
-      "bytes": 353,
-      "sha256": "66c13a17976668b6774d1e455146c4cf27dccf3c16c0f6829e6c12f118a00dd9"
-    },
-    "artifacts/W_full/vk.json": {
-      "bytes": 4027,
-      "sha256": "dadf53cd24bf8d3bf6e9e078896aabb891199bb2c1439384154ea8beec7fa634"
-    },
-    "artifacts/W_full/final.zkey": {
-      "bytes": 36401142,
-      "sha256": "90162d5d614e9ffbc2b0bc48761ee624a8eff31eecaaca6aa10dfe9f8fd68368"
-    },
-    "artifacts/W_full/W_full.wasm": {
-      "bytes": 360115,
-      "sha256": "046f7c9b2b778efd4664b72bc8dec72ffd1f7e1e9ab86621aefdf853ac3ca59a"
+    "W_full/vk.json": {
+      "bytes": 4208,
+      "sha256": "b1a11dd2995f6c09db0a5df685518918506fb86a9ab3db1fc9194030df26f730"
     }
   }
 });
@@ -9937,17 +9657,16 @@ var PoolWorkerClient = class {
 
 // src/browser-chain.js
 var HEX322 = /^[0-9a-f]{64}$/i;
-var FORMS2 = ["D0", "D1", "T1", "T2", "W_partial", "W_full"];
 var MAX_MONEY2 = 2100000000000000000n;
-var utf87 = new TextEncoder();
-function demand4(ok, reason) {
+var utf86 = new TextEncoder();
+function demand3(ok, reason) {
   if (!ok) throw new Error(`pool scan: ${reason}`);
 }
-function unhex4(hex8, name) {
-  demand4(typeof hex8 === "string" && /^(?:[0-9a-f]{2})*$/i.test(hex8), `${name} is not hex`);
-  return Uint8Array.from(hex8.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
+function unhex3(hex7, name) {
+  demand3(typeof hex7 === "string" && /^(?:[0-9a-f]{2})*$/i.test(hex7), `${name} is not hex`);
+  return Uint8Array.from(hex7.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
 }
-function hex6(bytes4) {
+function hex5(bytes4) {
   return Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 function concat6(...parts) {
@@ -9964,36 +9683,18 @@ function sameOutpoint(vin, outpoint) {
 }
 function sats(value) {
   const str = typeof value === "number" && Number.isFinite(value) ? String(value) : value;
-  demand4(typeof str === "string" && /^(?:0|[1-9]\d*)(?:\.\d+)?(?:e-?\d+)?$/i.test(str), "invalid XNA value");
+  demand3(typeof str === "string" && /^(?:0|[1-9]\d*)(?:\.\d+)?(?:e-?\d+)?$/i.test(str), "invalid XNA value");
   const [base, expPart] = str.toLowerCase().split("e");
   const [whole, fraction = ""] = base.split(".");
   const places = 8 - fraction.length + Number(expPart ?? 0);
-  demand4(Number.isSafeInteger(places) && places >= -100 && places <= 100, "invalid XNA decimal scale");
+  demand3(Number.isSafeInteger(places) && places >= -100 && places <= 100, "invalid XNA decimal scale");
   const digits = BigInt(whole + fraction);
   const numerator = places >= 0 ? digits * 10n ** BigInt(places) : digits;
   const denominator = places >= 0 ? 1n : 10n ** BigInt(-places);
-  demand4(numerator % denominator === 0n, "nonintegral XNA amount");
+  demand3(numerator % denominator === 0n, "nonintegral XNA amount");
   const result = numerator / denominator;
-  demand4(result >= 0n && result <= MAX_MONEY2, "XNA amount out of range");
+  demand3(result >= 0n && result <= MAX_MONEY2, "XNA amount out of range");
   return result;
-}
-function stateScript(commitment, digest) {
-  const payload = concat6(
-    utf87.encode("xnat"),
-    Uint8Array.of(9),
-    utf87.encode("XNAP#POOL"),
-    Uint8Array.of(0, 225, 245, 5, 0, 0, 0, 0),
-    Uint8Array.of(84, 32),
-    digest
-  );
-  demand4(payload.length === 56, "bad state asset payload");
-  return hex6(concat6(
-    Uint8Array.of(81, 32),
-    commitment,
-    Uint8Array.of(192, 56),
-    payload,
-    Uint8Array.of(117)
-  ));
 }
 function parseRecord(identity, record, cm) {
   if (!identity) return null;
@@ -10025,7 +9726,7 @@ function checkpointFor({
   const indexed = (tree) => [...tree].map(([index, [value, next, nextIndex]]) => [index, [String(value), String(next), nextIndex]]);
   return {
     version: 1,
-    manifestId: hex6(sha256(utf87.encode(JSON.stringify(manifest)))),
+    manifestId: hex5(sha256(utf86.encode(JSON.stringify(manifest)))),
     height,
     blockhash,
     birth,
@@ -10034,12 +9735,12 @@ function checkpointFor({
     reserveOutpoint,
     state: {
       mode: state.mode,
-      slots: [...state.slots].map(([index, value]) => [index, hex6(value)]),
+      slots: [...state.slots].map(([index, value]) => [index, hex5(value)]),
       seen: indexed(state.seen),
       nfs: indexed(state.nfs)
     },
     transitions: transitions.map((t) => ({ ...t, reserveAtomic: String(t.reserveAtomic) })),
-    published: published.map((e) => ({ ...e, cm: hex6(e.cm), record: hex6(e.record) })),
+    published: published.map((e) => ({ ...e, cm: hex5(e.cm), record: hex5(e.record) })),
     spentBy: [...spentBy].map(([nf, spent]) => [String(nf), spent]),
     walletTag: walletCheckpointTag(identity),
     walletWindow: identity?.gap === void 0 ? null : { gap: identity.gap, issued: identity.issued },
@@ -10056,12 +9757,12 @@ function checkpointFor({
   };
 }
 function restoreCheckpoint(saved, manifest, limit) {
-  if (saved?.version !== 1 || saved.manifestId !== hex6(sha256(utf87.encode(JSON.stringify(manifest)))) || !Number.isSafeInteger(saved.height) || saved.height < 1 || saved.height > limit || !HEX322.test(saved.blockhash) || !saved.birth || !Array.isArray(saved.stateOutpoint) || !Array.isArray(saved.transitions) || !Array.isArray(saved.published) || !Array.isArray(saved.spentBy) || !Array.isArray(saved.owned)) return null;
+  if (saved?.version !== 1 || saved.manifestId !== hex5(sha256(utf86.encode(JSON.stringify(manifest)))) || !Number.isSafeInteger(saved.height) || saved.height < 1 || saved.height > limit || !HEX322.test(saved.blockhash) || !saved.birth || !Array.isArray(saved.stateOutpoint) || !Array.isArray(saved.transitions) || !Array.isArray(saved.published) || !Array.isArray(saved.spentBy) || !Array.isArray(saved.owned)) return null;
   try {
     const indexed = (rows) => new Map(rows.map(([index, [value, next, nextIndex]]) => [index, [BigInt(value), BigInt(next), nextIndex]]));
     const state = {
       mode: saved.state.mode,
-      slots: new Map(saved.state.slots.map(([index, value]) => [index, unhex4(value, "cached note")])),
+      slots: new Map(saved.state.slots.map(([index, value]) => [index, unhex3(value, "cached note")])),
       seen: indexed(saved.state.seen),
       nfs: indexed(saved.state.nfs)
     };
@@ -10069,8 +9770,8 @@ function restoreCheckpoint(saved, manifest, limit) {
     const transitions = saved.transitions.map((t) => ({ ...t, reserveAtomic: BigInt(t.reserveAtomic) }));
     const published = saved.published.map((e) => ({
       ...e,
-      cm: unhex4(e.cm, "cached commitment"),
-      record: unhex4(e.record, "cached record")
+      cm: unhex3(e.cm, "cached commitment"),
+      record: unhex3(e.record, "cached record")
     }));
     if (published.some((e) => e.cm.length !== 32 || e.record.length !== 1024 || !Number.isSafeInteger(e.slot) || e.slot < 0 || !HEX322.test(e.txid))) return null;
     const spentBy = new Map(saved.spentBy.map(([nf, spent]) => [BigInt(nf), spent]));
@@ -10103,45 +9804,32 @@ async function scanBrowserPool({
   stopHeight,
   onProgress = () => {
   },
-  strategy,
+  strategy = "spent-index",
   checkpoint,
   expectedGenesis,
   expectedCommitment
 }) {
-  const c3 = manifest?.schema === "neurai-c3-xna-test-v1";
-  const c4 = manifest?.schema === "neurai-c4-xna-test-v1";
-  const pinned = c3 || c4;
-  if (c3) validateC3Manifest(manifest);
-  if (c4) validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
-  const forms = c4 ? C4_FORMS : FORMS2;
-  const vkHashes = c4 ? Object.fromEntries(forms.map((f) => [f, manifest.forms[f].vkHash])) : manifest.vkHashes;
-  const mode = strategy ?? (pinned ? "spent-index" : "blocks");
-  demand4(
-    mode === "blocks" || mode === "spent-index" && pinned,
-    "spent-index scan requires a C3 manifest or an independently pinned C4 manifest with its birth transaction"
-  );
-  const makeStateScript = (digest2) => c4 ? c4StateScript(manifest, digest2) : c3 ? c3StateScript(manifest, digest2) : stateScript(commitment, digest2);
-  demand4(typeof rpc === "function", "RPC function required");
-  demand4(manifest?.profile === "xna" && HEX322.test(manifest.genesis) && HEX322.test(manifest.commitment) && HEX322.test(manifest.reserveCommitment) && HEX322.test(manifest.domain) && HEX322.test(manifest.assetId), "invalid XNA TEST manifest");
-  demand4(
-    forms.every((form) => HEX322.test(vkHashes?.[form])) && Object.keys(vkHashes).length === forms.length && new Set(Object.values(vkHashes)).size === forms.length,
-    "incomplete or duplicate VK registry"
-  );
+  validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  const forms = C4_FORMS;
+  const vkHashes = Object.fromEntries(forms.map((f) => [f, manifest.forms[f].vkHash]));
+  const mode = strategy;
+  demand3(mode === "blocks" || mode === "spent-index", "unknown scan strategy");
+  const makeStateScript = (digest2) => c4StateScript(manifest, digest2);
+  demand3(typeof rpc === "function", "RPC function required");
+  demand3(new Set(Object.values(vkHashes)).size === forms.length, "duplicate VK registry");
   const call = (method, ...params) => rpc(method, params);
-  demand4(await call("getblockhash", 0) === manifest.genesis, "wrong genesis");
+  demand3(await call("getblockhash", 0) === manifest.genesis, "wrong genesis");
   const tip = await call("getbestblockhash");
   const currentHeight = await call("getblockcount");
   const height = stopHeight ?? currentHeight;
-  demand4(Number.isSafeInteger(currentHeight) && Number.isSafeInteger(height) && currentHeight >= height && height >= 1, "invalid scan height");
+  demand3(Number.isSafeInteger(currentHeight) && Number.isSafeInteger(height) && currentHeight >= height && height >= 1, "invalid scan height");
   if (identity) {
     const recipient = identity.recipient();
-    demand4(
+    demand3(
       recipient.domain === manifest.domain && recipient.asset_id === manifest.assetId,
       "wallet belongs to another pool instance"
     );
   }
-  const commitment = unhex4(manifest.commitment, "commitment");
-  const reserveCommitment = unhex4(manifest.reserveCommitment, "reserve commitment");
   let restored = checkpoint && mode === "spent-index" ? restoreCheckpoint(checkpoint, manifest, height) : null;
   if (restored && await call("getblockhash", restored.height) !== restored.blockhash) restored = null;
   const state = restored?.state ?? emptyPoolState();
@@ -10157,74 +9845,58 @@ async function scanBrowserPool({
   const cachedPublishedCount = published.length;
   const spentBy = restored?.spentBy ?? /* @__PURE__ */ new Map();
   async function applyBirth(tx, blockHeight) {
-    demand4(!birth, "multiple pool births");
+    demand3(!birth, "multiple pool births");
     let uniqueConsumed = false;
     for (const vin of tx.vin ?? []) {
       if (!vin.txid) continue;
       const parent = await call("getrawtransaction", vin.txid, true);
       const script = parent?.vout?.[vin.vout]?.scriptPubKey?.hex;
-      if (typeof script === "string" && script.includes(hex6(utf87.encode(pinned ? manifest.identity : "XNAP#POOL")))) {
+      if (typeof script === "string" && script.includes(hex5(utf86.encode(manifest.identity)))) {
         uniqueConsumed = true;
         break;
       }
     }
-    demand4(uniqueConsumed, "birth did not consume UNIQUE");
+    demand3(uniqueConsumed, "birth did not consume UNIQUE");
     birth = { txid: tx.txid, height: blockHeight };
     stateOutpoint = [tx.txid, 0];
   }
   async function applyTransition(tx, blockHeight) {
     const vin = tx.vin ?? [];
     const witness = vin[0].txinwitness;
-    demand4(
+    demand3(
       Array.isArray(witness) && witness.length >= 5 && witness[0] === "10",
       "state spend is not MAST"
     );
-    const vkHash = hex6(sha256(unhex4(witness[2], "VK")));
+    const vkHash = hex5(sha256(unhex3(witness[2], "VK")));
     const form = forms.find((name) => vkHashes[name] === vkHash);
-    demand4(form, "unknown pool VK");
-    if (pinned) {
-      const expected = manifest.forms[form];
-      demand4(
-        witness.length === (form.startsWith("W") ? 7 : 8) && witness[witness.length - 2] === expected.script && witness[witness.length - 1] === expected.control && witness[2] === expected.vk,
-        "unexpected C3/C4 leaf, control or VK"
-      );
-    }
+    demand3(form, "unknown pool VK");
+    const expected = manifest.forms[form];
+    demand3(
+      witness.length === (form.startsWith("W") ? 7 : 8) && witness[witness.length - 2] === expected.script && witness[witness.length - 1] === expected.control && witness[2] === expected.vk,
+      "unexpected pool leaf, control or VK"
+    );
     const expectReserve = form !== "D0";
-    demand4(reserve > 0n === expectReserve, "unexpected reserve/form combination");
-    if (reserveOutpoint) demand4(
+    demand3(reserve > 0n === expectReserve, "unexpected reserve/form combination");
+    if (reserveOutpoint) demand3(
       sameOutpoint(vin[1], reserveOutpoint),
       "transition skipped canonical reserve"
     );
     if (form.startsWith("D") || form.startsWith("T")) {
-      demand4(witness.length >= 7, "missing publication");
+      demand3(witness.length >= 7, "missing publication");
       const blob = concat6(
-        unhex4(witness[3], "blob first half"),
-        unhex4(witness[4], "blob second half")
+        unhex3(witness[3], "blob first half"),
+        unhex3(witness[4], "blob second half")
       );
-      demand4(blob.length === 4096, "bad publication size");
-      let entries;
-      if (c4) {
-        const publication = decodeC4Publication(form, blob);
-        if (publication.nf) {
-          const nf = decodeField(publication.nf);
-          state.nfs = poolIndexedInsert("nf", state.nfs, nf);
-          spentBy.set(nf, { txid: tx.txid, height: blockHeight });
-        }
-        entries = publication.cms.map((cm, i) => [cm, publication.records[i]]);
-      } else if (form.startsWith("D")) {
-        demand4(blob[0] === 1 && blob[4] === 1, "bad deposit publication");
-        entries = [[blob.slice(6, 38), blob.slice(198, 1222)]];
-      } else {
-        const count = form === "T1" ? 1 : 2;
-        demand4(blob[0] === 1 && blob[1] === count, "bad transfer publication");
-        const nf = decodeField(blob.slice(2, 34));
+      demand3(blob.length === 4096, "bad publication size");
+      const publication = decodeC4Publication(form, blob);
+      if (publication.nf) {
+        const nf = decodeField(publication.nf);
         state.nfs = poolIndexedInsert("nf", state.nfs, nf);
         spentBy.set(nf, { txid: tx.txid, height: blockHeight });
-        entries = [[blob.slice(34, 66), blob.slice(98, 1122)]];
-        if (count === 2) entries.push([blob.slice(66, 98), blob.slice(1122, 2146)]);
       }
+      const entries = publication.cms.map((cm, i) => [cm, publication.records[i]]);
       for (const [cm, record] of entries) {
-        demand4(record.length === 1024, "bad encrypted record");
+        demand3(record.length === 1024, "bad encrypted record");
         const slot = state.slots.size;
         state.slots.set(slot, cm);
         state.seen = poolIndexedInsert("cm", state.seen, decodeField(cm));
@@ -10232,47 +9904,47 @@ async function scanBrowserPool({
       }
       state.mode = 1;
     } else {
-      const nf = decodeField(unhex4(witness[3], "nullifier"));
+      const nf = decodeField(unhex3(witness[3], "nullifier"));
       state.nfs = poolIndexedInsert("nf", state.nfs, nf);
       spentBy.set(nf, { txid: tx.txid, height: blockHeight });
       state.mode = form === "W_full" ? 0 : 1;
     }
     digest = poolStateDigest(state);
-    demand4(
+    demand3(
       tx.vout?.[0]?.scriptPubKey?.hex === makeStateScript(digest),
       "pool state root disagrees with block"
     );
     let newReserve = 0n;
     let newReserveOutpoint = null;
     if (form === "W_full") {
-      demand4(reserveOutpoint, "empty full withdrawal");
-      demand4(
+      demand3(reserveOutpoint, "empty full withdrawal");
+      demand3(
         !(tx.vout ?? []).slice(1).some((v) => v.scriptPubKey?.hex?.startsWith("5120" + manifest.reserveCommitment)),
         "full withdrawal left a reserve"
       );
     } else {
       const output = tx.vout?.[1];
-      demand4(
+      demand3(
         output?.scriptPubKey?.hex === "5120" + manifest.reserveCommitment,
         "wrong reserve output"
       );
       newReserve = sats(output.value);
-      demand4(newReserve > 0n, "empty reserve");
+      demand3(newReserve > 0n, "empty reserve");
       newReserveOutpoint = [tx.txid, 1];
     }
-    if (form.startsWith("T")) demand4(newReserve === reserve, "transfer changed reserve");
+    if (form.startsWith("T")) demand3(newReserve === reserve, "transfer changed reserve");
     else if (form.startsWith("D")) {
-      demand4(newReserve > reserve, "deposit did not increase reserve");
+      demand3(newReserve > reserve, "deposit did not increase reserve");
       const previous = vin[form === "D0" ? 1 : 2];
       const spent = await call("getrawtransaction", previous.txid, true);
-      demand4(
+      demand3(
         newReserve - reserve === sats(spent?.vout?.[previous.vout]?.value),
         "reserve delta differs from deposit"
       );
     } else {
-      demand4(newReserve < reserve, "withdrawal did not decrease reserve");
+      demand3(newReserve < reserve, "withdrawal did not decrease reserve");
       const outputIndex = form === "W_full" ? 1 : 2;
-      demand4(
+      demand3(
         reserve - newReserve === sats(tx.vout?.[outputIndex]?.value),
         "reserve delta differs from withdrawal"
       );
@@ -10291,14 +9963,14 @@ async function scanBrowserPool({
   let scannedHeight = height;
   let finalTip = tip;
   if (mode === "blocks") {
-    for (let blockHeight = pinned ? manifest.birthHeight : 1; blockHeight <= height; blockHeight++) {
+    for (let blockHeight = manifest.birthHeight; blockHeight <= height; blockHeight++) {
       onProgress({ height: blockHeight, total: height });
       const blockHash = await call("getblockhash", blockHeight);
       const block2 = await call("getblock", blockHash, 2);
-      demand4(block2?.hash === blockHash && block2?.height === blockHeight && Array.isArray(block2.tx), "block RPC mismatch");
+      demand3(block2?.hash === blockHash && block2?.height === blockHeight && Array.isArray(block2.tx), "block RPC mismatch");
       for (const tx of block2.tx) {
         if (!stateOutpoint) {
-          if (pinned && tx.txid !== manifest.birth) continue;
+          if (tx.txid !== manifest.birth) continue;
           if (tx.vout?.[0]?.scriptPubKey?.hex !== initialScript) continue;
           await applyBirth(tx, blockHeight);
           continue;
@@ -10307,14 +9979,14 @@ async function scanBrowserPool({
         await applyTransition(tx, blockHeight);
       }
     }
-    demand4(birth, "pool birth not found");
-    demand4(await call("getbestblockhash") === tip, "tip changed during scan; retry");
+    demand3(birth, "pool birth not found");
+    demand3(await call("getbestblockhash") === tip, "tip changed during scan; retry");
     if (height === currentHeight) {
-      demand4(
+      demand3(
         await call("gettxout", ...stateOutpoint, false) !== null,
         "reconstructed state already spent"
       );
-      if (reserveOutpoint) demand4(
+      if (reserveOutpoint) demand3(
         await call("gettxout", ...reserveOutpoint, false) !== null,
         "reconstructed reserve already spent"
       );
@@ -10324,25 +9996,25 @@ async function scanBrowserPool({
     const anchors = new Map(restored ? [[restored.height, restored.blockhash]] : []);
     async function confirmed(txid, blockHeight) {
       const tx = await call("getrawtransaction", txid, true);
-      demand4(
+      demand3(
         tx?.txid === txid && typeof tx.blockhash === "string" && tx.confirmations >= 1 && (tx.height === void 0 || tx.height === blockHeight),
         "transaction is not confirmed at the expected height"
       );
-      demand4(
+      demand3(
         await call("getblockhash", blockHeight) === tx.blockhash,
         "transaction is not in the active chain"
       );
       anchors.set(blockHeight, tx.blockhash);
       return tx;
     }
-    demand4(
+    demand3(
       Number.isSafeInteger(manifest.birthHeight) && manifest.birthHeight <= height,
       "pool birth not found"
     );
     if (!restored) {
       onProgress({ height: manifest.birthHeight, total: height });
       const born = await confirmed(manifest.birth, manifest.birthHeight);
-      demand4(born.vout?.[0]?.scriptPubKey?.hex === initialScript, "pool birth not found");
+      demand3(born.vout?.[0]?.scriptPubKey?.hex === initialScript, "pool birth not found");
       await applyBirth(born, manifest.birthHeight);
     }
     let last = restored?.transitions.at(-1)?.height ?? manifest.birthHeight;
@@ -10355,17 +10027,17 @@ async function scanBrowserPool({
         spent = null;
       }
       if (spent && spent.height !== -1) {
-        demand4(
+        demand3(
           Number.isSafeInteger(spent.height) && spent.height >= last,
           "invalid or out-of-order spent index entry"
         );
         if (bounded && spent.height > height) break;
-        demand4(
+        demand3(
           spent.index === 0 && typeof spent.txid === "string",
           "state spent outside the pool contract"
         );
         const tx = await confirmed(spent.txid, spent.height);
-        demand4(sameOutpoint(tx.vin?.[0], stateOutpoint), "spent index disagrees with transaction");
+        demand3(sameOutpoint(tx.vin?.[0], stateOutpoint), "spent index disagrees with transaction");
         onProgress({ height: spent.height, total: Math.max(height, spent.height) });
         await applyTransition(tx, spent.height);
         last = spent.height;
@@ -10376,18 +10048,18 @@ async function scanBrowserPool({
       const through = await call("getblockcount");
       const reserveLive = !reserveOutpoint || await call("gettxout", ...reserveOutpoint, false) !== null;
       if (await call("gettxout", ...stateOutpoint, false) !== null) {
-        demand4(reserveLive, "reconstructed reserve already spent");
-        demand4(Number.isSafeInteger(through) && through >= last, "invalid scan height");
+        demand3(reserveLive, "reconstructed reserve already spent");
+        demand3(Number.isSafeInteger(through) && through >= last, "invalid scan height");
         scannedHeight = through;
         break;
       }
-      demand4(
+      demand3(
         ++unresolved < 2,
         "state spend missing from the spent index; the RPC node needs -spentindex"
       );
     }
     for (const [blockHeight, blockHash] of anchors) {
-      demand4(
+      demand3(
         await call("getblockhash", blockHeight) === blockHash,
         "chain reorganized during scan; retry"
       );
@@ -10420,11 +10092,11 @@ async function scanBrowserPool({
       const entry = remaining[position];
       const nf = decodeField(found.nf);
       const spent = spentBy.get(nf);
-      notes.set(hex6(entry.cm), {
-        cm: hex6(entry.cm),
+      notes.set(hex5(entry.cm), {
+        cm: hex5(entry.cm),
         amountAtomic: found.amountAtomic,
         nf,
-        note: hex6(found.note),
+        note: hex5(found.note),
         spent: !!spent,
         ...spent ? { spentTxid: spent.txid, spentHeight: spent.height } : {},
         slot: entry.slot,
@@ -10473,8 +10145,8 @@ async function scanBrowserPool({
 }
 
 // src/pool-operations.js
-var hex7 = (bytes4) => Array.from(bytes4, (b) => b.toString(16).padStart(2, "0")).join("");
-var MAX_ARTIFACT_BYTES = 150 * 1048576;
+var hex6 = (bytes4) => Array.from(bytes4, (b) => b.toString(16).padStart(2, "0")).join("");
+var MAX_ARTIFACT_BYTES = 256 * 1048576;
 function summarizeScan(scan) {
   return {
     balanceAtomic: String(scan.balanceAtomic),
@@ -10508,36 +10180,30 @@ function describeReceiving(identity, scan, { network }) {
   };
 }
 var selfRecipient = (identity) => identity.selfRecipient?.() ?? identity.recipient();
-function planC3Operation({
+function planC4Operation({
   identity,
   scan,
   action,
   amountAtomic,
   note,
   recipient,
+  recipients,
   pool,
-  depositLimitAtomic = C3_TEST_DEPOSIT_LIMIT_ATOMIC
+  depositLimitAtomic = MAX_ATOMIC
 }) {
   if (!identity) throw new Error("Unlock the private wallet first");
   if (action === "deposit") {
-    const amount = BigInt(amountAtomic);
-    if (amount <= 0n || amount > depositLimitAtomic) throw new Error(`Deposit must be more than 0 and at most ${formatXna(depositLimitAtomic)} XNA`);
+    const amount2 = BigInt(amountAtomic);
+    if (amount2 <= 0n || amount2 > depositLimitAtomic) throw new Error(`Deposit must be more than 0 and at most ${formatXna(depositLimitAtomic)} XNA`);
     return {
       form: scan.reserveAtomic === 0n ? "D0" : "D1",
-      created: [identity.createNote(selfRecipient(identity), String(amount))],
+      created: [identity.createNote(selfRecipient(identity), String(amount2))],
       consumed: void 0,
-      amountAtomic: String(amount)
+      amountAtomic: String(amount2)
     };
   }
   const consumed = scan.notes.find((n) => n.cm === note && !n.spent);
   if (!consumed) throw new Error("Selected note is no longer spendable");
-  if (action === "transfer") {
-    const amount = BigInt(amountAtomic), total = BigInt(consumed.amountAtomic);
-    if (amount <= 0n || amount > total) throw new Error("Amount exceeds the selected note");
-    const created = [identity.createNote(parseRecipient(recipient, pool), String(amount))];
-    if (amount < total) created.push(identity.createNote(selfRecipient(identity), String(total - amount)));
-    return { form: created.length === 1 ? "T1" : "T2", created, consumed, amountAtomic: String(amount) };
-  }
   if (action === "withdraw") {
     return {
       form: BigInt(consumed.amountAtomic) === BigInt(scan.reserveAtomic) ? "W_full" : "W_partial",
@@ -10546,7 +10212,24 @@ function planC3Operation({
       amountAtomic: String(consumed.amountAtomic)
     };
   }
-  throw new Error("Unknown pool action");
+  if (action !== "transfer") throw new Error("Unknown pool action");
+  const targets = recipients ?? [{ recipient, amountAtomic }];
+  if (!Array.isArray(targets) || targets.length < 1 || targets.length > 4) {
+    throw new Error("A transfer needs between one and four private recipients");
+  }
+  const validated = targets.map((target) => {
+    if (typeof target?.amountAtomic !== "string" || !/^[1-9][0-9]*$/.test(target.amountAtomic)) {
+      throw new Error("Recipient amounts must be exact positive atomic strings");
+    }
+    return { descriptor: parseRecipient(target.recipient, pool), amount: BigInt(target.amountAtomic) };
+  });
+  const amount = validated.reduce((sum, x) => sum + x.amount, 0n);
+  const total = BigInt(consumed.amountAtomic);
+  if (amount > total) throw new Error("Recipient total exceeds the selected note");
+  if (amount < total && targets.length === 4) throw new Error("A transfer creates at most four notes including change");
+  const created = validated.map((x) => identity.createNote(x.descriptor, String(x.amount)));
+  if (amount < total) created.push(identity.createNote(selfRecipient(identity), String(total - amount)));
+  return { form: `T${created.length}`, created, consumed, amountAtomic: String(amount) };
 }
 async function loadVerifiedArtifact({
   path,
@@ -10554,10 +10237,10 @@ async function loadVerifiedArtifact({
   fetchArtifact,
   onProgress,
   maxBytes = MAX_ARTIFACT_BYTES,
-  missingMessage = "C3 TEST parameters are not available"
+  missingMessage = "Pool proving parameters are not available"
 }) {
   const meta = artifacts.files[path];
-  if (!meta || meta.bytes > maxBytes) throw new Error("Unsupported C3 artifact");
+  if (!meta || meta.bytes > maxBytes) throw new Error("Unsupported pool artifact");
   const response = await fetchArtifact(path);
   if (!response?.ok) throw new Error(missingMessage);
   const bytes4 = new Uint8Array(meta.bytes);
@@ -10584,13 +10267,13 @@ async function loadVerifiedArtifact({
     at = whole.length;
     onProgress?.(100);
   }
-  if (at !== bytes4.length || hex7(sha256(bytes4)) !== meta.sha256) throw new Error("C3 artifact integrity mismatch");
+  if (at !== bytes4.length || hex6(sha256(bytes4)) !== meta.sha256) throw new Error("Pool artifact integrity mismatch");
   return bytes4;
 }
-async function proveC3({ form, prepared, artifacts, loadArtifact, snarkjs, onStage = () => {
+async function proveC4({ form, prepared, artifacts, loadArtifact, snarkjs, onStage = () => {
 } }) {
   const entry = artifacts.forms[form];
-  if (!entry) throw new Error("Unknown C3 form");
+  if (!entry) throw new Error("Unknown C4 form");
   const wasm = await loadArtifact(entry.wasm);
   const zkey = await loadArtifact(entry.zkey);
   const vk = JSON.parse(new TextDecoder().decode(await loadArtifact(entry.vk)));
@@ -10602,76 +10285,6 @@ async function proveC3({ form, prepared, artifacts, loadArtifact, snarkjs, onSta
   onStage("Verifying proof and transaction binding");
   if (!await snarkjs.groth16.verify(vk, publicSignals, proof)) throw new Error("Local proof verification failed");
   return { proof, publicSignals };
-}
-async function buildC3Transaction({
-  identity,
-  scan,
-  manifest,
-  artifacts,
-  loadArtifact,
-  snarkjs,
-  pool,
-  request,
-  depositLimitAtomic,
-  onStage = () => {
-  }
-}) {
-  const { action, amountAtomic, feeAtomic, funding, sponsor, payout, note, recipient } = request;
-  const plan = planC3Operation({
-    identity,
-    scan,
-    action,
-    amountAtomic,
-    note,
-    recipient,
-    pool,
-    ...depositLimitAtomic === void 0 ? {} : { depositLimitAtomic }
-  });
-  onStage("Building note paths and transaction witness");
-  const prepared = identity.prepareC3({
-    manifest,
-    scan,
-    form: plan.form,
-    created: plan.created,
-    consumed: plan.consumed,
-    funding,
-    sponsor,
-    payout,
-    feeAtomic
-  });
-  const { proof, publicSignals } = await proveC3({ form: plan.form, prepared, artifacts, loadArtifact, snarkjs, onStage });
-  return {
-    raw: finishC3(prepared, proof, publicSignals),
-    form: plan.form,
-    feeAtomic,
-    stateOutpoint: scan.state.stateOutpoint,
-    inputPoints: prepared.inputs.map((x) => ({ txid: x.txid, vout: x.vout })),
-    amountAtomic: plan.amountAtomic
-  };
-}
-function planC4Operation(options) {
-  const { identity, scan, action, note, pool, recipients } = options;
-  if (action !== "transfer") return planC3Operation(options);
-  if (!identity) throw new Error("Unlock the private wallet first");
-  const consumed = scan.notes.find((n) => n.cm === note && !n.spent);
-  if (!consumed) throw new Error("Selected note is no longer spendable");
-  const targets = recipients ?? [{ recipient: options.recipient, amountAtomic: options.amountAtomic }];
-  if (!Array.isArray(targets) || targets.length < 1 || targets.length > 4) {
-    throw new Error("C4 requires between one and four private recipients");
-  }
-  const validated = targets.map((target) => {
-    if (typeof target?.amountAtomic !== "string" || !/^[1-9][0-9]*$/.test(target.amountAtomic)) {
-      throw new Error("Recipient amounts must be exact positive atomic strings");
-    }
-    return { descriptor: parseRecipient(target.recipient, pool), amount: BigInt(target.amountAtomic) };
-  });
-  const amount = validated.reduce((sum, x) => sum + x.amount, 0n);
-  const total = BigInt(consumed.amountAtomic);
-  if (amount > total) throw new Error("Recipient total exceeds the selected note");
-  if (amount < total && targets.length === 4) throw new Error("C4 supports at most four notes including change");
-  const created = validated.map((x) => identity.createNote(x.descriptor, String(x.amount)));
-  if (amount < total) created.push(identity.createNote(selfRecipient(identity), String(total - amount)));
-  return { form: `T${created.length}`, created, consumed, amountAtomic: String(amount) };
 }
 async function buildC4Transaction({
   identity,
@@ -10699,7 +10312,7 @@ async function buildC4Transaction({
     recipients: request.recipients,
     ...depositLimitAtomic === void 0 ? {} : { depositLimitAtomic }
   });
-  onStage("Building C4 note paths and transaction witness");
+  onStage("Building note paths and transaction witness");
   const prepared = identity.prepareC4({
     manifest,
     scan,
@@ -10713,7 +10326,7 @@ async function buildC4Transaction({
     expectedGenesis,
     expectedCommitment
   });
-  const { proof, publicSignals } = await proveC3({ form: plan.form, prepared, artifacts, loadArtifact, snarkjs, onStage });
+  const { proof, publicSignals } = await proveC4({ form: plan.form, prepared, artifacts, loadArtifact, snarkjs, onStage });
   return {
     raw: finishC4(prepared, proof, publicSignals),
     form: plan.form,
@@ -10730,9 +10343,9 @@ function startPoolWorker({
   snarkjs,
   artifactBaseUrl,
   fetchArtifact,
-  manifest = C3_TESTNET_MANIFEST,
-  artifacts = C3_TESTNET_ARTIFACTS,
-  network = C3_TESTNET_NETWORK,
+  manifest,
+  artifacts = C4_TESTNET_ARTIFACTS,
+  network = C4_TESTNET_NETWORK,
   singleThread = true,
   missingArtifactMessage,
   depositLimitAtomic,
@@ -10744,12 +10357,15 @@ function startPoolWorker({
   if (depositLimitAtomic !== void 0 && (typeof depositLimitAtomic !== "bigint" || depositLimitAtomic <= 0n)) {
     throw new Error("depositLimitAtomic must be a positive bigint");
   }
-  const c4 = manifest?.schema === "neurai-c4-xna-test-v1";
-  if (c4) validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  if (manifest === void 0) {
+    manifest = C4_TESTNET_MANIFEST;
+    expectedCommitment ??= C4_TESTNET_COMMITMENT;
+  }
+  validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
   if (!Number.isSafeInteger(maxArtifactBytes) || maxArtifactBytes <= 0 || maxArtifactBytes > 256 * 1048576) {
     throw new Error("Artifact limit must be a positive integer of at most 256 MiB");
   }
-  const missing = missingArtifactMessage ?? (artifactBaseUrl ? "C3 TEST parameters are not available at " + artifactBaseUrl : "C3 TEST parameters are not available");
+  const missing = missingArtifactMessage ?? (artifactBaseUrl ? "Pool proving parameters are not available at " + artifactBaseUrl : "Pool proving parameters are not available");
   const pool = { network, domain: manifest.domain, assetId: manifest.assetId };
   const fetcher = fetchArtifact ?? ((path) => fetch(new URL(path, artifactBaseUrl)));
   let identity = null;
@@ -10800,8 +10416,8 @@ function startPoolWorker({
     if (!identity) throw new Error("Unlock the private wallet first");
     if (!snarkjs) throw new Error("This worker was started without snarkjs, so it cannot prove");
     await refresh();
-    for (const coin3 of [data.sponsor, data.funding].filter(Boolean)) await checkPoolCoin(rpc, coin3, { profile: c4 ? "C4" : "C3" });
-    const result = await (c4 ? buildC4Transaction : buildC3Transaction)({
+    for (const coin2 of [data.sponsor, data.funding].filter(Boolean)) await checkPoolCoin(rpc, coin2);
+    const result = await buildC4Transaction({
       identity,
       scan,
       manifest,
@@ -10895,11 +10511,11 @@ export {
   ATOMIC_PER_XNA,
   BN254_SCALAR_FIELD,
   BrowserTestIdentity,
-  C3_TESTNET_ARTIFACTS,
-  C3_TESTNET_MANIFEST,
-  C3_TESTNET_NETWORK,
-  C3_TEST_DEPOSIT_LIMIT_ATOMIC,
   C4_FORMS,
+  C4_TESTNET_ARTIFACTS,
+  C4_TESTNET_COMMITMENT,
+  C4_TESTNET_MANIFEST,
+  C4_TESTNET_NETWORK,
   CliTestBackend,
   LEGACY_P2PKH,
   MAX_ARTIFACT_BYTES,
@@ -10921,7 +10537,6 @@ export {
   assertPoolChain,
   bech32mDecode,
   bech32mEncode,
-  buildC3Transaction,
   buildC4Transaction,
   c4DustAtomic,
   checkPoolCoin,
@@ -10951,12 +10566,11 @@ export {
   openVault,
   parseRecipient,
   parseXna,
-  planC3Operation,
   planC4Operation,
   poseidonBytes,
   poseidonPermutation,
   prepareC4,
-  proveC3,
+  proveC4,
   publicationStatus,
   publishTransaction,
   recheckInputs,

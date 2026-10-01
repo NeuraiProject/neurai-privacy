@@ -408,7 +408,6 @@ export class ZkWalletIdentity {
     return this.identityAt(address.chain, index31(address.index, 'address index'));
   }
 
-  prepareC3(options) { return this.spendingIdentity(options.consumed).prepareC3(options); }
   prepareC4(options) { return this.spendingIdentity(options.consumed).prepareC4(options); }
 
   /** Derived identities are recovered from the words; there is no file backup. */

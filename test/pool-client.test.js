@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import {
   rpcAmountToSatoshis, parseXna, formatXna, isPoolReadRpc, assertPoolChain, confirmedPoolCoins, selectPoolCoins,
   checkPoolCoin, withdrawalScript, recheckInputs, admitTransaction, inspectFundingTransaction, publishTransaction,
-  publicationStatus, rotationStorageKey, loadRotation, saveRotation, C3_TESTNET_MANIFEST, C3_TESTNET_ARTIFACTS,
+  publicationStatus, rotationStorageKey, loadRotation, saveRotation, C4_TESTNET_MANIFEST,
 } from '../src/client.js';
 
-const GENESIS = C3_TESTNET_MANIFEST.genesis;
+const GENESIS = C4_TESTNET_MANIFEST.genesis;
 const P2PKH = '76a914' + '11'.repeat(20) + '88ac';
 const OTHER = '76a914' + '22'.repeat(20) + '88ac';
 function stubRpc(handlers) {
@@ -43,8 +43,8 @@ test('exact amounts: RPC values, user input and formatting', () => {
 test('read-only RPC allowlist and chain check', async () => {
   for (const method of ['getblockhash', 'getblock', 'getrawtransaction', 'gettxout', 'getspentinfo']) assert.equal(isPoolReadRpc(method), true);
   for (const method of ['sendrawtransaction', 'dumpprivkey', 'signrawtransaction', 'testmempoolaccept']) assert.equal(isPoolReadRpc(method), false);
-  await assertPoolChain(stubRpc({ getblockhash: GENESIS }).rpc, C3_TESTNET_MANIFEST);
-  await assert.rejects(assertPoolChain(stubRpc({ getblockhash: '00'.repeat(32) }).rpc, C3_TESTNET_MANIFEST), /not on the network/);
+  await assertPoolChain(stubRpc({ getblockhash: GENESIS }).rpc, C4_TESTNET_MANIFEST);
+  await assert.rejects(assertPoolChain(stubRpc({ getblockhash: '00'.repeat(32) }).rpc, C4_TESTNET_MANIFEST), /not on the network/);
 });
 
 test('coin discovery and selection for deposits and fees', async () => {
@@ -88,8 +88,8 @@ test('funding inspection, admission and inputs recheck', async () => {
   await assert.rejects(inspectFundingTransaction(stubRpc({ decoderawtransaction: decoded,
     testmempoolaccept: [{ allowed: false, 'reject-reason': 'min relay fee not met' }] }).rpc, 'raw'), /min relay fee/);
   assert.equal((await admitTransaction(rpc, 'raw')).txid, 'f'.repeat(64));
-  await recheckInputs(stubRpc({ getblockhash: GENESIS, gettxout: { value: 1 } }).rpc, C3_TESTNET_MANIFEST, [{ txid: 'a', vout: 0 }]);
-  await assert.rejects(recheckInputs(stubRpc({ getblockhash: GENESIS, gettxout: null }).rpc, C3_TESTNET_MANIFEST, [{ txid: 'a', vout: 0 }]), /spent while preparing/);
+  await recheckInputs(stubRpc({ getblockhash: GENESIS, gettxout: { value: 1 } }).rpc, C4_TESTNET_MANIFEST, [{ txid: 'a', vout: 0 }]);
+  await assert.rejects(recheckInputs(stubRpc({ getblockhash: GENESIS, gettxout: null }).rpc, C4_TESTNET_MANIFEST, [{ txid: 'a', vout: 0 }]), /spent while preparing/);
 });
 
 test('publication marks unknown outcomes as uncertain and resolves them later', async () => {
@@ -97,24 +97,24 @@ test('publication marks unknown outcomes as uncertain and resolves them later', 
   const base = { getblockhash: GENESIS, gettxout: { value: 1 }, testmempoolaccept: [{ allowed: true }],
     decoderawtransaction: { txid: tx.txid } };
   const seen = [];
-  assert.equal(await publishTransaction(stubRpc({ ...base, sendrawtransaction: tx.txid }).rpc, C3_TESTNET_MANIFEST, tx,
+  assert.equal(await publishTransaction(stubRpc({ ...base, sendrawtransaction: tx.txid }).rpc, C4_TESTNET_MANIFEST, tx,
     { onBroadcast: txid => seen.push(txid) }), tx.txid);
   assert.deepEqual(seen, [tx.txid]);
   await assert.rejects(publishTransaction(stubRpc({ ...base, decoderawtransaction: { txid: '0'.repeat(64) },
-    sendrawtransaction: tx.txid }).rpc, C3_TESTNET_MANIFEST, tx), /does not match/);
+    sendrawtransaction: tx.txid }).rpc, C4_TESTNET_MANIFEST, tx), /does not match/);
   await assert.rejects(publishTransaction(stubRpc({ ...base, sendrawtransaction: () => { throw new Error('timeout'); } }).rpc,
-    C3_TESTNET_MANIFEST, tx), e => e.uncertain === true && /uncertain: timeout/.test(e.message));
-  await assert.rejects(publishTransaction(stubRpc({ ...base, sendrawtransaction: '0'.repeat(64) }).rpc, C3_TESTNET_MANIFEST, tx),
+    C4_TESTNET_MANIFEST, tx), e => e.uncertain === true && /uncertain: timeout/.test(e.message));
+  await assert.rejects(publishTransaction(stubRpc({ ...base, sendrawtransaction: '0'.repeat(64) }).rpc, C4_TESTNET_MANIFEST, tx),
     e => e.uncertain === true);
   await assert.rejects(publishTransaction(stubRpc({ ...base, testmempoolaccept: [{ allowed: false, 'reject-reason': 'txn-mempool-conflict' }] }).rpc,
-    C3_TESTNET_MANIFEST, tx), e => !e.uncertain && /conflict/.test(e.message));
+    C4_TESTNET_MANIFEST, tx), e => !e.uncertain && /conflict/.test(e.message));
   const found = confirmations => stubRpc({ ...base, getrawtransaction: { txid: tx.txid, confirmations } }).rpc;
-  assert.equal(await publicationStatus(found(3), C3_TESTNET_MANIFEST, tx), 'confirmed');
-  assert.equal(await publicationStatus(found(0), C3_TESTNET_MANIFEST, tx), 'mempool');
+  assert.equal(await publicationStatus(found(3), C4_TESTNET_MANIFEST, tx), 'confirmed');
+  assert.equal(await publicationStatus(found(0), C4_TESTNET_MANIFEST, tx), 'mempool');
   const missing = extra => stubRpc({ ...base, getrawtransaction: () => { throw new Error('No such mempool or blockchain transaction'); }, ...extra }).rpc;
-  assert.equal(await publicationStatus(missing(), C3_TESTNET_MANIFEST, tx), 'retryable');
-  await assert.rejects(publicationStatus(missing({ testmempoolaccept: [{ allowed: false }] }), C3_TESTNET_MANIFEST, tx), /remains uncertain/);
-  await assert.rejects(publicationStatus(missing(), C3_TESTNET_MANIFEST, { txid: tx.txid }), /unavailable/);
+  assert.equal(await publicationStatus(missing(), C4_TESTNET_MANIFEST, tx), 'retryable');
+  await assert.rejects(publicationStatus(missing({ testmempoolaccept: [{ allowed: false }] }), C4_TESTNET_MANIFEST, tx), /remains uncertain/);
+  await assert.rejects(publicationStatus(missing(), C4_TESTNET_MANIFEST, { txid: tx.txid }), /unavailable/);
 });
 
 test('rotation state is small, validated and tolerant of unavailable storage', () => {
@@ -134,6 +134,4 @@ test('rotation state is small, validated and tolerant of unavailable storage', (
   assert.equal(loadRotation(broken, key), null);
   assert.equal(saveRotation(broken, key, { gap: 20, issued: 1 }), false);
   assert.equal(saveRotation(null, key, { gap: 20, issued: 1 }), false);
-  assert.equal(C3_TESTNET_ARTIFACTS.forms.T2.zkey, 'artifacts/T2/final.zkey');
-  assert.ok(Object.isFrozen(C3_TESTNET_MANIFEST.forms.D0));
 });

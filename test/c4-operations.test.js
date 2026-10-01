@@ -4,6 +4,9 @@ import { BrowserTestIdentity } from '../src/browser-wallet.js';
 import { parseRecipient, encodeNzkAddress } from '../src/zk-wallet.js';
 import { planC4Operation } from '../src/worker.js';
 import { checkPoolCoin, selectPoolCoins, withdrawalScript } from '../src/pool-client.js';
+import { validateC4Manifest, C4_FORMS } from '../src/c4.js';
+import { C4_TESTNET_MANIFEST, C4_TESTNET_ARTIFACTS, C4_TESTNET_COMMITMENT } from '../src/c4-testnet.js';
+import { MAX_ARTIFACT_BYTES } from '../src/pool-operations.js';
 const domain='11'.repeat(32), assetId='22'.repeat(32);
 const bytes=s=>Uint8Array.from(Buffer.from(s,'hex'));
 const wallet=n=>new BrowserTestIdentity(new Uint8Array(32).fill(n),new Uint8Array(32).fill(n+1),bytes(domain),bytes(assetId),null);
@@ -37,16 +40,15 @@ test('C4 checks each funding family and leaves its actual dust threshold as fee 
     const coin={txid:'aa'.repeat(32),vout:0,scriptHex,valueSats:'10000'};
     const live={confirmations:1,value:'0.00010000',scriptPubKey:{hex:scriptHex}};
     const rpc=async()=>live;
-    await checkPoolCoin(rpc,coin,{profile:'C4'});
-    if(i) await assert.rejects(checkPoolCoin(rpc,coin));
+    await checkPoolCoin(rpc,coin);
     const dust=[546n,3060n,336n][i];
-    assert.equal(selectPoolCoins([coin],{profile:'C4',action:'transfer',feeAtomic:10000n-dust}).sponsor,coin);
-    assert.throws(()=>selectPoolCoins([coin],{profile:'C4',action:'transfer',feeAtomic:10001n-dust}),/separate confirmed/);
-    await assert.rejects(checkPoolCoin(rpc,{...coin,valueSats:'10001'},{profile:'C4'}),/value mismatch/);
-    assert.equal(await withdrawalScript(async()=>({isvalid:true,scriptPubKey:scriptHex}),'TEST',{profile:'C4'}),scriptHex);
+    assert.equal(selectPoolCoins([coin],{action:'transfer',amountAtomic:0n,feeAtomic:10000n-dust}).sponsor,coin);
+    assert.throws(()=>selectPoolCoins([coin],{action:'transfer',amountAtomic:0n,feeAtomic:10001n-dust}),/separate confirmed/);
+    await assert.rejects(checkPoolCoin(rpc,{...coin,valueSats:'10001'}),/value mismatch/);
+    assert.equal(await withdrawalScript(async()=>({isvalid:true,scriptPubKey:scriptHex}),'TEST'),scriptHex);
   }
   for(const scriptHex of ['5120'+'11'.repeat(32),'5420'+'11'.repeat(32),scripts[1]+'75']) {
-    await assert.rejects(withdrawalScript(async()=>({isvalid:true,scriptPubKey:scriptHex}),'TEST',{profile:'C4'}));
+    await assert.rejects(withdrawalScript(async()=>({isvalid:true,scriptPubKey:scriptHex}),'TEST'),/Legacy, PQ or ECDSA/);
   }
 });
 
@@ -76,4 +78,15 @@ test('C4 object, JSON and nzk recipients share validation and cannot bypass owne
       assert.throws(()=>planC4Operation({...options,recipients:[{recipient,amountAtomic:'1'}]}));
     }
   } finally {alice.lock();bob.lock();}
+});
+
+test('bundled C4 TEST deployment validates against its pinned commitment and lists every artifact',()=>{
+  assert.equal(validateC4Manifest(C4_TESTNET_MANIFEST,{expectedCommitment:C4_TESTNET_COMMITMENT}),C4_TESTNET_MANIFEST);
+  assert.throws(()=>validateC4Manifest(C4_TESTNET_MANIFEST,{expectedCommitment:'00'.repeat(32)}),/independently pinned/);
+  assert.ok(Object.isFrozen(C4_TESTNET_MANIFEST.forms.D0) && Object.isFrozen(C4_TESTNET_ARTIFACTS.files));
+  assert.deepEqual(Object.keys(C4_TESTNET_ARTIFACTS.forms).sort(),[...C4_FORMS].sort());
+  for(const form of C4_FORMS) for(const path of Object.values(C4_TESTNET_ARTIFACTS.forms[form])) {
+    const file=C4_TESTNET_ARTIFACTS.files[path];
+    assert.ok(file && /^[0-9a-f]{64}$/.test(file.sha256) && file.bytes<=MAX_ARTIFACT_BYTES,path);
+  }
 });

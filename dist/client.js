@@ -4,13 +4,13 @@ import {
   loadRotation,
   rotationStorageKey,
   saveRotation
-} from "./chunks/chunk-GAETWVDJ.js";
+} from "./chunks/chunk-5KPXWCIU.js";
 import {
   ATOMIC_PER_XNA,
-  C3_TESTNET_ARTIFACTS,
-  C3_TESTNET_MANIFEST,
-  C3_TESTNET_NETWORK,
-  C3_TEST_DEPOSIT_LIMIT_ATOMIC,
+  C4_TESTNET_ARTIFACTS,
+  C4_TESTNET_COMMITMENT,
+  C4_TESTNET_MANIFEST,
+  C4_TESTNET_NETWORK,
   LEGACY_P2PKH,
   MAX_ATOMIC,
   MIN_SPONSOR_CHANGE_ATOMIC,
@@ -29,13 +29,13 @@ import {
   rpcAmountToSatoshis,
   selectPoolCoins,
   withdrawalScript
-} from "./chunks/chunk-J5ZWOXUV.js";
+} from "./chunks/chunk-ZTELRD6L.js";
 export {
   ATOMIC_PER_XNA,
-  C3_TESTNET_ARTIFACTS,
-  C3_TESTNET_MANIFEST,
-  C3_TESTNET_NETWORK,
-  C3_TEST_DEPOSIT_LIMIT_ATOMIC,
+  C4_TESTNET_ARTIFACTS,
+  C4_TESTNET_COMMITMENT,
+  C4_TESTNET_MANIFEST,
+  C4_TESTNET_NETWORK,
   LEGACY_P2PKH,
   MAX_ATOMIC,
   MIN_SPONSOR_CHANGE_ATOMIC,

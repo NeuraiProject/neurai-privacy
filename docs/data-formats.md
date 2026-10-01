@@ -24,11 +24,11 @@ covers key derivation and the `nzk` address.
 | `NIP043/cm/CP1`, `NIP043/nf/CP1` | Note commitment and nullifier |
 | `NIP043/cmleaf`, `NIP043/nfleaf` | Indexed tree leaves |
 | `NIP043/HPKE/CP1`, `NIP043/note/CP1` | HPKE info and AEAD associated data of note records |
-| `NIP043/instance/v3` | C4 domain |
-| `NeuraiPoolAsset/v2` | C4 native asset ID |
-| `NeuraiPoolCtx` | C4 circuit context |
+| `NIP043/instance/v3` | Pool domain |
+| `NeuraiPoolAsset/v2` | Native asset ID |
+| `NeuraiPoolCtx` | Circuit context |
 | `NIP045/dep\x01`, `NIP045/wdr\x00`, `NIP045/req\x00` | Deposit public inputs |
-| `NIP045/dat\x02`, `NIP045/dat\x03` | Publication hash, C3 and C4 |
+| `NIP045/dat\x03` | Publication hash |
 | `NeuraiTxHash` | Transaction hash anchor |
 | `NeuraiAuthLeaf`, `NeuraiAuthBranch`, `NeuraiAuthScript` | Contract MAST commitments |
 | `NeuraiZK/v2/…`, `NeuraiZK/v1/instance` | Wallet derivation and address tag |
@@ -80,29 +80,8 @@ zero. Its hash is a public input:
 data_hash = PoseidonBytes(PoseidonBytes(PoseidonBytes(label) || blob[0, 2048)) || blob[2048, 4096))
 ```
 
-with `label = "NIP045/dat\x02"` for C3 and `"NIP045/dat\x03"` for C4.
-
-### C3 deposit (version 1)
-
-| Range | Content |
-| --- | --- |
-| `[0, 6)` | `01 00 00 00 01 00` |
-| `[6, 38)` | `cm` |
-| `[198, 1222)` | Record (1024 bytes) |
-
-### C3 assignment (version 1), `T1` or `T2`
-
-| Range | Content |
-| --- | --- |
-| `[0, 1)` | `01` |
-| `[1, 2)` | Note count (1 or 2) |
-| `[2, 34)` | Nullifier |
-| `[34 + 32i, 66 + 32i)` | `cm` of note `i` |
-| `[98 + 1024i, 1122 + 1024i)` | Record of note `i` |
-
-### C4 (version 2), deposits and `T1`–`T4`
-
-Records are stored compactly: only their first 220 bytes, because the rest
+with `label = "NIP045/dat\x03"`. Deposits and `T1`–`T4` use the same
+layout (version 2). Records are stored compactly: only their first 220 bytes, because the rest
 of a canonical record is zero.
 
 | Range | Content |
@@ -161,7 +140,7 @@ payload = "xnat" || compactSize(len(identity)) || identity || u64le(100000000) |
 
 `OP_1 <32 bytes>` is the AuthScript output. `c0` is the asset opcode, which
 here carries one unit of the UNIQUE asset `identity` (for example
-`C3TESTX260929A#POOL`) with the 32-byte digest attached. `75` is `OP_DROP`.
+`C4TESTX260930A#POOL`) with the 32-byte digest attached. `75` is `OP_DROP`.
 
 Reserve output, value = reserve: `51 20 <reserveCommitment>`.
 
@@ -176,9 +155,9 @@ reserveCommitment = tagged("NeuraiAuthScript", 01 || 00 || SHA256(guard))
 ```
 
 `min` and `max` compare the two hashes as byte strings. Every leaf script
-contains its form's `vkHash = SHA256(vk)`; in C4 it also contains the context.
+contains its form's `vkHash = SHA256(vk)` and the context.
 
-## C4 instance values
+## Instance values
 
 ```text
 domain  = SHA256("NIP043/instance/v3" || genesis || issuanceTxid || u32le(issuanceVout)
@@ -189,7 +168,7 @@ context = PoseidonBytes("NeuraiPoolCtx" || 01 || domain || assetId || u64le(unit
 
 `genesis` and `issuanceTxid` are in internal byte order, the reverse of the
 RPC hex. The XNA profile uses `unit = 1` and an all-zero `registryRoot`. The context
-is the first public input of every C4 proof.
+is the first public input of every proof.
 
 ## Transaction template and anchor
 
@@ -199,17 +178,21 @@ is the first public input of every C4 proof.
 | Inputs | Sequence `0xffffffff`; scriptSig empty until the wallet signs |
 | Locktime | 0 |
 | Serialization | Segregated witness (`00 01` marker and flag) |
+| Reference inputs | Version 3 places the NIP-014 reference input list (`vrefin`) between the outputs and the witnesses. Pool transactions leave it empty: one `00` byte. It is part of the txid. |
 
 ```text
 prevouts  = for each input:  txid || u32le(vout)
 sequences = ff ff ff ff for each input
 outputs   = for each output: u64le(value) || compactSize(len(script)) || script
+refinputs = for each reference input: txid || u32le(vout)          (empty here)
 txhash = tagged("NeuraiTxHash", 1f 01 || version || locktime || SHA256d(prevouts)
-                || SHA256d(sequences) || SHA256d(outputs) || SHA256d(""))
+                || SHA256d(sequences) || SHA256d(outputs) || SHA256d(refinputs))
 anchor = PoseidonBytes(txhash)
 ```
 
-`1f 01` is the NIP-042 field mask `0x011f`. Signatures are not covered.
+`1f 01` is the NIP-042 field mask `0x011f`: version, locktime, prevouts,
+sequences and outputs (bits 0–4) and reference inputs (bit 8). With no
+reference inputs the last term is `SHA256d("")`. Signatures are not covered.
 
 ## Deposit constants
 
@@ -221,11 +204,11 @@ req = PoseidonBytes("NIP045/req\x00")
 
 ## Public inputs
 
-| Form | Public inputs, in order (C4 adds `ctx` first) |
+| Form | Public inputs, in order |
 | --- | --- |
-| `D0`, `D1` | `S_old, S_new, dep, wdr, req, data_hash, anchor, amount` |
-| `T1`–`T4` | `S_old, S_new, nf, data_hash, anchor, cm_1, …, cm_n` |
-| `W_partial`, `W_full` | `S_old, S_new, nf, anchor, amount, reserve_in, reserve_out` |
+| `D0`, `D1` | `ctx, S_old, S_new, dep, wdr, req, data_hash, anchor, amount` |
+| `T1`–`T4` | `ctx, S_old, S_new, nf, data_hash, anchor, cm_1, …, cm_n` |
+| `W_partial`, `W_full` | `ctx, S_old, S_new, nf, anchor, amount, reserve_in, reserve_out` |
 
 ## Proof encoding (128 bytes)
 

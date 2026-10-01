@@ -231,7 +231,6 @@ export declare class BrowserTestIdentity {
   openRecord(record: Uint8Array, commitment: Uint8Array): { note: Uint8Array; cm: Uint8Array; amountAtomic: bigint; nf: Uint8Array };
   /** Local worker only: returned witness contains private circuit inputs. */
   prepareC4(options: import('./browser.js').C4PrepareOptions): import('./browser.js').C4Prepared;
-  prepareC3(options: import('./browser.js').C3PrepareOptions): import('./browser.js').C3Prepared;
   sealCheckpoint(checkpoint: import('./browser.js').PoolScanCheckpoint): string;
   openCheckpoint(encoded: string): import('./browser.js').PoolScanCheckpoint;
   lock(): void;
@@ -288,7 +287,6 @@ export declare class ZkWalletIdentity {
   spendingIdentity(consumed?: { address?: NzkAddressRef }): BrowserTestIdentity;
   /** Local worker only: returned witness contains private circuit inputs. */
   prepareC4(options: import('./browser.js').C4PrepareOptions): import('./browser.js').C4Prepared;
-  prepareC3(options: import('./browser.js').C3PrepareOptions): import('./browser.js').C3Prepared;
   backupJson(): null;
   sealCheckpoint(checkpoint: import('./browser.js').PoolScanCheckpoint): string;
   openCheckpoint(encoded: string): import('./browser.js').PoolScanCheckpoint;
@@ -299,4 +297,4 @@ export * from './client.js';
 export * from './worker.js';
 
 export { C4_FORMS, validateC4Manifest, prepareC4, finishC4, c4DustAtomic } from './browser.js';
-export type { C4Form, C4Manifest, C4PrepareOptions, C4Prepared } from './browser.js';
+export type { C4Form, C4Manifest, C4Coin, C4PrepareOptions, C4Prepared } from './browser.js';

@@ -1,7 +1,7 @@
 import {
   CliTestBackend, NeuraiPrivacy, BrowserTestIdentity, type NeuraiRpc, type RecipientDescriptor
 } from '../src/index.js';
-import { scanBrowserPool, type BrowserPoolManifest } from '../src/browser.js';
+import { scanBrowserPool, C4_TESTNET_MANIFEST, C4_TESTNET_COMMITMENT, type C4Manifest } from '../src/browser.js';
 
 const rpc: NeuraiRpc = async () => '0'.repeat(64);
 const backend = new CliTestBackend({
@@ -32,13 +32,10 @@ async function compileOnly(): Promise<void> {
   await xna.deposit({ amountSats: 1_000_000_000_000_000n });
   await xna.transfer({ recipients: [recipient, recipient],
     splitSats: [600_000_000_000_000n, 400_000_000_000_000n] });
-  const manifest: BrowserPoolManifest = {
-    profile: 'xna', genesis: 'a'.repeat(64), commitment: 'b'.repeat(64),
-    reserveCommitment: 'c'.repeat(64), domain: 'd'.repeat(64), assetId: 'e'.repeat(64),
-    vkHashes: { D0: '1'.repeat(64), D1: '2'.repeat(64), T1: '3'.repeat(64),
-      T2: '4'.repeat(64), W_partial: '5'.repeat(64), W_full: '6'.repeat(64) }
-  };
-  const browserScan = await scanBrowserPool({ rpc, manifest });
+  const manifest: C4Manifest = C4_TESTNET_MANIFEST;
+  const browserScan = await scanBrowserPool({ rpc, manifest, expectedCommitment: C4_TESTNET_COMMITMENT });
+  // @ts-expect-error The manifest must be checked against an independently pinned commitment.
+  await scanBrowserPool({ rpc, manifest });
   const browserBalance: bigint = browserScan.balanceAtomic;
   void browserBalance;
   void units;
@@ -59,15 +56,16 @@ async function zkCompileOnly() {
   void fromObject;
   const found = wallet.scanRecords([]);
   const where: NzkAddressRef | undefined = found[0]?.address;
-  const scan = await scanBrowserPool({ rpc, manifest: {} as BrowserPoolManifest, identity: wallet, strategy: 'spent-index' });
+  const scan = await scanBrowserPool({ rpc, manifest: C4_TESTNET_MANIFEST, expectedCommitment: C4_TESTNET_COMMITMENT,
+    identity: wallet, strategy: 'spent-index' });
   const noteAddress: NzkAddressRef | undefined = scan.notes[0]?.address;
   void again; void where; void noteAddress; wallet.lock();
 }
 void zkCompileOnly;
 
 import { PoolWorkerClient, confirmedPoolCoins, selectPoolCoins, publishTransaction, rotationStorageKey, loadRotation,
-  C3_TESTNET_MANIFEST, C3_TESTNET_ARTIFACTS, type PoolRpc, type ReceivingInfo, type PreparedPoolTransaction } from '../src/client.js';
-import { startPoolWorker, planC3Operation, loadVerifiedArtifact, type SnarkjsLike } from '../src/worker.js';
+  C4_TESTNET_MANIFEST as poolManifest, C4_TESTNET_ARTIFACTS, type PoolRpc, type ReceivingInfo, type PreparedPoolTransaction } from '../src/client.js';
+import { startPoolWorker, planC4Operation, loadVerifiedArtifact, type SnarkjsLike } from '../src/worker.js';
 async function poolCompileOnly(identity: BrowserTestIdentity, worker: { postMessage(m: unknown): void; onmessage: ((e: { data: any }) => void) | null }, snarkjs: SnarkjsLike) {
   const poolRpc: PoolRpc = async () => null;
   const client = new PoolWorkerClient({ worker, rpc: poolRpc, onStage: (m: string) => void m });
@@ -76,15 +74,17 @@ async function poolCompileOnly(identity: BrowserTestIdentity, worker: { postMess
   const coins = await confirmedPoolCoins(poolRpc, [], { baseCurrency: 'XNA' });
   const { sponsor } = selectPoolCoins(coins, { action: 'transfer', amountAtomic: 1n, feeAtomic: 1n });
   const prepared: PreparedPoolTransaction = await client.prepare({ action: 'transfer', amountAtomic: '1', feeAtomic: '1', sponsor, note: 'cm', recipient: receiving.current.address });
-  const txid: string = await publishTransaction(poolRpc, C3_TESTNET_MANIFEST, { raw: prepared.raw, txid: 'x', points: prepared.inputPoints });
+  await client.prepare({ action: 'transfer', amountAtomic: '3', feeAtomic: '1', sponsor, note: 'cm',
+    recipients: [{ recipient: receiving.current.address, amountAtomic: '1' }, { recipient: receiving.current.address, amountAtomic: '2' }] });
+  const txid: string = await publishTransaction(poolRpc, poolManifest, { raw: prepared.raw, txid: 'x', points: prepared.inputPoints });
   const key = rotationStorageKey({ network: 'testnet', derivation: 'NeuraiZK/v2', family: 'legacy', storageId: 'ab'.repeat(32), account: 0 });
   const state = loadRotation(null, key);
   startPoolWorker({ scope: { postMessage() {}, onmessage: null }, snarkjs, artifactBaseUrl: 'https://example.test/' }).stop();
-  const zkey = await loadVerifiedArtifact({ path: 'a', artifacts: C3_TESTNET_ARTIFACTS, fetchArtifact: p => fetch(p) });
+  const zkey = await loadVerifiedArtifact({ path: 'a', artifacts: C4_TESTNET_ARTIFACTS, fetchArtifact: p => fetch(p) });
   const file = new File([zkey], 'final.zkey');
   const opened = identity.openRecord(zkey, zkey);
   const nf: Uint8Array = opened.nf;
-  void planC3Operation; void txid; void state; void file; void nf;
+  void planC4Operation; void txid; void state; void file; void nf;
 }
 void poolCompileOnly;
 

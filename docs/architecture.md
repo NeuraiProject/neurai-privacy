@@ -21,9 +21,9 @@ The code follows a few rules:
 
 | Import | Runs in | Holds secrets | Purpose |
 | --- | --- | --- | --- |
-| `@neuraiproject/neurai-privacy/client` | Page (main thread) | No | Amounts, RPC checks, coin selection, publication, rotation storage, the C3 TEST manifest and `PoolWorkerClient`. Contains no cryptography. |
+| `@neuraiproject/neurai-privacy/client` | Page (main thread) | No | Amounts, RPC checks, coin selection, publication, rotation storage, the bundled C4 TEST deployment and `PoolWorkerClient`. Contains no cryptography. |
 | `@neuraiproject/neurai-privacy/worker` | Dedicated Web Worker | Yes | `startPoolWorker` and the operations it runs: planning, artifact loading, proving and transaction building. |
-| `@neuraiproject/neurai-privacy/browser` | Browser or worker | Yes, if used | Everything above plus identities, addresses, the scanner, the C3/C4 builders and the building blocks. |
+| `@neuraiproject/neurai-privacy/browser` | Browser or worker | Yes, if used | Everything above plus identities, addresses, the scanner, the C4 builder and the building blocks. |
 | `@neuraiproject/neurai-privacy` | Node | Yes, if used | The browser entry plus `CliTestBackend`. Bundlers resolve it to the browser entry. |
 
 `npm run test:build` checks that the client entry pulls in no ChaCha20,
@@ -108,12 +108,12 @@ arrive while it is busy. Every accepted request ends with `done` or `error`.
 | `scope` | `globalThis` | Worker global scope. |
 | `snarkjs` | | snarkjs 0.7.6 module. Without it the worker can scan but not prove. |
 | `artifactBaseUrl` or `fetchArtifact` | | Where proving artifacts are fetched from. One is required. |
-| `manifest`, `artifacts` | C3 TEST instance | Pool manifest and artifact list. The schema selects C3 or C4. |
+| `manifest`, `artifacts` | Bundled C4 TEST instance | Pool manifest and artifact list. |
 | `network` | `'testnet'` | Selects the `nzk` address prefix. |
-| `expectedCommitment` | | Required for C4: the independently pinned contract commitment. |
-| `expectedGenesis` | reset testnet genesis | Genesis the C4 manifest must match. |
+| `expectedCommitment` | Bundled pin, only without `manifest` | The independently pinned contract commitment. Required when `manifest` is passed. |
+| `expectedGenesis` | reset testnet genesis | Genesis the manifest must match. |
 | `depositLimitAtomic` | money range | Largest deposit the application builds. |
-| `maxArtifactBytes` | 150 MiB | Largest single artifact accepted, up to 256 MiB. |
+| `maxArtifactBytes` | 256 MiB | Largest single artifact accepted, at most 256 MiB. The bundled T4 proving key is about 192 MiB. |
 | `singleThread` | `true` | Forces snarkjs to one thread inside the worker. |
 | `missingArtifactMessage` | | Error text when artifacts cannot be fetched. |
 
@@ -124,7 +124,7 @@ worker per core and multiply memory use.
 ## Identities
 
 Both identity classes expose the same methods to the worker: `recipient`,
-`createNote`, `openRecord`, `prepareC3`, `prepareC4`, `sealCheckpoint`,
+`createNote`, `openRecord`, `prepareC4`, `sealCheckpoint`,
 `openCheckpoint` and `lock`.
 
 **ZkWalletIdentity** is derived from wallet words
@@ -157,8 +157,8 @@ guarantee that no copy remains elsewhere in memory; see the
 | `hpke.js` | Viewing keys and HPKE encryption of note records. |
 | `pool-state.js` | Note tree, indexed trees, state opening and digest. |
 | `pool-txhash.js`, `pool-transaction.js` | TXHASH anchor and the transaction template. |
-| `c3.js`, `c4.js`, `c4-publication.js` | Manifest validation, witness preparation, publication codec and final serialization per profile. |
-| `c3-testnet.js` | Bundled C3 TEST manifest and artifact list. |
+| `c4.js`, `c4-publication.js` | Manifest validation, witness preparation, publication codec and final serialization. |
+| `c4-testnet.js` | Bundled C4 TEST manifest, artifact list and pinned commitment. |
 | `browser-chain.js` | Pool scanner and checkpoint format. |
 | `checkpoint-crypto.js` | Checkpoint encryption. |
 | `zk-wallet.js` | NeuraiZK/v2 derivation, `nzk` addresses, `ZkWalletIdentity`. |

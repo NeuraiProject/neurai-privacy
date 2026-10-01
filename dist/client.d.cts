@@ -1,5 +1,5 @@
 import type { RecipientDescriptor, NzkAddressRef } from './index.cjs';
-import type { C3Manifest, C3Form, C3Coin, C4Form } from './browser.cjs';
+import type { C4Manifest, C4Coin, C4Form } from './browser.cjs';
 
 /** Same shape as @neuraiproject/neurai-rpc getRPC(...). */
 export type PoolRpc = (method: string, params: unknown[]) => Promise<any>;
@@ -17,12 +17,12 @@ export declare const MIN_SPONSOR_CHANGE_ATOMIC: bigint;
 export declare const POOL_READ_RPC_METHODS: readonly string[];
 export declare function isPoolReadRpc(method: string): boolean;
 export interface WalletUtxo { txid: string; outputIndex: number; script: string; satoshis: number | string; assetName: string; address?: string }
-export interface PoolCoin extends C3Coin { address?: string; [key: string]: unknown }
+export interface PoolCoin extends C4Coin { address?: string; [key: string]: unknown }
 export declare function assertPoolChain(rpc: PoolRpc, manifest: { genesis: string }): Promise<void>;
-export declare function confirmedPoolCoins(rpc: PoolRpc, utxos: WalletUtxo[], options: { baseCurrency: string; profile?: 'C3' | 'C4' }): Promise<PoolCoin[]>;
-export declare function selectPoolCoins(coins: PoolCoin[], options: { action: PoolAction; amountAtomic: bigint | string; feeAtomic: bigint | string; profile?: 'C3' | 'C4' }): { funding?: PoolCoin; sponsor: PoolCoin };
-export declare function checkPoolCoin(rpc: PoolRpc, coin: PoolCoin, options?: {profile?: 'C3' | 'C4'}): Promise<void>;
-export declare function withdrawalScript(rpc: PoolRpc, address: string, options?: {profile?: 'C3' | 'C4'}): Promise<string>;
+export declare function confirmedPoolCoins(rpc: PoolRpc, utxos: WalletUtxo[], options: { baseCurrency: string }): Promise<PoolCoin[]>;
+export declare function selectPoolCoins(coins: PoolCoin[], options: { action: PoolAction; amountAtomic: bigint | string; feeAtomic: bigint | string }): { funding?: PoolCoin; sponsor: PoolCoin };
+export declare function checkPoolCoin(rpc: PoolRpc, coin: PoolCoin): Promise<void>;
+export declare function withdrawalScript(rpc: PoolRpc, address: string): Promise<string>;
 export declare function recheckInputs(rpc: PoolRpc, manifest: { genesis: string }, points: OutPoint[]): Promise<void>;
 export declare function admitTransaction(rpc: PoolRpc, raw: string): Promise<{ txid: string; decoded: any }>;
 export declare function inspectFundingTransaction(rpc: PoolRpc, raw: string): Promise<{ txid: string; feeAtomic: bigint; points: OutPoint[] }>;
@@ -38,18 +38,17 @@ export declare function rotationStorageKey(options: { network: string; walletId?
 export declare function loadRotation(storage: KeyValueStorage | null | undefined, key: string): RotationState | null;
 export declare function saveRotation(storage: KeyValueStorage | null | undefined, key: string, state: RotationState): boolean;
 
-export interface C3ArtifactList {
+/** Public proving artifacts of a deployment, pinned by size and SHA-256. */
+export interface C4ArtifactList {
   schema: string; id: string; warning: string; snarkjs: string;
-  forms: Record<C3Form, { input: string; public: string; vk: string; zkey: string; wasm: string }>;
+  forms: Record<C4Form, { wasm: string; zkey: string; vk: string }>;
   files: Record<string, { bytes: number; sha256: string }>;
 }
-export interface C4ArtifactList extends Omit<C3ArtifactList, 'forms'> {
-  forms: Record<C4Form, {input:string;public:string;vk:string;zkey:string;wasm:string}>;
-}
-export declare const C3_TESTNET_NETWORK: 'testnet';
-export declare const C3_TEST_DEPOSIT_LIMIT_ATOMIC: bigint;
-export declare const C3_TESTNET_MANIFEST: Readonly<C3Manifest & { genesis: string; address: string; commitment: string; reserveCommitment: string }>;
-export declare const C3_TESTNET_ARTIFACTS: Readonly<C3ArtifactList>;
+/** Bundled public C4 XNA TEST instance on the reset Neurai testnet. */
+export declare const C4_TESTNET_NETWORK: 'testnet';
+export declare const C4_TESTNET_COMMITMENT: string;
+export declare const C4_TESTNET_MANIFEST: Readonly<C4Manifest>;
+export declare const C4_TESTNET_ARTIFACTS: Readonly<C4ArtifactList>;
 
 /** Public receiving data of the open identity. */
 export interface ReceivingInfo {

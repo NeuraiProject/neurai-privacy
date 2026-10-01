@@ -13,7 +13,7 @@ Do not use them for funds of value.
 | Component | What the library checks | What it trusts |
 | --- | --- | --- |
 | Neurai node (RPC) | Genesis; that each pool transition is consistent with the pinned contract; that every block used is still in the active chain. | That the node validates consensus, including the proofs of past transactions, and does not hide confirmed transactions. A lying node can show a stale or incomplete view; transactions built on it then fail at publication. Run your own node or use one you trust. |
-| Manifest | Internal consistency: leaves, control blocks, verification keys, guard, domain and context. For C4, the commitment must equal `expectedCommitment`. | That the pinned contract actually implements safe custody. Pinning a manifest is the application's decision. |
+| Manifest | Internal consistency: leaves, control blocks, verification keys, guard, domain and context. The commitment must equal an independently pinned `expectedCommitment`; the bundled TEST deployment carries its own. | That the pinned contract actually implements safe custody. Pinning a manifest is the application's decision. |
 | Proving artifacts | Size and SHA-256 of every file before use. | Nothing else: a wrong artifact is rejected. The server can still refuse to serve them. |
 | snarkjs | Every proof is verified locally against the pinned key before it is used. | The injected module (0.7.6) runs inside the worker and sees the private witness. |
 | Application code | Nothing. | The worker separates secrets from page code to avoid accidental leaks. It cannot protect against malicious code in the same application, such as a compromised dependency or a script injection. |

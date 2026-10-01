@@ -4,14 +4,14 @@
  */
 import { rpcAmountToSatoshis } from './amounts.js';
 
-const strictScript = /^(?:52|53)20[0-9a-f]{64}$/;
-function accepts(script, profile) {
-  if (profile !== 'C3' && profile !== 'C4') throw new Error('Unknown pool profile');
-  return LEGACY_P2PKH.test(script) || (profile === 'C4' && strictScript.test(script));
-}
 export const LEGACY_P2PKH = /^76a914[0-9a-f]{40}88ac$/;
-/** Minimum change left in the fee coin, so its change output is not dust. */
+/** Strict PQ (OP_2) and strict ECDSA (OP_3) witness outputs. */
+const STRICT_SCRIPT = /^(?:52|53)20[0-9a-f]{64}$/;
+const accepts = script => LEGACY_P2PKH.test(script) || STRICT_SCRIPT.test(script);
+/** Minimum change left in a Legacy fee coin, so its change output is not dust. */
 export const MIN_SPONSOR_CHANGE_ATOMIC = 546n;
+/** Dust threshold of the sponsor change at the default relay fee, as c4DustAtomic computes it. */
+const minimumChange = script => script.startsWith('5220') ? 3060n : script.startsWith('5320') ? 336n : MIN_SPONSOR_CHANGE_ATOMIC;
 /** Read-only methods the pool worker may ask the main thread to forward. */
 export const POOL_READ_RPC_METHODS = Object.freeze(['getblockhash', 'getbestblockhash', 'getblockcount', 'getblock',
   'getrawtransaction', 'gettxout', 'getspentinfo']);
@@ -29,13 +29,13 @@ export async function assertPoolChain(rpc, manifest) {
 }
 
 /**
- * Confirmed Legacy P2PKH coins of the base currency, in the shape the pool
+ * Confirmed Legacy, PQ or ECDSA coins of the base currency, in the shape the pool
  * worker expects. `utxos` are wallet rows {txid, outputIndex, script, satoshis, assetName, address}.
  */
-export async function confirmedPoolCoins(rpc, utxos, { baseCurrency, profile = 'C3' }) {
+export async function confirmedPoolCoins(rpc, utxos, { baseCurrency }) {
   const coins = [];
   for (const row of utxos) {
-    if (!accepts(row.script, profile) || row.assetName !== baseCurrency) continue;
+    if (!accepts(row.script) || row.assetName !== baseCurrency) continue;
     const live = await rpc('gettxout', [row.txid, row.outputIndex, true]);
     if (!live || live.confirmations < 1) continue;
     const coin = { ...row, vout: row.outputIndex, valueSats: String(row.satoshis), scriptHex: row.script };
@@ -45,35 +45,34 @@ export async function confirmedPoolCoins(rpc, utxos, { baseCurrency, profile = '
 }
 
 /** Pick the exact-value deposit coin (deposits only) and a separate coin that pays the public fee. */
-export function selectPoolCoins(coins, { action, amountAtomic, feeAtomic, profile = 'C3' }) {
+export function selectPoolCoins(coins, { action, amountAtomic, feeAtomic }) {
   const fee = BigInt(feeAtomic);
   if (fee < 0n) throw new Error('Fee must not be negative');
-  coins = coins.filter(c => accepts(c.scriptHex, profile));
+  coins = coins.filter(c => accepts(c.scriptHex));
   let funding;
   if (action === 'deposit') {
     const wanted = String(BigInt(amountAtomic));
     funding = coins.find(c => c.valueSats === wanted);
     if (!funding) throw new Error('No confirmed coin matches this deposit. Prepare an exact deposit coin, wait for its confirmation and retry.');
   }
-  const sponsor = coins.find(c => c !== funding && BigInt(c.valueSats) >= fee + (profile === 'C4' ? (c.scriptHex.startsWith('5220') ? 3060n : c.scriptHex.startsWith('5320') ? 336n : 546n) : MIN_SPONSOR_CHANGE_ATOMIC));
+  const sponsor = coins.find(c => c !== funding && BigInt(c.valueSats) >= fee + minimumChange(c.scriptHex));
   if (!sponsor) throw new Error('A separate confirmed supported XNA coin is needed for the fee');
   return { funding, sponsor };
 }
 
-/** Recheck a funding or fee coin against the node: unspent, confirmed, Legacy and exact value. */
-export async function checkPoolCoin(rpc, coin, { profile = 'C3' } = {}) {
+/** Recheck a funding or fee coin against the node: unspent, confirmed, supported script and exact value. */
+export async function checkPoolCoin(rpc, coin) {
   const live = await rpc('gettxout', [coin.txid, coin.vout, true]);
-  if (!live || live.confirmations < 1 || live.scriptPubKey?.hex !== coin.scriptHex || !accepts(coin.scriptHex, profile)) {
+  if (!live || live.confirmations < 1 || live.scriptPubKey?.hex !== coin.scriptHex || !accepts(coin.scriptHex)) {
     throw new Error('Funding coin is spent, unconfirmed or unsupported');
   }
   if (rpcAmountToSatoshis(live.value).toString() !== String(coin.valueSats)) throw new Error('Funding value mismatch');
 }
 
-/** Output script of a Legacy withdrawal address, validated by the node. */
-export async function withdrawalScript(rpc, address, { profile = 'C3' } = {}) {
+/** Output script of a Legacy, PQ or ECDSA withdrawal address, validated by the node. */
+export async function withdrawalScript(rpc, address) {
   const result = await rpc('validateaddress', [String(address ?? '').trim()]);
-  if (!result?.isvalid || !accepts(result.scriptPubKey ?? '', profile)) throw new Error(profile === 'C3' ? 'Withdrawals from this pool require a Legacy address'
-    : 'Withdrawals from this pool require a Legacy, PQ or ECDSA address');
+  if (!result?.isvalid || !accepts(result.scriptPubKey ?? '')) throw new Error('Withdrawals from this pool require a Legacy, PQ or ECDSA address');
   return result.scriptPubKey;
 }
 

@@ -34,9 +34,11 @@ chain:
 - every verification key must hash to its `vkHash`, and the leaf script must
   contain that hash;
 - the guard script must hash to the reserve commitment;
-- for C4, the domain is recomputed from the genesis and the issuance
-  outpoint, the context is recomputed, and the commitment must equal a value
-  the application pinned independently (`expectedCommitment`).
+- the domain is recomputed from the genesis and the issuance outpoint, and
+  the context is recomputed;
+- the commitment must equal a value pinned independently of the manifest
+  (`expectedCommitment`). The bundled TEST deployment carries its own pin;
+  an application that supplies another manifest must pin its commitment.
 
 These checks prove that the manifest is internally consistent. They do not
 prove that the scripts implement safe custody. Trusting a manifest is a
@@ -105,9 +107,10 @@ that `nf` is new.
 ## Encrypted note records
 
 The sender encrypts each new note to the recipient's viewing key with HPKE
-(RFC 9180: X25519, HKDF-SHA256, ChaCha20-Poly1305) and publishes the
-1024-byte record together with its commitment. The associated data binds
-the record to the domain and to `cm`.
+(RFC 9180: X25519, HKDF-SHA256, ChaCha20-Poly1305) and publishes the record
+together with its commitment. A record is 1024 bytes, but only its first 220
+are meaningful; the publication stores those and the rest is zero. The
+associated data binds the record to the domain and to `cm`.
 
 The recipient finds its notes by trial decryption. It tries every published
 record with its viewing keys and keeps the ones that decrypt to a note whose
@@ -126,7 +129,7 @@ verification key and contract leaf.
 | `D1` | Deposit into a pool that holds notes | 0 | 1 | grows by the amount |
 | `T1` | Assign a whole note to one recipient | 1 | 1 | unchanged |
 | `T2` | Assign a note to two notes (recipient and change, or two recipients) | 1 | 2 | unchanged |
-| `T3`, `T4` | C4 only: assign a note to three or four notes | 1 | 3 or 4 | unchanged |
+| `T3`, `T4` | Assign a note to three or four notes | 1 | 3 or 4 | unchanged |
 | `W_partial` | Withdraw one whole note while other notes remain | 1 | 0 | shrinks by the note amount |
 | `W_full` | Withdraw the last note, emptying the pool | 1 | 0 | → 0, no reserve output |
 
@@ -175,7 +178,8 @@ public input, so nobody can swap the records after proving.
 
 A proof must not be reusable in another transaction. The library computes the
 NIP-042 TXHASH of the transaction with mask `0x011f`, which covers version,
-locktime, prevouts, sequences and outputs. Its Poseidon hash is the
+locktime, prevouts, sequences, outputs and the (empty) list of reference
+inputs. Its Poseidon hash is the
 **anchor**, a public input of every proof. The leaf script recomputes the
 same value through transaction introspection.
 
@@ -197,27 +201,26 @@ transaction can confirm on a given state:
 - A reorganization can undo confirmed pool transactions. The scanner detects
   it and rebuilds; see [chain scanning](chain-scanning.md#reorganizations).
 
-## Profiles: C3 and C4
+## The C4 profile
 
-The library supports two XNA TEST contract profiles. The worker selects one
-from the manifest's `schema`.
+The library implements the C4 XNA TEST contract profile. Earlier TEST
+profiles are no longer supported.
 
-| | C3 | C4 |
-| --- | --- | --- |
-| Manifest schema | `neurai-c3-xna-test-v1` | `neurai-c4-xna-test-v1` |
-| Forms | `D0 D1 T1 T2 W_partial W_full` | adds `T3 T4` |
-| Notes per assignment | up to 2 | up to 4, change included |
-| Domain | Fixed synthetic bytes | SHA-256 of genesis, issuance outpoint and pool identity |
-| Context public input | none | `ctx`, a Poseidon hash of domain, asset ID, unit and registry root |
-| Publication | version 1, full 1024-byte records | version 2, compact 220-byte records |
-| Funding, fee and withdrawal scripts | Legacy P2PKH | Legacy P2PKH, strict PQ (`OP_2`) and strict ECDSA (`OP_3`) |
-| Dust rule | sponsor change of at least 546 satoshis | per script type, from the dust relay fee |
-| Pinning | bundled manifest, structural checks | application must pass `expectedCommitment` |
-| In the package | `C3_TESTNET_MANIFEST`, `C3_TESTNET_ARTIFACTS` | supplied by the application |
+| Property | C4 |
+| --- | --- |
+| Manifest schema | `neurai-c4-xna-test-v1` |
+| Forms | `D0 D1 T1 T2 T3 T4 W_partial W_full` |
+| Notes per assignment | 1 to 4, change included |
+| Domain | SHA-256 of the genesis, the issuance outpoint of the UNIQUE asset and the pool identity |
+| Context public input | `ctx`, a Poseidon hash of domain, asset ID, unit and registry root |
+| Publication | Version 2, records stored in their compact 220-byte form |
+| Funding, fee and withdrawal scripts | Legacy P2PKH, strict PQ (`OP_2`) and strict ECDSA (`OP_3`) |
+| Dust rule | Per script type, from the dust relay fee |
+| Pinning | The manifest must match an independently pinned commitment |
+| In the package | `C4_TESTNET_MANIFEST`, `C4_TESTNET_ARTIFACTS`, `C4_TESTNET_COMMITMENT` |
 
 C4 is single-asset: unit 1 and an all-zero registry root. Shared
-multi-asset reserves and per-asset permissions are not part of these
-profiles.
+multi-asset reserves and per-asset permissions are not part of this profile.
 
 ## Related reading
 

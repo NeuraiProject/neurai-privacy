@@ -55,7 +55,7 @@ dependency because snarkjs is GPL-3.0 licensed.
 
 | Import | Load it in | Contents |
 | --- | --- | --- |
-| `@neuraiproject/neurai-privacy/client` | The page | Exact amounts, pool RPC checks, coin selection, publication, address rotation storage, the pinned pool manifest and `PoolWorkerClient`. No cryptography and no secrets. |
+| `@neuraiproject/neurai-privacy/client` | The page | Exact amounts, pool RPC checks, coin selection, publication, address rotation storage, the bundled C4 TEST deployment and `PoolWorkerClient`. No cryptography and no secrets. |
 | `@neuraiproject/neurai-privacy/worker` | A dedicated Web Worker | `startPoolWorker` and the operations it runs: planning, parameter loading, proving and transaction building. |
 | `@neuraiproject/neurai-privacy/browser` | Browser or worker | Everything above plus identities, addresses, the scanner, the transaction builder and the building blocks. |
 | `@neuraiproject/neurai-privacy` | Node | The browser entry plus the Node backend described below. Bundlers resolve it to the browser entry. |
@@ -77,8 +77,15 @@ The worker file holds the private wallet:
 import * as snarkjs from 'snarkjs';
 import { startPoolWorker } from '@neuraiproject/neurai-privacy/worker';
 
-startPoolWorker({ scope: self, snarkjs, artifactBaseUrl: new URL('/privacy-c3/', self.location.origin).href });
+startPoolWorker({ scope: self, snarkjs, artifactBaseUrl: new URL('/privacy-c4/', self.location.origin).href });
 ```
+
+Without other options the worker uses the bundled C4 XNA TEST pool:
+`C4_TESTNET_MANIFEST`, `C4_TESTNET_ARTIFACTS` and the contract commitment
+`C4_TESTNET_COMMITMENT`. To use another deployment, pass its `manifest`,
+`artifacts` and an independently pinned `expectedCommitment`; the worker
+refuses a manifest whose commitment differs. Keep a deployment in a file that
+ships with the application, never in data received from RPC.
 
 The page talks to it through `PoolWorkerClient`. The client answers the
 worker's RPC requests only for the read-only methods in
@@ -87,7 +94,7 @@ worker's RPC requests only for the read-only methods in
 ```js
 import { getRPC } from '@neuraiproject/neurai-rpc';
 import {
-  PoolWorkerClient, C3_TESTNET_MANIFEST as manifest, assertPoolChain, confirmedPoolCoins, selectPoolCoins,
+  PoolWorkerClient, C4_TESTNET_MANIFEST as manifest, assertPoolChain, confirmedPoolCoins, selectPoolCoins,
   recheckInputs, admitTransaction, publishTransaction, publicationStatus, rotationStorageKey,
 } from '@neuraiproject/neurai-privacy/client';
 
@@ -118,6 +125,10 @@ await recheckInputs(rpc, manifest, prepared.inputPoints);
 const { txid } = await admitTransaction(rpc, signedRaw); // testmempoolaccept, nothing is sent
 await publishTransaction(rpc, manifest, { raw: signedRaw, txid, points: prepared.inputPoints });
 ```
+
+To pay several people from one note, replace `recipient` with
+`recipients: [{ recipient, amountAtomic }, …]`. A note can be split into up
+to four notes, change included.
 
 ### Resume a scan after restarting the app
 
@@ -160,13 +171,15 @@ itself. The protocol is described at the top of `src/pool-worker.js`.
 
 The application provides these parts:
 
-- **Proving parameters.** Serve the 30 files listed in `C3_TESTNET_ARTIFACTS`,
-  about 335 MiB, under `artifactBaseUrl`. The worker checks each size and
+- **Proving parameters.** Serve the 24 files listed in `C4_TESTNET_ARTIFACTS`,
+  about 691 MiB, under `artifactBaseUrl`. The worker checks each size and
   SHA-256 before use.
 - **A node with indexes.** The scanner follows the pool state with
   `getspentinfo`, so the node needs `-spentindex` and `-txindex`.
 - **Transparent signing.** The worker returns funding inputs unsigned and
-  never sees transparent keys. Funding coins must be confirmed P2PKH outputs.
+  never sees transparent keys. Funding and fee coins must be confirmed Legacy
+  P2PKH, strict PQ (`OP_2`) or strict ECDSA (`OP_3`) outputs, and withdrawals
+  can pay to any of those address types.
   `@neuraiproject/neurai-sign-transaction` can sign them.
 - **Deposit coins.** A deposit spends one confirmed coin of exactly the
   deposited amount and a separate coin for the fee. `inspectFundingTransaction`
@@ -224,13 +237,14 @@ The test vectors are in `test/fixtures/nzk-vectors.json`.
 
 ## Networks
 
-The package includes the pool manifest and the proving parameter list for
-Neurai testnet, `C3_TESTNET_MANIFEST` and `C3_TESTNET_ARTIFACTS`. The worker
-uses them by default. Their verification keys come from a public setup, so
-they are meant for testnet only. Another network needs its own manifest and
-parameters, passed to `startPoolWorker`. The pool contract accepts deposits up
-to the XNA money range; `startPoolWorker({ depositLimitAtomic })` sets a lower
-limit for an application.
+The package includes the public C4 XNA TEST pool on Neurai testnet,
+`C4TESTX260930A#POOL`: its manifest, its proving parameter list and its
+pinned contract commitment. The worker uses them by default. Their
+verification keys come from a public setup, so they are meant for testnet
+only. Another network or pool needs its own manifest, parameters and pinned
+commitment, passed to `startPoolWorker`. The pool contract accepts deposits
+up to the XNA money range; `startPoolWorker({ depositLimitAtomic })` sets a
+lower limit for an application.
 
 ## What stays public
 

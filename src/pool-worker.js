@@ -17,23 +17,31 @@ import { BrowserTestIdentity } from './browser-wallet.js';
 import { ZkWalletIdentity } from './zk-wallet.js';
 import { scanBrowserPool } from './browser-chain.js';
 import { checkPoolCoin } from './pool-client.js';
-import { C3_TESTNET_MANIFEST, C3_TESTNET_ARTIFACTS, C3_TESTNET_NETWORK } from './c3-testnet.js';
-import { summarizeScan, describeReceiving, buildC3Transaction, buildC4Transaction, loadVerifiedArtifact, MAX_ARTIFACT_BYTES } from './pool-operations.js';
+import { C4_TESTNET_MANIFEST, C4_TESTNET_ARTIFACTS, C4_TESTNET_COMMITMENT, C4_TESTNET_NETWORK } from './c4-testnet.js';
+import { summarizeScan, describeReceiving, buildC4Transaction, loadVerifiedArtifact, MAX_ARTIFACT_BYTES } from './pool-operations.js';
 
-export function startPoolWorker({ scope = globalThis, snarkjs, artifactBaseUrl, fetchArtifact, manifest = C3_TESTNET_MANIFEST,
-  artifacts = C3_TESTNET_ARTIFACTS, network = C3_TESTNET_NETWORK, singleThread = true,
+/**
+ * Without `manifest`, the worker uses the bundled C4 TEST instance and its
+ * pinned commitment. An application-supplied manifest needs its own
+ * independently pinned `expectedCommitment`.
+ */
+export function startPoolWorker({ scope = globalThis, snarkjs, artifactBaseUrl, fetchArtifact, manifest,
+  artifacts = C4_TESTNET_ARTIFACTS, network = C4_TESTNET_NETWORK, singleThread = true,
   missingArtifactMessage, depositLimitAtomic, expectedGenesis, expectedCommitment, maxArtifactBytes = MAX_ARTIFACT_BYTES } = {}) {
   if (!fetchArtifact && !artifactBaseUrl) throw new Error('startPoolWorker needs artifactBaseUrl or fetchArtifact');
   if (depositLimitAtomic !== undefined && (typeof depositLimitAtomic !== 'bigint' || depositLimitAtomic <= 0n)) {
     throw new Error('depositLimitAtomic must be a positive bigint');
   }
-  const c4 = manifest?.schema === 'neurai-c4-xna-test-v1';
-  if (c4) validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  if (manifest === undefined) {
+    manifest = C4_TESTNET_MANIFEST;
+    expectedCommitment ??= C4_TESTNET_COMMITMENT;
+  }
+  validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
   if (!Number.isSafeInteger(maxArtifactBytes) || maxArtifactBytes <= 0 || maxArtifactBytes > 256 * 1048576) {
     throw new Error('Artifact limit must be a positive integer of at most 256 MiB');
   }
-  const missing = missingArtifactMessage ?? (artifactBaseUrl ? 'C3 TEST parameters are not available at ' + artifactBaseUrl
-    : 'C3 TEST parameters are not available');
+  const missing = missingArtifactMessage ?? (artifactBaseUrl ? 'Pool proving parameters are not available at ' + artifactBaseUrl
+    : 'Pool proving parameters are not available');
   const pool = { network, domain: manifest.domain, assetId: manifest.assetId };
   const fetcher = fetchArtifact ?? (path => fetch(new URL(path, artifactBaseUrl)));
   let identity = null;
@@ -76,8 +84,8 @@ export function startPoolWorker({ scope = globalThis, snarkjs, artifactBaseUrl, 
     if (!identity) throw new Error('Unlock the private wallet first');
     if (!snarkjs) throw new Error('This worker was started without snarkjs, so it cannot prove');
     await refresh();
-    for (const coin of [data.sponsor, data.funding].filter(Boolean)) await checkPoolCoin(rpc, coin, { profile: c4 ? 'C4' : 'C3' });
-    const result = await (c4 ? buildC4Transaction : buildC3Transaction)({ identity, scan, manifest, artifacts, loadArtifact, snarkjs, pool,
+    for (const coin of [data.sponsor, data.funding].filter(Boolean)) await checkPoolCoin(rpc, coin);
+    const result = await buildC4Transaction({ identity, scan, manifest, artifacts, loadArtifact, snarkjs, pool,
       request: data, depositLimitAtomic, expectedGenesis, expectedCommitment, onStage: stage });
     post({ type: 'prepared', result });
   }

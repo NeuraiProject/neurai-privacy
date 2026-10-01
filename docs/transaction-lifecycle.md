@@ -18,25 +18,25 @@ and the transaction layout used below.
 Every pool transaction spends a **sponsor coin** that pays the miner fee and
 receives the change. A deposit also spends a **funding coin** whose value is
 exactly the deposited amount. Both must be confirmed coins of the base
-currency (XNA) with a script the profile accepts:
+currency (XNA) with one of these scripts:
 
-| Script | C3 | C4 | Minimum sponsor change |
-| --- | --- | --- | --- |
-| Legacy P2PKH (`76a914…88ac`) | yes | yes | 546 satoshis |
-| Strict PQ, `OP_2 <32 bytes>` | no | yes | 3060 satoshis |
-| Strict ECDSA, `OP_3 <32 bytes>` | no | yes | 336 satoshis |
+| Script | Minimum sponsor change |
+| --- | --- |
+| Legacy P2PKH (`76a914…88ac`) | 546 satoshis |
+| Strict PQ, `OP_2 <32 bytes>` | 3060 satoshis |
+| Strict ECDSA, `OP_3 <32 bytes>` | 336 satoshis |
 
-In C4 the minimum is the dust threshold for the script, computed by
+The minimum is the dust threshold for the script, computed by
 `c4DustAtomic(script, feePerKb)` with the default dust relay fee of 3000
 satoshis per kB. The same rule applies to the new reserve output and to a
 withdrawal payment.
 
 Helpers in the `client` entry:
 
-- `confirmedPoolCoins(rpc, utxos, { baseCurrency, profile })` keeps the
+- `confirmedPoolCoins(rpc, utxos, { baseCurrency })` keeps the
   wallet rows with an accepted script and asks the node (`gettxout`) that
   each one is unspent and confirmed.
-- `selectPoolCoins(coins, { action, amountAtomic, feeAtomic, profile })`
+- `selectPoolCoins(coins, { action, amountAtomic, feeAtomic })`
   returns `funding` (deposits only: the first coin of exactly the amount) and
   `sponsor` (the first other coin that covers the fee plus the minimum
   change). An application may choose its own coins instead.
@@ -55,10 +55,9 @@ confirmation, then prepare the deposit.
 
 ### Withdrawal destination
 
-`withdrawalScript(rpc, address, { profile })` asks the node to validate the
-address and returns its output script, which becomes the `payout` field.
-C3 accepts Legacy addresses only. C4 also accepts strict PQ and ECDSA
-addresses.
+`withdrawalScript(rpc, address)` asks the node to validate the address and
+returns its output script, which becomes the `payout` field. Legacy, strict
+PQ and strict ECDSA addresses are accepted.
 
 ## 2. Request the transaction from the worker
 
@@ -71,12 +70,12 @@ await pool.prepare({ action: 'deposit', amountAtomic: '500000000', feeAtomic: '1
 await pool.prepare({ action: 'transfer', amountAtomic: '200000000', feeAtomic: '10000000', sponsor,
   note: note.cm, recipient: 'tnzk1…' });
 
-// C4: assign one note to several recipients (T2–T4, change included).
+// Assign one note to several recipients (T2–T4, change included).
 await pool.prepare({ action: 'transfer', amountAtomic: '700000000', feeAtomic: '10000000', sponsor, note: note.cm,
   recipients: [{ recipient: 'tnzk1…bob', amountAtomic: '400000000' }, { recipient: 'tnzk1…carol', amountAtomic: '300000000' }] });
 
 // Withdraw a whole note to a transparent address.
-const payout = await withdrawalScript(rpc, 'tXYZ…', { profile: 'C3' });
+const payout = await withdrawalScript(rpc, 'tXYZ…');
 await pool.prepare({ action: 'withdraw', amountAtomic: note.amountAtomic, feeAtomic: '10000000', sponsor, note: note.cm, payout });
 ```
 
@@ -131,8 +130,9 @@ The reply contains public data only:
 | `stateOutpoint` | The state output this transaction spends. |
 | `inputPoints` | All outpoints spent, for the publication checks. |
 
-The C3 TEST artifacts total about 335 MiB (30 files). The largest single
-file is the `T2` proving key, about 111 MiB. Whether a later operation
+The bundled C4 TEST artifacts total about 691 MiB (24 files). The largest
+single file is the `T4` proving key, about 192 MiB, which is why
+`maxArtifactBytes` defaults to 256 MiB. Whether a later operation
 downloads them again depends on the HTTP cache headers of the server that
 hosts them. Proving time and memory depend on the device and the form;
 assignments with more notes take longer.
@@ -197,8 +197,8 @@ confirmed state.
 | `A separate confirmed supported XNA coin is needed for the fee` | No suitable sponsor coin. | Add a confirmed coin of an accepted script type. |
 | `Funding coin is spent, unconfirmed or unsupported` | A coin changed after it was selected. | Select coins again. |
 | `Fee must be at most 1 XNA and leave non-dust sponsor change` | Fee too high or sponsor too small. | Lower the fee or use a larger sponsor. |
-| `… would be dust under the selected policy` (C4) | Reserve or withdrawal below the dust threshold. | Use larger amounts. |
-| `C3 artifact integrity mismatch`, `Artifact exceeds pinned size` | A downloaded artifact differs from the pinned one. | Fix the artifact server. Never skip the check. |
+| `… would be dust under the selected policy` | Reserve or withdrawal below the dust threshold. | Use larger amounts. |
+| `Pool artifact integrity mismatch`, `Artifact exceeds pinned size` | A downloaded artifact differs from the pinned one. | Fix the artifact server. Never skip the check. |
 | `Local proof verification failed` | The proof does not verify. | Report it; do not publish. |
 | `An input was spent while preparing…` | Another pool transaction or a coin spend got there first. | Scan and prepare again. |
 | Error with `uncertain: true` | Unknown publication outcome. | Use `publicationStatus` before doing anything else. |

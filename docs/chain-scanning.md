@@ -14,17 +14,16 @@ confirmed transition is consistent with the pinned contract.
 
 | Strategy | Node flags | Cost |
 | --- | --- | --- |
-| `spent-index` (default for pinned manifests) | `-spentindex -txindex` | A few RPC calls per pool operation, independent of chain length. |
-| `blocks` | `-txindex` | One `getblock` per block since the pool birth. Only needed for unpinned manifests. |
+| `spent-index` (default) | `-spentindex -txindex` | A few RPC calls per pool operation, independent of chain length. |
+| `blocks` | `-txindex` | One `getblock` per block since the pool birth. For nodes without a spent index. |
 
 Methods used: `getblockhash`, `getbestblockhash`, `getblockcount`, `getblock`
 (blocks strategy only), `getrawtransaction`, `gettxout` and `getspentinfo`.
 
 ## Before reading the pool
 
-1. Validate the manifest (C3, or C4 with `expectedCommitment` and
-   `expectedGenesis`) and check that it lists one distinct verification key
-   per form.
+1. Validate the manifest against `expectedCommitment` and `expectedGenesis`
+   and check that it lists one distinct verification key per form.
 2. Check that the node's block 0 is the manifest's genesis.
 3. If an identity is given, check that its descriptor belongs to the
    manifest's domain and asset ID.
@@ -69,8 +68,8 @@ For each pool transaction, the scanner:
 
 - requires a MAST spend of the state (witness item 0 is `0x10`);
 - identifies the form from the SHA-256 of the verification key in the
-  witness, and for pinned manifests requires the exact leaf script, control
-  block and key of that form;
+  witness, and requires the exact leaf script, control block and key of
+  that form;
 - checks that the form fits the reserve (`D0` only on an empty pool) and that
   input 1 is the current reserve output;
 - decodes the publication (deposits and assignments) or the nullifier

@@ -36,7 +36,7 @@ for (const file of browserFiles) {
 }
 
 // Shared code is emitted once: the pinned pool manifest lives in one file.
-assert.equal(browserFiles.filter(file => sources.get(file).includes('"C3-complete-custody-TEST-')).length, 1);
+assert.equal(browserFiles.filter(file => sources.get(file).includes('"C4-browser-TEST"')).length, 1);
 
 // The page entry loads no cryptography: follow its static imports.
 function closure(file, seen = new Set()) {

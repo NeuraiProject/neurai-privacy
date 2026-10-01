@@ -1,25 +1,21 @@
 import {
   MAX_ARTIFACT_BYTES,
-  buildC3Transaction,
   buildC4Transaction,
   describeReceiving,
   loadVerifiedArtifact,
-  planC3Operation,
   planC4Operation,
-  proveC3,
+  proveC4,
   startPoolWorker,
   summarizeScan
-} from "./chunks/chunk-AHYUVOYP.js";
-import "./chunks/chunk-J5ZWOXUV.js";
+} from "./chunks/chunk-HPK5I7TY.js";
+import "./chunks/chunk-ZTELRD6L.js";
 export {
   MAX_ARTIFACT_BYTES,
-  buildC3Transaction,
   buildC4Transaction,
   describeReceiving,
   loadVerifiedArtifact,
-  planC3Operation,
   planC4Operation,
-  proveC3,
+  proveC4,
   startPoolWorker,
   summarizeScan
 };

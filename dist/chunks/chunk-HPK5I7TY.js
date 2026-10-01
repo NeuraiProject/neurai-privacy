@@ -1,11 +1,12 @@
 import {
-  C3_TESTNET_ARTIFACTS,
-  C3_TESTNET_MANIFEST,
-  C3_TESTNET_NETWORK,
-  C3_TEST_DEPOSIT_LIMIT_ATOMIC,
+  C4_TESTNET_ARTIFACTS,
+  C4_TESTNET_COMMITMENT,
+  C4_TESTNET_MANIFEST,
+  C4_TESTNET_NETWORK,
+  MAX_ATOMIC,
   checkPoolCoin,
   formatXna
-} from "./chunk-J5ZWOXUV.js";
+} from "./chunk-ZTELRD6L.js";
 
 // src/poseidon-constants.js
 var POSEIDON_RC = [
@@ -455,11 +456,11 @@ function bytesToHex(bytes4) {
   abytes(bytes4);
   if (hasHexBuiltin)
     return bytes4.toHex();
-  let hex8 = "";
+  let hex7 = "";
   for (let i = 0; i < bytes4.length; i++) {
-    hex8 += hexes[bytes4[i]];
+    hex7 += hexes[bytes4[i]];
   }
-  return hex8;
+  return hex7;
 }
 var asciis = { _0: 48, _9: 57, A: 65, F: 70, a: 97, f: 102 };
 function asciiToBase16(ch) {
@@ -471,28 +472,28 @@ function asciiToBase16(ch) {
     return ch - (asciis.a - 10);
   return;
 }
-function hexToBytes(hex8) {
-  if (typeof hex8 !== "string")
-    throw new TypeError("hex string expected, got " + typeof hex8);
+function hexToBytes(hex7) {
+  if (typeof hex7 !== "string")
+    throw new TypeError("hex string expected, got " + typeof hex7);
   if (hasHexBuiltin) {
     try {
-      return Uint8Array.fromHex(hex8);
+      return Uint8Array.fromHex(hex7);
     } catch (error) {
       if (error instanceof SyntaxError)
         throw new RangeError(error.message);
       throw error;
     }
   }
-  const hl = hex8.length;
+  const hl = hex7.length;
   const al = hl / 2;
   if (hl % 2)
     throw new RangeError("hex string expected, got unpadded hex of length " + hl);
   const array = new Uint8Array(al);
   for (let ai = 0, hi = 0; ai < al; ai++, hi += 2) {
-    const n1 = asciiToBase16(hex8.charCodeAt(hi));
-    const n2 = asciiToBase16(hex8.charCodeAt(hi + 1));
+    const n1 = asciiToBase16(hex7.charCodeAt(hi));
+    const n2 = asciiToBase16(hex7.charCodeAt(hi + 1));
     if (n1 === void 0 || n2 === void 0) {
-      const char = hex8[hi] + hex8[hi + 1];
+      const char = hex7[hi] + hex7[hi + 1];
       throw new RangeError('hex string expected, got non-hex character "' + char + '" at index ' + hi);
     }
     array[ai] = n1 * 16 + n2;
@@ -703,17 +704,17 @@ var SHA512_IV = /* @__PURE__ */ Uint32Array.from([
 // node_modules/@noble/hashes/_u64.js
 var U32_MASK64 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
 var _32n = /* @__PURE__ */ BigInt(32);
-function fromBig(n, le3 = false) {
-  if (le3)
+function fromBig(n, le2 = false) {
+  if (le2)
     return { h: Number(n & U32_MASK64), l: Number(n >> _32n & U32_MASK64) };
   return { h: Number(n >> _32n & U32_MASK64) | 0, l: Number(n & U32_MASK64) | 0 };
 }
-function split(lst, le3 = false) {
+function split(lst, le2 = false) {
   const len = lst.length;
   let Ah = new Uint32Array(len);
   let Al = new Uint32Array(len);
   for (let i = 0; i < len; i++) {
-    const { h, l } = fromBig(lst[i], le3);
+    const { h, l } = fromBig(lst[i], le2);
     [Ah[i], Al[i]] = [h, l];
   }
   return [Ah, Al];
@@ -1365,11 +1366,11 @@ function poolTxAnchor(fields) {
 
 // src/pool-transaction.js
 var MAX_MONEY = 2100000000000000000n;
-function bytes3(hex8, name) {
-  if (typeof hex8 !== "string" || hex8.length % 2 || !/^[0-9a-f]*$/i.test(hex8)) {
+function bytes3(hex7, name) {
+  if (typeof hex7 !== "string" || hex7.length % 2 || !/^[0-9a-f]*$/i.test(hex7)) {
     throw new TypeError(`${name} must be even-length hex`);
   }
-  return Uint8Array.from(hex8.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
+  return Uint8Array.from(hex7.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
 }
 function concat4(...parts) {
   const result = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
@@ -1731,259 +1732,6 @@ function finishC4(prepared, proof, publicSignals) {
   const witnesses = [own, ...form === "D0" ? [] : [[unhex("00"), unhex(m.guard)]], ...form[0] === "D" ? [[]] : [], []];
   demand2(witnesses.length === inputs.length, "Witness count mismatch");
   return hex(cat(le(3, 4), unhex("0001"), compact(inputs.length), ...inputs.map((x) => cat(unhex(x.txid).reverse(), le(x.vout, 4), le(0, 1), unhex("ffffffff"))), compact(outputs.length), template.outputs, le(0, 1), ...witnesses.map((w) => cat(compact(w.length), ...w.map(variable))), le(0, 4)));
-}
-
-// src/c3.js
-var C3_FORMS = ["D0", "D1", "T1", "T2", "W_partial", "W_full"];
-var hex2 = (x) => Array.from(x, (b) => b.toString(16).padStart(2, "0")).join("");
-function unhex2(x) {
-  if (typeof x !== "string" || !/^(?:[0-9a-f]{2})*$/i.test(x)) throw new Error("Invalid hex");
-  return Uint8Array.from(x.match(/../g) ?? [], (b) => parseInt(b, 16));
-}
-function cat2(...xs) {
-  const r = new Uint8Array(xs.reduce((n, x) => n + x.length, 0));
-  let i = 0;
-  for (const x of xs) {
-    r.set(x, i);
-    i += x.length;
-  }
-  return r;
-}
-var utf83 = (x) => new TextEncoder().encode(x);
-var demand3 = (ok, why) => {
-  if (!ok) throw new Error(why);
-};
-function le2(x, size) {
-  let n = BigInt(x);
-  demand3(n >= 0n && n < 1n << BigInt(size * 8), "Integer overflow");
-  const b = new Uint8Array(size);
-  for (let i = 0; i < size; i++) {
-    b[i] = Number(n & 255n);
-    n >>= 8n;
-  }
-  return b;
-}
-function compact2(n) {
-  return n < 253 ? le2(n, 1) : n <= 65535 ? cat2(le2(253, 1), le2(n, 2)) : cat2(le2(254, 1), le2(n, 4));
-}
-var variable2 = (b) => cat2(compact2(b.length), b);
-function push2(b) {
-  return cat2(b.length < 76 ? le2(b.length, 1) : b.length <= 255 ? cat2(le2(76, 1), le2(b.length, 1)) : cat2(le2(77, 1), le2(b.length, 2)), b);
-}
-function tagged2(tag2, data) {
-  const t = sha256(utf83(tag2));
-  return sha256(cat2(t, t, data));
-}
-var p2pkh2 = (x) => /^76a914[0-9a-f]{40}88ac$/.test(x);
-var decimal2 = (x) => typeof x === "bigint" ? x.toString() : Array.isArray(x) ? x.map(decimal2) : x && typeof x === "object" ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, decimal2(v)])) : x;
-function validateC3Manifest(m) {
-  demand3(m?.schema === "neurai-c3-xna-test-v1" && m.genesis === RESET_TESTNET_GENESIS && m.profile === "xna", "Only reset-testnet C3 XNA is supported");
-  demand3(m.domain === hex2(Uint8Array.from({ length: 32 }, (_, i) => i)) && m.assetId === hex2(Uint8Array.from({ length: 32 }, (_, i) => i + 32)), "Unsupported circuit domain");
-  demand3(/^[A-Z0-9_]+#POOL$/.test(m.identity) && m.identity.length <= 30, "Invalid UNIQUE identity");
-  demand3(/^[0-9a-f]{64}$/.test(m.birth) && Number.isSafeInteger(m.birthHeight) && m.birthHeight > 0, "Pinned birth required");
-  demand3(/^[0-9a-f]{64}$/.test(m.commitment) && /^[0-9a-f]{64}$/.test(m.reserveCommitment), "Bad commitments");
-  demand3(C3_FORMS.every((f) => m.forms?.[f]) && Object.keys(m.forms).length === 6, "Six circuit forms required");
-  for (const f of C3_FORMS) {
-    const entry = m.forms[f], script = unhex2(entry.script), control = unhex2(entry.control), vk = unhex2(entry.vk);
-    demand3(script.length > 0 && script.length <= 1e4 && control[0] === 1 && (control.length - 1) % 32 === 0, "Invalid MAST leaf");
-    let root = tagged2("NeuraiAuthLeaf", cat2(le2(1, 1), variable2(script)));
-    for (let at = 1; at < control.length; at += 32) {
-      const b = control.slice(at, at + 32);
-      root = tagged2("NeuraiAuthBranch", hex2(root) < hex2(b) ? cat2(root, b) : cat2(b, root));
-    }
-    demand3(hex2(tagged2("NeuraiAuthScript", cat2(le2(4, 1), le2(0, 1), root))) === m.commitment, "MAST commitment mismatch");
-    demand3(hex2(sha256(vk)) === entry.vkHash && entry.script.includes(entry.vkHash), "VK commitment mismatch");
-  }
-  demand3(hex2(tagged2("NeuraiAuthScript", cat2(le2(1, 1), le2(0, 1), sha256(unhex2(m.guard))))) === m.reserveCommitment, "Reserve commitment mismatch");
-  return m;
-}
-function c3StateScript(m, digest) {
-  const payload = cat2(utf83("xnat"), variable2(utf83(m.identity)), le2(1e8, 8), unhex2("5420"), digest);
-  return hex2(cat2(unhex2("5120" + m.commitment + "c0"), push2(payload), unhex2("75")));
-}
-function c3Path(slots, index) {
-  let empty2 = new Uint8Array(32), layer = new Map(slots);
-  const siblings = [];
-  for (let d = 0; d < 32; d++) {
-    siblings.push(decodeField(layer.get(index ^ 1) ?? empty2));
-    layer = new Map([...new Set([...layer.keys()].map((i) => Math.floor(i / 2)))].map((i) => [i, poolTreeNode(layer.get(i * 2) ?? empty2, layer.get(i * 2 + 1) ?? empty2)]));
-    empty2 = poolTreeNode(empty2, empty2);
-    index = Math.floor(index / 2);
-  }
-  return siblings;
-}
-function insert2(kind, entries, value) {
-  const updated = poolIndexedInsert(kind, entries, value);
-  const index = entries.size;
-  let pred = -1, pv = -1n;
-  for (const [i, e] of entries) if (e[0] < value && e[0] > pv) {
-    pred = i;
-    pv = e[0];
-  }
-  const [predValue, predNextValue, predNextIndex] = entries.get(pred);
-  const slots = new Map([...entries].map(([i, e]) => [i, poolIndexedLeaf(kind, ...e)]));
-  const predPath = c3Path(slots, pred);
-  slots.set(pred, poolIndexedLeaf(kind, predValue, value, index));
-  return [{ predIndex: pred, predValue, predNextValue, predNextIndex, predPath, emptyPath: c3Path(slots, index) }, updated];
-}
-function add3(state, note) {
-  const cm = noteCommitment(note), notePath = c3Path(state.slots, state.slots.size);
-  const [fields, seen] = insert2("cm", state.seen, decodeField(cm));
-  state.seen = seen;
-  state.slots.set(state.slots.size, cm);
-  state.mode = 1;
-  return { notePath, ...fields };
-}
-function spend2(state, note, secret) {
-  const cm = hex2(noteCommitment(note));
-  const noteIndex = [...state.slots].find(([, c]) => hex2(c) === cm)?.[0];
-  demand3(noteIndex !== void 0, "Note is not in the confirmed pool");
-  const nf = decodeField(noteNullifier(note, secret));
-  const notePath = c3Path(state.slots, noteIndex);
-  const [fields, nfs] = insert2("nf", state.nfs, nf);
-  state.nfs = nfs;
-  return { noteIndex, notePath, nf, ...fields };
-}
-function states2(old, state) {
-  return { oldState: Array.from(poolStateOpening(old)), newState: Array.from(poolStateOpening(state)), S_old: decodeField(poolStateDigest(old)), S_new: decodeField(poolStateDigest(state)) };
-}
-function c3Publication(form, created, nf) {
-  const b = new Uint8Array(4096);
-  if (form[0] === "D") {
-    demand3(created.length === 1, "One deposit note required");
-    b.set([1, 0, 0, 0, 1, 0]);
-    b.set(created[0].cm, 6);
-    b.set(created[0].record, 198);
-  } else {
-    demand3(created.length === Number(form[1]), "Transfer note count mismatch");
-    b.set([1, created.length]);
-    b.set(encodeField(nf), 2);
-    created.forEach((x, i) => {
-      b.set(x.cm, 34 + i * 32);
-      b.set(x.record, 98 + i * 1024);
-    });
-  }
-  for (const x of created) demand3(x.cm.length === 32 && x.record.length === 1024 && hex2(x.record.slice(0, 3)) === "01d900" && !x.record.slice(220).some(Boolean), "Bad publication record");
-  return b;
-}
-function coin2(u) {
-  demand3(u && /^[0-9a-f]{64}$/.test(u.txid) && Number.isSafeInteger(u.vout) && u.vout >= 0 && u.vout <= 4294967295 && p2pkh2(u.scriptHex), "A confirmed P2PKH XNA coin is required");
-  demand3(typeof u.valueSats === "string" && /^[1-9][0-9]*$/.test(u.valueSats), "Exact coin value required");
-  return u;
-}
-function prepareC3({ manifest, scan, form, created = [], consumed, secret, funding, sponsor, payout, feeAtomic }) {
-  const m = validateC3Manifest(manifest);
-  demand3(C3_FORMS.includes(form), "Unknown form");
-  const old = scan.state, state = { slots: new Map(old.slots), seen: new Map(old.seen), nfs: new Map(old.nfs), mode: old.mode };
-  const reserve = BigInt(scan.reserveAtomic);
-  let nextReserve = reserve, amount = 0n, data;
-  demand3(form === "D0" === (reserve === 0n), "Pool state changed: rescan required");
-  demand3(form !== "D0" || old.mode === 0, "Pool mode mismatch");
-  for (const fresh of created) {
-    demand3(hex2(noteCommitment(fresh.note)) === hex2(fresh.cm), "Note commitment mismatch");
-    const p = decodeNote(fresh.note);
-    demand3(hex2(p.domain) === m.domain && hex2(p.assetId) === m.assetId, "Note belongs to another domain");
-  }
-  if (form[0] === "D") {
-    demand3(created.length === 1 && !consumed, "Invalid deposit notes");
-    const x = created[0];
-    amount = decodeNote(x.note).amountAtomic;
-    data = {
-      ...add3(state, x.note),
-      ...states2(old, state),
-      note: Array.from(x.note),
-      cm: decodeField(x.cm),
-      amount,
-      dep: decodeField(poseidonBytes(cat2(utf83(NEURAI_POOL_HASH_LABELS.deposit), le2(amount, 8), x.cm))),
-      wdr: decodeField(poseidonBytes(utf83(NEURAI_POOL_HASH_LABELS.withdrawal))),
-      req: decodeField(poseidonBytes(utf83(NEURAI_POOL_HASH_LABELS.request)))
-    };
-    coin2(funding);
-    demand3(BigInt(funding.valueSats) === amount, "Deposit input must match the note amount exactly");
-    nextReserve += amount;
-  } else {
-    demand3(consumed?.note && !consumed.spent, "Select an unspent owned note");
-    const note = typeof consumed.note === "string" ? unhex2(consumed.note) : consumed.note;
-    const parsed = decodeNote(note);
-    demand3(hex2(parsed.domain) === m.domain && hex2(parsed.assetId) === m.assetId, "Consumed note domain mismatch");
-    const spent = spend2(state, note, secret);
-    amount = parsed.amountAtomic;
-    if (form[0] === "T") {
-      demand3(created.length === Number(form[1]) && created.reduce((sum, x) => sum + decodeNote(x.note).amountAtomic, 0n) === amount, "Transfer amounts must conserve the selected note");
-      data = { oldState: Array.from(poolStateOpening(old)), S_old: decodeField(poolStateDigest(old)), spentState: Array.from(poolStateOpening(state)), sk: Array.from(secret), spentNote: Array.from(note), spentCm: decodeField(noteCommitment(note)), spentIndex: spent.noteIndex, spentPath: spent.notePath, nf: spent.nf };
-      for (const k of ["predIndex", "predValue", "predNextValue", "predNextIndex", "predPath", "emptyPath"]) data["nf" + k[0].toUpperCase() + k.slice(1)] = spent[k];
-      created.forEach((x, i) => {
-        const j = i + 1, fields = add3(state, x.note);
-        for (const [k, v] of Object.entries(fields)) data[k === "notePath" ? `note${j}Path` : k === "emptyPath" ? `empty${j}Path` : `pred${j}${k.slice(4)}`] = v;
-        data["note" + j] = Array.from(x.note);
-        data["cm" + j] = decodeField(x.cm);
-        data["amount" + j] = decodeNote(x.note).amountAtomic;
-        if (form === "T2" && j === 1) data.midState = Array.from(poolStateOpening(state));
-      });
-      data.newState = Array.from(poolStateOpening(state));
-      data.S_new = decodeField(poolStateDigest(state));
-    } else {
-      demand3(created.length === 0 && p2pkh2(payout), "Withdrawal requires a P2PKH destination");
-      nextReserve -= amount;
-      demand3(nextReserve >= 0n && form === "W_full" === (nextReserve === 0n), "Wrong withdrawal form");
-      if (form === "W_full") state.mode = 0;
-      data = { ...spent, ...states2(old, state), note: Array.from(note), sk: Array.from(secret), cm: decodeField(noteCommitment(note)), amount, reserve_in: reserve, reserve_out: nextReserve };
-    }
-  }
-  demand3(nextReserve <= 2100000000000000000n, "Reserve exceeds money range");
-  let blob;
-  if ("DT".includes(form[0])) {
-    blob = c3Publication(form, created, data.nf);
-    data.data_hash = decodeField(poseidonBytes(cat2(poseidonBytes(cat2(poseidonBytes(utf83(NEURAI_POOL_HASH_LABELS.data)), blob.slice(0, 2048))), blob.slice(2048))));
-  }
-  coin2(sponsor);
-  demand3(typeof feeAtomic === "string" && /^[1-9][0-9]*$/.test(feeAtomic), "Exact positive fee required");
-  const fee = BigInt(feeAtomic);
-  demand3(fee <= 100000000n && BigInt(sponsor.valueSats) - fee >= 546n, "Fee must be at most 1 XNA and leave non-dust sponsor change");
-  const inputs = [{ txid: old.stateOutpoint[0], vout: 0 }];
-  if (form !== "D0") {
-    demand3(old.reserveOutpoint?.[0] === old.stateOutpoint[0] && old.reserveOutpoint[1] === 1, "Noncanonical reserve");
-    inputs.push({ txid: old.reserveOutpoint[0], vout: 1 });
-  }
-  if (form[0] === "D") inputs.push(funding);
-  inputs.push(sponsor);
-  demand3(new Set(inputs.map((x) => x.txid + ":" + x.vout)).size === inputs.length, "Duplicate transaction input");
-  const outputs = [{ valueSats: 0n, scriptHex: c3StateScript(m, encodeField(data.S_new)) }];
-  if (form !== "W_full") outputs.push({ valueSats: nextReserve, scriptHex: "5120" + m.reserveCommitment });
-  if (form[0] === "W") outputs.push({ valueSats: amount, scriptHex: payout });
-  outputs.push({ valueSats: BigInt(sponsor.valueSats) - fee, scriptHex: sponsor.scriptHex });
-  const template = serializePoolTemplate({ inputs, outputs });
-  data.anchor = decodeField(template.anchor);
-  const publics = [data.S_old, data.S_new];
-  if (form[0] === "D") publics.push(data.dep, data.wdr, data.req, data.data_hash, data.anchor, amount);
-  else if (form[0] === "T") publics.push(data.nf, data.data_hash, data.anchor, ...created.map((x) => decodeField(x.cm)));
-  else publics.push(data.nf, data.anchor, amount, reserve, nextReserve);
-  return { state, form, inputs, outputs, template, input: decimal2(data), publicSignals: publics.map(String), blob, nf: data.nf === void 0 ? void 0 : encodeField(data.nf), feeAtomic, manifest: m };
-}
-var FP2 = 21888242871839275222246405745257275088696311157297823662689037894645226208583n;
-function g12(p) {
-  const [x, y] = p.map(BigInt);
-  demand3(x >= 0n && x < FP2 && y >= 0n && y < FP2 && y * y % FP2 === (x * x % FP2 * x + 3n) % FP2, "Invalid G1 proof point");
-  return le2(x | (y > FP2 - y ? 1n << 255n : 0n), 32);
-}
-function g22(p) {
-  const [x, y] = p.map((q) => q.map(BigInt));
-  demand3([...x, ...y].every((v) => v >= 0n && v < FP2), "Invalid G2 coordinate");
-  const n = y.map((v) => (FP2 - v) % FP2);
-  const sign = y[1] > n[1] || y[1] === n[1] && y[0] > n[0];
-  return cat2(le2(x[0], 32), le2(x[1] | (sign ? 1n << 255n : 0n), 32));
-}
-function c3ProofBytes(proof) {
-  return cat2(g12(proof.pi_a), g22(proof.pi_b), g12(proof.pi_c));
-}
-function finishC3(prepared, proof, publicSignals) {
-  demand3(JSON.stringify(publicSignals.map(String)) === JSON.stringify(prepared.publicSignals), "Proof public inputs differ from the transaction");
-  const { form, inputs, outputs, template, manifest: m } = prepared, entry = m.forms[form];
-  const args = prepared.blob ? [prepared.blob.slice(0, 2048), prepared.blob.slice(2048)] : [prepared.nf];
-  const own = [unhex2("10"), c3ProofBytes(proof), unhex2(entry.vk), ...args, template.prevouts, unhex2(entry.script), unhex2(entry.control)];
-  const witnesses = [own, ...form === "D0" ? [] : [[unhex2("00"), unhex2(m.guard)]], ...form[0] === "D" ? [[]] : [], []];
-  demand3(witnesses.length === inputs.length, "Witness count mismatch");
-  return hex2(cat2(le2(3, 4), unhex2("0001"), compact2(inputs.length), ...inputs.map((x) => cat2(unhex2(x.txid).reverse(), le2(x.vout, 4), le2(0, 1), unhex2("ffffffff"))), compact2(outputs.length), template.outputs, le2(0, 1), ...witnesses.map((w) => cat2(compact2(w.length), ...w.map(variable2))), le2(0, 4)));
 }
 
 // node_modules/@noble/ciphers/utils.js
@@ -2674,8 +2422,8 @@ var encoder2 = new TextEncoder();
 var decoder = new TextDecoder("utf-8", { fatal: true });
 var AAD = encoder2.encode("Neurai/privacy/scan-checkpoint/v1");
 var MAX_BYTES = 32 * 1024 * 1024;
-var hex3 = (bytes4) => Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
-function unhex3(value) {
+var hex2 = (bytes4) => Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
+function unhex2(value) {
   if (typeof value !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(value)) throw new Error("Invalid scan checkpoint");
   return Uint8Array.from(value.match(/../g), (pair2) => parseInt(pair2, 16));
 }
@@ -2685,7 +2433,7 @@ function sealScanCheckpoint(checkpoint, key) {
   if (plaintext.length > MAX_BYTES) throw new RangeError("Scan checkpoint is too large");
   const nonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
   try {
-    return JSON.stringify({ version: 1, nonce: hex3(nonce), ciphertext: hex3(chacha20poly1305(key, nonce, AAD).encrypt(plaintext)) });
+    return JSON.stringify({ version: 1, nonce: hex2(nonce), ciphertext: hex2(chacha20poly1305(key, nonce, AAD).encrypt(plaintext)) });
   } finally {
     plaintext.fill(0);
   }
@@ -2694,8 +2442,8 @@ function openScanCheckpoint(encoded, key) {
   if (typeof encoded !== "string" || encoded.length > (MAX_BYTES + 16) * 2 + 100) throw new Error("Invalid scan checkpoint");
   const envelope = JSON.parse(encoded);
   if (envelope?.version !== 1) throw new Error("Unsupported scan checkpoint");
-  const nonce = unhex3(envelope.nonce);
-  const ciphertext = unhex3(envelope.ciphertext);
+  const nonce = unhex2(envelope.nonce);
+  const ciphertext = unhex2(envelope.ciphertext);
   if (nonce.length !== 12 || ciphertext.length < 16 || ciphertext.length > MAX_BYTES + 16) throw new Error("Invalid scan checkpoint");
   const plaintext = chacha20poly1305(key, nonce, AAD).decrypt(ciphertext);
   try {
@@ -3553,22 +3301,22 @@ async function argon2Async(type, password, salt, opts) {
 var argon2idAsync = (password, salt, opts) => argon2Async(AT.Argon2id, password, salt, opts);
 
 // src/vault.js
-var utf84 = new TextEncoder();
+var utf83 = new TextEncoder();
 var decoder2 = new TextDecoder("utf-8", { fatal: true });
-var VAULT_AAD = utf84.encode(NEURAI_TEST_VAULT_AAD_V1);
+var VAULT_AAD = utf83.encode(NEURAI_TEST_VAULT_AAD_V1);
 var MEMORY_KIB = 64 * 1024;
 var MAX_CIPHERTEXT = 16 * 1024 * 1024;
 function bytesToHex3(bytes4) {
   return Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
-function hexToBytes2(hex8, length, name) {
-  if (typeof hex8 !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(hex8) || length !== null && hex8.length !== length * 2) {
+function hexToBytes2(hex7, length, name) {
+  if (typeof hex7 !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(hex7) || length !== null && hex7.length !== length * 2) {
     throw new TypeError(`invalid wallet vault ${name}`);
   }
-  return Uint8Array.from(hex8.match(/../g), (pair2) => parseInt(pair2, 16));
+  return Uint8Array.from(hex7.match(/../g), (pair2) => parseInt(pair2, 16));
 }
 function passwordBytes(password) {
-  const bytes4 = typeof password === "string" ? utf84.encode(password) : password;
+  const bytes4 = typeof password === "string" ? utf83.encode(password) : password;
   if (!(bytes4 instanceof Uint8Array) || bytes4.length === 0) {
     throw new TypeError("nonempty wallet password required");
   }
@@ -3598,7 +3346,7 @@ async function sealVault(payload, password) {
   }
   const salt = globalThis.crypto.getRandomValues(new Uint8Array(16));
   const nonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
-  const plaintext = utf84.encode(JSON.stringify(canonicalJson(payload)));
+  const plaintext = utf83.encode(JSON.stringify(canonicalJson(payload)));
   if (plaintext.length > MAX_CIPHERTEXT - 16) throw new RangeError("wallet vault payload too large");
   const key = await deriveKey(password, salt);
   try {
@@ -3653,7 +3401,7 @@ var abytes3 = (value, length, title) => abytes(value, length, title);
 var anumber3 = anumber;
 var bytesToHex4 = bytesToHex;
 var concatBytes3 = (...arrays) => concatBytes(...arrays);
-var hexToBytes3 = (hex8) => hexToBytes(hex8);
+var hexToBytes3 = (hex7) => hexToBytes(hex7);
 var isBytes3 = isBytes;
 var randomBytes3 = (bytesLength) => randomBytes(bytesLength);
 var _0n = /* @__PURE__ */ BigInt(0);
@@ -3683,10 +3431,10 @@ function asafenumber(value, title = "") {
     throw new RangeError(prefix + "expected safe integer, got " + value);
   }
 }
-function hexToNumber2(hex8) {
-  if (typeof hex8 !== "string")
-    throw new TypeError("hex string expected, got " + typeof hex8);
-  return hex8 === "" ? _0n : BigInt("0x" + hex8);
+function hexToNumber2(hex7) {
+  if (typeof hex7 !== "string")
+    throw new TypeError("hex string expected, got " + typeof hex7);
+  return hex7 === "" ? _0n : BigInt("0x" + hex7);
 }
 function bytesToNumberBE(bytes4) {
   return hexToNumber2(bytesToHex(bytes4));
@@ -3699,10 +3447,10 @@ function numberToBytesBE2(n, len) {
   if (len === 0)
     throw new RangeError("zero length");
   n = abignumber(n);
-  const hex8 = n.toString(16);
-  if (hex8.length > len * 2)
+  const hex7 = n.toString(16);
+  if (hex7.length > len * 2)
     throw new RangeError("number too large");
-  return hexToBytes(hex8.padStart(len * 2, "0"));
+  return hexToBytes(hex7.padStart(len * 2, "0"));
 }
 function numberToBytesLE(n, len) {
   return numberToBytesBE2(n, len).reverse();
@@ -4482,8 +4230,8 @@ function edwards(params, extraOpts = {}) {
         x = modP(-x);
       return Point.fromAffine({ x, y });
     }
-    static fromHex(hex8, zip215 = false) {
-      return Point.fromBytes(hexToBytes3(hex8), zip215);
+    static fromHex(hex7, zip215 = false) {
+      return Point.fromBytes(hexToBytes3(hex7), zip215);
     }
     get x() {
       return this.toAffine().x;
@@ -5085,8 +4833,8 @@ var _RistrettoPoint = class __RistrettoPoint extends PrimeEdwardsPoint {
    * Described in [RFC9496](https://www.rfc-editor.org/rfc/rfc9496#name-decode).
    * @param hex - Ristretto-encoded 32 bytes. Not every 32-byte string is valid ristretto encoding
    */
-  static fromHex(hex8) {
-    return __RistrettoPoint.fromBytes(hexToBytes(hex8));
+  static fromHex(hex7) {
+    return __RistrettoPoint.fromBytes(hexToBytes(hex7));
   }
   /**
    * Encodes ristretto point to Uint8Array.
@@ -5262,12 +5010,12 @@ var hmac = /* @__PURE__ */ (() => {
 })();
 
 // src/hpke.js
-var utf85 = new TextEncoder();
-var PREFIX = utf85.encode("HPKE-v1");
+var utf84 = new TextEncoder();
+var PREFIX = utf84.encode("HPKE-v1");
 var KEM = Uint8Array.of(75, 69, 77, 0, 32);
 var SUITE = Uint8Array.of(72, 80, 75, 69, 0, 32, 0, 1, 0, 3);
-var INFO = utf85.encode("NIP043/HPKE/CP1");
-var AAD2 = utf85.encode("NIP043/note/CP1");
+var INFO = utf84.encode("NIP043/HPKE/CP1");
+var AAD2 = utf84.encode("NIP043/note/CP1");
 var P25519 = (1n << 255n) - 19n;
 function join2(...parts) {
   const out = new Uint8Array(parts.reduce((length, part) => length + part.length, 0));
@@ -5300,7 +5048,7 @@ function validPublic(publicKey) {
   return publicKey;
 }
 function labeledExtract(suite, salt, label2, input) {
-  return hmac(sha256, salt, join2(PREFIX, suite, utf85.encode(label2), input));
+  return hmac(sha256, salt, join2(PREFIX, suite, utf84.encode(label2), input));
 }
 function labeledExpand(suite, prk, label2, context, length) {
   if (length < 1 || length > 32) throw new RangeError("unsupported HPKE expand length");
@@ -5311,7 +5059,7 @@ function labeledExpand(suite, prk, label2, context, length) {
       Uint8Array.of(length >> 8, length & 255),
       PREFIX,
       suite,
-      utf85.encode(label2),
+      utf84.encode(label2),
       context,
       Uint8Array.of(1)
     )
@@ -5431,7 +5179,7 @@ function bytesFromHex(value, name) {
   }
   return Uint8Array.from(value.match(/../g), (byte) => parseInt(byte, 16));
 }
-function hex4(bytes4) {
+function hex3(bytes4) {
   return Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 function equal2(a, b) {
@@ -5460,7 +5208,7 @@ var BrowserTestIdentity = class _BrowserTestIdentity {
     const spendSecret = globalThis.crypto.getRandomValues(new Uint8Array(32));
     const viewSeed = globalThis.crypto.getRandomValues(new Uint8Array(32));
     try {
-      const backup = await sealVault({ spend_key: hex4(spendSecret), view_seed: hex4(viewSeed) }, password);
+      const backup = await sealVault({ spend_key: hex3(spendSecret), view_seed: hex3(viewSeed) }, password);
       return new _BrowserTestIdentity(spendSecret, viewSeed, d, asset, backup);
     } finally {
       spendSecret.fill(0);
@@ -5486,10 +5234,10 @@ var BrowserTestIdentity = class _BrowserTestIdentity {
   recipient() {
     this.#assertOpen();
     return {
-      domain: hex4(this.#domain),
-      asset_id: hex4(this.#assetId),
-      owner: hex4(deriveOwner(this.#domain, this.#spendSecret)),
-      view_pub: hex4(deriveViewPublic(this.#viewSeed))
+      domain: hex3(this.#domain),
+      asset_id: hex3(this.#assetId),
+      owner: hex3(deriveOwner(this.#domain, this.#spendSecret)),
+      view_pub: hex3(deriveViewPublic(this.#viewSeed))
     };
   }
   /** Return the existing encrypted JSON backup; the plaintext keys never leave this class. */
@@ -5518,17 +5266,9 @@ var BrowserTestIdentity = class _BrowserTestIdentity {
     });
   }
   /** Build private circuit inputs locally; call only from the dedicated wallet worker. */
-  prepareC3(options) {
-    this.#assertOpen();
-    if (options.manifest.domain !== hex4(this.#domain) || options.manifest.assetId !== hex4(this.#assetId)) {
-      throw new Error("wallet belongs to another pool instance");
-    }
-    return prepareC3({ ...options, secret: this.#spendSecret });
-  }
-  /** Build private circuit inputs locally; call only from the dedicated wallet worker. */
   prepareC4(options) {
     this.#assertOpen();
-    if (options.manifest.domain !== hex4(this.#domain) || options.manifest.assetId !== hex4(this.#assetId)) {
+    if (options.manifest.domain !== hex3(this.#domain) || options.manifest.assetId !== hex3(this.#assetId)) {
       throw new Error("wallet belongs to another pool instance");
     }
     return prepareC4({ ...options, secret: this.#spendSecret });
@@ -8357,8 +8097,8 @@ async function pbkdf2Async(hash, password, salt, opts) {
 }
 
 // src/zk-wallet.js
-var utf86 = new TextEncoder();
-var label = (name) => utf86.encode("NeuraiZK/v2/" + name);
+var utf85 = new TextEncoder();
+var label = (name) => utf85.encode("NeuraiZK/v2/" + name);
 var NZK_DERIVATION = "NeuraiZK/v2";
 var NZK_FAMILIES = Object.freeze({ legacy: 0, ecdsa: 1, pq: 2 });
 function familyByte(family) {
@@ -8402,7 +8142,7 @@ function u32le(value) {
   new DataView(out.buffer).setUint32(0, value, true);
   return out;
 }
-function hex5(bytes4) {
+function hex4(bytes4) {
   return Array.from(bytes4, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 function bytes324(value, name) {
@@ -8411,7 +8151,7 @@ function bytes324(value, name) {
   return fail(name + " must be 32 bytes");
 }
 function beInt(bytes4) {
-  return BigInt("0x" + (hex5(bytes4) || "0"));
+  return BigInt("0x" + (hex4(bytes4) || "0"));
 }
 function leInt(bytes4) {
   return beInt(Uint8Array.from(bytes4).reverse());
@@ -8486,15 +8226,15 @@ async function walletSeedFromMnemonic(mnemonic, passphrase = "") {
   if (!validateMnemonic(canonical2, wordlist)) fail("invalid English BIP39 mnemonic");
   return pbkdf2Async(
     sha512,
-    utf86.encode(canonical2),
-    utf86.encode("mnemonic" + passphrase.normalize("NFKD")),
+    utf85.encode(canonical2),
+    utf85.encode("mnemonic" + passphrase.normalize("NFKD")),
     { c: 2048, dkLen: 64 }
   );
 }
 async function deriveZkRoot(seed, zkPassphrase = "") {
   if (!(seed instanceof Uint8Array) || seed.length !== 64) fail("wallet seed must be 64 bytes");
   if (typeof zkPassphrase !== "string") fail("ZK passphrase must be a string");
-  const z = utf86.encode(zkPassphrase.normalize("NFKD"));
+  const z = utf85.encode(zkPassphrase.normalize("NFKD"));
   if (z.length > 4294967295) fail("ZK passphrase is too long");
   const password = concat5(seed, u32le(z.length), z);
   try {
@@ -8509,7 +8249,7 @@ function accountPrk(root) {
   return extract(sha256, root, label("account"));
 }
 function fingerprintFromPrk(prk, options) {
-  return hex5(sha256(expand(sha256, prk, concat5(label("fingerprint"), accountScope(options)), 32)).subarray(0, 4));
+  return hex4(sha256(expand(sha256, prk, concat5(label("fingerprint"), accountScope(options)), 32)).subarray(0, 4));
 }
 function zkFingerprint(root, options) {
   const prk = accountPrk(root);
@@ -8538,7 +8278,7 @@ function deriveZkAddressKeys(root, options) {
   }
 }
 function nzkInstanceTag(domain, assetId) {
-  return sha256(concat5(utf86.encode("NeuraiZK/v1/instance"), bytes324(domain, "domain"), bytes324(assetId, "assetId"))).subarray(0, 4);
+  return sha256(concat5(utf85.encode("NeuraiZK/v1/instance"), bytes324(domain, "domain"), bytes324(assetId, "assetId"))).subarray(0, 4);
 }
 function encodeNzkAddress(descriptor2, network) {
   if (!descriptor2 || typeof descriptor2 !== "object") fail("descriptor required");
@@ -8569,10 +8309,10 @@ function decodeNzkAddress(address, { network, domain, assetId }) {
   checkOwner(owner);
   checkViewPublic(viewPub);
   return {
-    domain: hex5(bytes324(domain, "domain")),
-    asset_id: hex5(bytes324(assetId, "assetId")),
-    owner: hex5(owner),
-    view_pub: hex5(viewPub)
+    domain: hex4(bytes324(domain, "domain")),
+    asset_id: hex4(bytes324(assetId, "assetId")),
+    owner: hex4(owner),
+    view_pub: hex4(viewPub)
   };
 }
 function parseRecipient(input, { network, domain, assetId }) {
@@ -8593,12 +8333,12 @@ function parseRecipient(input, { network, domain, assetId }) {
     fail("recipient must be an nzk address or a descriptor");
   }
   const normalized = {
-    domain: hex5(bytes324(descriptor2.domain, "domain")),
-    asset_id: hex5(bytes324(descriptor2.asset_id, "asset_id")),
-    owner: hex5(bytes324(descriptor2.owner, "owner")),
-    view_pub: hex5(bytes324(descriptor2.view_pub, "view_pub"))
+    domain: hex4(bytes324(descriptor2.domain, "domain")),
+    asset_id: hex4(bytes324(descriptor2.asset_id, "asset_id")),
+    owner: hex4(bytes324(descriptor2.owner, "owner")),
+    view_pub: hex4(bytes324(descriptor2.view_pub, "view_pub"))
   };
-  if (normalized.domain !== hex5(bytes324(domain, "domain")) || normalized.asset_id !== hex5(bytes324(assetId, "assetId"))) {
+  if (normalized.domain !== hex4(bytes324(domain, "domain")) || normalized.asset_id !== hex4(bytes324(assetId, "assetId"))) {
     fail("recipient belongs to another pool instance");
   }
   checkOwner(bytes324(normalized.owner, "owner"));
@@ -8624,12 +8364,12 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
     this.#family = family;
     this.#prk = prk.slice();
     this.#account = index31(account, "account");
-    this.#domain = hex5(bytes324(domain, "domain"));
-    this.#assetId = hex5(bytes324(assetId, "assetId"));
+    this.#domain = hex4(bytes324(domain, "domain"));
+    this.#assetId = hex4(bytes324(assetId, "assetId"));
     hrpFor(network);
     this.#network = network;
     this.#fingerprint = fingerprintFromPrk(this.#prk, { family, account, domain, assetId });
-    this.#storageId = hex5(sha256(expand(sha256, this.#prk, concat5(label("storage"), scope), 32)));
+    this.#storageId = hex4(sha256(expand(sha256, this.#prk, concat5(label("storage"), scope), 32)));
     if (gap !== void 0) this.setGap(gap);
     if (issued !== void 0) this.setIssued(issued);
   }
@@ -8808,9 +8548,6 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
     if (!address || address.chain !== CHAIN_RECEIVING && address.chain !== CHAIN_CHANGE) fail("note has no known address");
     return this.identityAt(address.chain, index31(address.index, "address index"));
   }
-  prepareC3(options) {
-    return this.spendingIdentity(options.consumed).prepareC3(options);
-  }
   prepareC4(options) {
     return this.spendingIdentity(options.consumed).prepareC4(options);
   }
@@ -8853,17 +8590,16 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
 
 // src/browser-chain.js
 var HEX322 = /^[0-9a-f]{64}$/i;
-var FORMS = ["D0", "D1", "T1", "T2", "W_partial", "W_full"];
 var MAX_MONEY2 = 2100000000000000000n;
-var utf87 = new TextEncoder();
-function demand4(ok, reason) {
+var utf86 = new TextEncoder();
+function demand3(ok, reason) {
   if (!ok) throw new Error(`pool scan: ${reason}`);
 }
-function unhex4(hex8, name) {
-  demand4(typeof hex8 === "string" && /^(?:[0-9a-f]{2})*$/i.test(hex8), `${name} is not hex`);
-  return Uint8Array.from(hex8.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
+function unhex3(hex7, name) {
+  demand3(typeof hex7 === "string" && /^(?:[0-9a-f]{2})*$/i.test(hex7), `${name} is not hex`);
+  return Uint8Array.from(hex7.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
 }
-function hex6(bytes4) {
+function hex5(bytes4) {
   return Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 function concat6(...parts) {
@@ -8880,36 +8616,18 @@ function sameOutpoint(vin, outpoint) {
 }
 function sats(value) {
   const str = typeof value === "number" && Number.isFinite(value) ? String(value) : value;
-  demand4(typeof str === "string" && /^(?:0|[1-9]\d*)(?:\.\d+)?(?:e-?\d+)?$/i.test(str), "invalid XNA value");
+  demand3(typeof str === "string" && /^(?:0|[1-9]\d*)(?:\.\d+)?(?:e-?\d+)?$/i.test(str), "invalid XNA value");
   const [base, expPart] = str.toLowerCase().split("e");
   const [whole, fraction = ""] = base.split(".");
   const places = 8 - fraction.length + Number(expPart ?? 0);
-  demand4(Number.isSafeInteger(places) && places >= -100 && places <= 100, "invalid XNA decimal scale");
+  demand3(Number.isSafeInteger(places) && places >= -100 && places <= 100, "invalid XNA decimal scale");
   const digits = BigInt(whole + fraction);
   const numerator = places >= 0 ? digits * 10n ** BigInt(places) : digits;
   const denominator = places >= 0 ? 1n : 10n ** BigInt(-places);
-  demand4(numerator % denominator === 0n, "nonintegral XNA amount");
+  demand3(numerator % denominator === 0n, "nonintegral XNA amount");
   const result = numerator / denominator;
-  demand4(result >= 0n && result <= MAX_MONEY2, "XNA amount out of range");
+  demand3(result >= 0n && result <= MAX_MONEY2, "XNA amount out of range");
   return result;
-}
-function stateScript(commitment, digest) {
-  const payload = concat6(
-    utf87.encode("xnat"),
-    Uint8Array.of(9),
-    utf87.encode("XNAP#POOL"),
-    Uint8Array.of(0, 225, 245, 5, 0, 0, 0, 0),
-    Uint8Array.of(84, 32),
-    digest
-  );
-  demand4(payload.length === 56, "bad state asset payload");
-  return hex6(concat6(
-    Uint8Array.of(81, 32),
-    commitment,
-    Uint8Array.of(192, 56),
-    payload,
-    Uint8Array.of(117)
-  ));
 }
 function parseRecord(identity, record, cm) {
   if (!identity) return null;
@@ -8941,7 +8659,7 @@ function checkpointFor({
   const indexed = (tree) => [...tree].map(([index, [value, next, nextIndex]]) => [index, [String(value), String(next), nextIndex]]);
   return {
     version: 1,
-    manifestId: hex6(sha256(utf87.encode(JSON.stringify(manifest)))),
+    manifestId: hex5(sha256(utf86.encode(JSON.stringify(manifest)))),
     height,
     blockhash,
     birth,
@@ -8950,12 +8668,12 @@ function checkpointFor({
     reserveOutpoint,
     state: {
       mode: state.mode,
-      slots: [...state.slots].map(([index, value]) => [index, hex6(value)]),
+      slots: [...state.slots].map(([index, value]) => [index, hex5(value)]),
       seen: indexed(state.seen),
       nfs: indexed(state.nfs)
     },
     transitions: transitions.map((t) => ({ ...t, reserveAtomic: String(t.reserveAtomic) })),
-    published: published.map((e) => ({ ...e, cm: hex6(e.cm), record: hex6(e.record) })),
+    published: published.map((e) => ({ ...e, cm: hex5(e.cm), record: hex5(e.record) })),
     spentBy: [...spentBy].map(([nf, spent]) => [String(nf), spent]),
     walletTag: walletCheckpointTag(identity),
     walletWindow: identity?.gap === void 0 ? null : { gap: identity.gap, issued: identity.issued },
@@ -8972,12 +8690,12 @@ function checkpointFor({
   };
 }
 function restoreCheckpoint(saved, manifest, limit) {
-  if (saved?.version !== 1 || saved.manifestId !== hex6(sha256(utf87.encode(JSON.stringify(manifest)))) || !Number.isSafeInteger(saved.height) || saved.height < 1 || saved.height > limit || !HEX322.test(saved.blockhash) || !saved.birth || !Array.isArray(saved.stateOutpoint) || !Array.isArray(saved.transitions) || !Array.isArray(saved.published) || !Array.isArray(saved.spentBy) || !Array.isArray(saved.owned)) return null;
+  if (saved?.version !== 1 || saved.manifestId !== hex5(sha256(utf86.encode(JSON.stringify(manifest)))) || !Number.isSafeInteger(saved.height) || saved.height < 1 || saved.height > limit || !HEX322.test(saved.blockhash) || !saved.birth || !Array.isArray(saved.stateOutpoint) || !Array.isArray(saved.transitions) || !Array.isArray(saved.published) || !Array.isArray(saved.spentBy) || !Array.isArray(saved.owned)) return null;
   try {
     const indexed = (rows) => new Map(rows.map(([index, [value, next, nextIndex]]) => [index, [BigInt(value), BigInt(next), nextIndex]]));
     const state = {
       mode: saved.state.mode,
-      slots: new Map(saved.state.slots.map(([index, value]) => [index, unhex4(value, "cached note")])),
+      slots: new Map(saved.state.slots.map(([index, value]) => [index, unhex3(value, "cached note")])),
       seen: indexed(saved.state.seen),
       nfs: indexed(saved.state.nfs)
     };
@@ -8985,8 +8703,8 @@ function restoreCheckpoint(saved, manifest, limit) {
     const transitions = saved.transitions.map((t) => ({ ...t, reserveAtomic: BigInt(t.reserveAtomic) }));
     const published = saved.published.map((e) => ({
       ...e,
-      cm: unhex4(e.cm, "cached commitment"),
-      record: unhex4(e.record, "cached record")
+      cm: unhex3(e.cm, "cached commitment"),
+      record: unhex3(e.record, "cached record")
     }));
     if (published.some((e) => e.cm.length !== 32 || e.record.length !== 1024 || !Number.isSafeInteger(e.slot) || e.slot < 0 || !HEX322.test(e.txid))) return null;
     const spentBy = new Map(saved.spentBy.map(([nf, spent]) => [BigInt(nf), spent]));
@@ -9019,45 +8737,32 @@ async function scanBrowserPool({
   stopHeight,
   onProgress = () => {
   },
-  strategy,
+  strategy = "spent-index",
   checkpoint,
   expectedGenesis,
   expectedCommitment
 }) {
-  const c3 = manifest?.schema === "neurai-c3-xna-test-v1";
-  const c4 = manifest?.schema === "neurai-c4-xna-test-v1";
-  const pinned = c3 || c4;
-  if (c3) validateC3Manifest(manifest);
-  if (c4) validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
-  const forms = c4 ? C4_FORMS : FORMS;
-  const vkHashes = c4 ? Object.fromEntries(forms.map((f) => [f, manifest.forms[f].vkHash])) : manifest.vkHashes;
-  const mode = strategy ?? (pinned ? "spent-index" : "blocks");
-  demand4(
-    mode === "blocks" || mode === "spent-index" && pinned,
-    "spent-index scan requires a C3 manifest or an independently pinned C4 manifest with its birth transaction"
-  );
-  const makeStateScript = (digest2) => c4 ? c4StateScript(manifest, digest2) : c3 ? c3StateScript(manifest, digest2) : stateScript(commitment, digest2);
-  demand4(typeof rpc === "function", "RPC function required");
-  demand4(manifest?.profile === "xna" && HEX322.test(manifest.genesis) && HEX322.test(manifest.commitment) && HEX322.test(manifest.reserveCommitment) && HEX322.test(manifest.domain) && HEX322.test(manifest.assetId), "invalid XNA TEST manifest");
-  demand4(
-    forms.every((form) => HEX322.test(vkHashes?.[form])) && Object.keys(vkHashes).length === forms.length && new Set(Object.values(vkHashes)).size === forms.length,
-    "incomplete or duplicate VK registry"
-  );
+  validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  const forms = C4_FORMS;
+  const vkHashes = Object.fromEntries(forms.map((f) => [f, manifest.forms[f].vkHash]));
+  const mode = strategy;
+  demand3(mode === "blocks" || mode === "spent-index", "unknown scan strategy");
+  const makeStateScript = (digest2) => c4StateScript(manifest, digest2);
+  demand3(typeof rpc === "function", "RPC function required");
+  demand3(new Set(Object.values(vkHashes)).size === forms.length, "duplicate VK registry");
   const call = (method, ...params) => rpc(method, params);
-  demand4(await call("getblockhash", 0) === manifest.genesis, "wrong genesis");
+  demand3(await call("getblockhash", 0) === manifest.genesis, "wrong genesis");
   const tip = await call("getbestblockhash");
   const currentHeight = await call("getblockcount");
   const height = stopHeight ?? currentHeight;
-  demand4(Number.isSafeInteger(currentHeight) && Number.isSafeInteger(height) && currentHeight >= height && height >= 1, "invalid scan height");
+  demand3(Number.isSafeInteger(currentHeight) && Number.isSafeInteger(height) && currentHeight >= height && height >= 1, "invalid scan height");
   if (identity) {
     const recipient = identity.recipient();
-    demand4(
+    demand3(
       recipient.domain === manifest.domain && recipient.asset_id === manifest.assetId,
       "wallet belongs to another pool instance"
     );
   }
-  const commitment = unhex4(manifest.commitment, "commitment");
-  const reserveCommitment = unhex4(manifest.reserveCommitment, "reserve commitment");
   let restored = checkpoint && mode === "spent-index" ? restoreCheckpoint(checkpoint, manifest, height) : null;
   if (restored && await call("getblockhash", restored.height) !== restored.blockhash) restored = null;
   const state = restored?.state ?? emptyPoolState();
@@ -9073,74 +8778,58 @@ async function scanBrowserPool({
   const cachedPublishedCount = published.length;
   const spentBy = restored?.spentBy ?? /* @__PURE__ */ new Map();
   async function applyBirth(tx, blockHeight) {
-    demand4(!birth, "multiple pool births");
+    demand3(!birth, "multiple pool births");
     let uniqueConsumed = false;
     for (const vin of tx.vin ?? []) {
       if (!vin.txid) continue;
       const parent = await call("getrawtransaction", vin.txid, true);
       const script = parent?.vout?.[vin.vout]?.scriptPubKey?.hex;
-      if (typeof script === "string" && script.includes(hex6(utf87.encode(pinned ? manifest.identity : "XNAP#POOL")))) {
+      if (typeof script === "string" && script.includes(hex5(utf86.encode(manifest.identity)))) {
         uniqueConsumed = true;
         break;
       }
     }
-    demand4(uniqueConsumed, "birth did not consume UNIQUE");
+    demand3(uniqueConsumed, "birth did not consume UNIQUE");
     birth = { txid: tx.txid, height: blockHeight };
     stateOutpoint = [tx.txid, 0];
   }
   async function applyTransition(tx, blockHeight) {
     const vin = tx.vin ?? [];
     const witness = vin[0].txinwitness;
-    demand4(
+    demand3(
       Array.isArray(witness) && witness.length >= 5 && witness[0] === "10",
       "state spend is not MAST"
     );
-    const vkHash = hex6(sha256(unhex4(witness[2], "VK")));
+    const vkHash = hex5(sha256(unhex3(witness[2], "VK")));
     const form = forms.find((name) => vkHashes[name] === vkHash);
-    demand4(form, "unknown pool VK");
-    if (pinned) {
-      const expected = manifest.forms[form];
-      demand4(
-        witness.length === (form.startsWith("W") ? 7 : 8) && witness[witness.length - 2] === expected.script && witness[witness.length - 1] === expected.control && witness[2] === expected.vk,
-        "unexpected C3/C4 leaf, control or VK"
-      );
-    }
+    demand3(form, "unknown pool VK");
+    const expected = manifest.forms[form];
+    demand3(
+      witness.length === (form.startsWith("W") ? 7 : 8) && witness[witness.length - 2] === expected.script && witness[witness.length - 1] === expected.control && witness[2] === expected.vk,
+      "unexpected pool leaf, control or VK"
+    );
     const expectReserve = form !== "D0";
-    demand4(reserve > 0n === expectReserve, "unexpected reserve/form combination");
-    if (reserveOutpoint) demand4(
+    demand3(reserve > 0n === expectReserve, "unexpected reserve/form combination");
+    if (reserveOutpoint) demand3(
       sameOutpoint(vin[1], reserveOutpoint),
       "transition skipped canonical reserve"
     );
     if (form.startsWith("D") || form.startsWith("T")) {
-      demand4(witness.length >= 7, "missing publication");
+      demand3(witness.length >= 7, "missing publication");
       const blob = concat6(
-        unhex4(witness[3], "blob first half"),
-        unhex4(witness[4], "blob second half")
+        unhex3(witness[3], "blob first half"),
+        unhex3(witness[4], "blob second half")
       );
-      demand4(blob.length === 4096, "bad publication size");
-      let entries;
-      if (c4) {
-        const publication = decodeC4Publication(form, blob);
-        if (publication.nf) {
-          const nf = decodeField(publication.nf);
-          state.nfs = poolIndexedInsert("nf", state.nfs, nf);
-          spentBy.set(nf, { txid: tx.txid, height: blockHeight });
-        }
-        entries = publication.cms.map((cm, i) => [cm, publication.records[i]]);
-      } else if (form.startsWith("D")) {
-        demand4(blob[0] === 1 && blob[4] === 1, "bad deposit publication");
-        entries = [[blob.slice(6, 38), blob.slice(198, 1222)]];
-      } else {
-        const count = form === "T1" ? 1 : 2;
-        demand4(blob[0] === 1 && blob[1] === count, "bad transfer publication");
-        const nf = decodeField(blob.slice(2, 34));
+      demand3(blob.length === 4096, "bad publication size");
+      const publication = decodeC4Publication(form, blob);
+      if (publication.nf) {
+        const nf = decodeField(publication.nf);
         state.nfs = poolIndexedInsert("nf", state.nfs, nf);
         spentBy.set(nf, { txid: tx.txid, height: blockHeight });
-        entries = [[blob.slice(34, 66), blob.slice(98, 1122)]];
-        if (count === 2) entries.push([blob.slice(66, 98), blob.slice(1122, 2146)]);
       }
+      const entries = publication.cms.map((cm, i) => [cm, publication.records[i]]);
       for (const [cm, record] of entries) {
-        demand4(record.length === 1024, "bad encrypted record");
+        demand3(record.length === 1024, "bad encrypted record");
         const slot = state.slots.size;
         state.slots.set(slot, cm);
         state.seen = poolIndexedInsert("cm", state.seen, decodeField(cm));
@@ -9148,47 +8837,47 @@ async function scanBrowserPool({
       }
       state.mode = 1;
     } else {
-      const nf = decodeField(unhex4(witness[3], "nullifier"));
+      const nf = decodeField(unhex3(witness[3], "nullifier"));
       state.nfs = poolIndexedInsert("nf", state.nfs, nf);
       spentBy.set(nf, { txid: tx.txid, height: blockHeight });
       state.mode = form === "W_full" ? 0 : 1;
     }
     digest = poolStateDigest(state);
-    demand4(
+    demand3(
       tx.vout?.[0]?.scriptPubKey?.hex === makeStateScript(digest),
       "pool state root disagrees with block"
     );
     let newReserve = 0n;
     let newReserveOutpoint = null;
     if (form === "W_full") {
-      demand4(reserveOutpoint, "empty full withdrawal");
-      demand4(
+      demand3(reserveOutpoint, "empty full withdrawal");
+      demand3(
         !(tx.vout ?? []).slice(1).some((v) => v.scriptPubKey?.hex?.startsWith("5120" + manifest.reserveCommitment)),
         "full withdrawal left a reserve"
       );
     } else {
       const output = tx.vout?.[1];
-      demand4(
+      demand3(
         output?.scriptPubKey?.hex === "5120" + manifest.reserveCommitment,
         "wrong reserve output"
       );
       newReserve = sats(output.value);
-      demand4(newReserve > 0n, "empty reserve");
+      demand3(newReserve > 0n, "empty reserve");
       newReserveOutpoint = [tx.txid, 1];
     }
-    if (form.startsWith("T")) demand4(newReserve === reserve, "transfer changed reserve");
+    if (form.startsWith("T")) demand3(newReserve === reserve, "transfer changed reserve");
     else if (form.startsWith("D")) {
-      demand4(newReserve > reserve, "deposit did not increase reserve");
+      demand3(newReserve > reserve, "deposit did not increase reserve");
       const previous = vin[form === "D0" ? 1 : 2];
       const spent = await call("getrawtransaction", previous.txid, true);
-      demand4(
+      demand3(
         newReserve - reserve === sats(spent?.vout?.[previous.vout]?.value),
         "reserve delta differs from deposit"
       );
     } else {
-      demand4(newReserve < reserve, "withdrawal did not decrease reserve");
+      demand3(newReserve < reserve, "withdrawal did not decrease reserve");
       const outputIndex = form === "W_full" ? 1 : 2;
-      demand4(
+      demand3(
         reserve - newReserve === sats(tx.vout?.[outputIndex]?.value),
         "reserve delta differs from withdrawal"
       );
@@ -9207,14 +8896,14 @@ async function scanBrowserPool({
   let scannedHeight = height;
   let finalTip = tip;
   if (mode === "blocks") {
-    for (let blockHeight = pinned ? manifest.birthHeight : 1; blockHeight <= height; blockHeight++) {
+    for (let blockHeight = manifest.birthHeight; blockHeight <= height; blockHeight++) {
       onProgress({ height: blockHeight, total: height });
       const blockHash = await call("getblockhash", blockHeight);
       const block2 = await call("getblock", blockHash, 2);
-      demand4(block2?.hash === blockHash && block2?.height === blockHeight && Array.isArray(block2.tx), "block RPC mismatch");
+      demand3(block2?.hash === blockHash && block2?.height === blockHeight && Array.isArray(block2.tx), "block RPC mismatch");
       for (const tx of block2.tx) {
         if (!stateOutpoint) {
-          if (pinned && tx.txid !== manifest.birth) continue;
+          if (tx.txid !== manifest.birth) continue;
           if (tx.vout?.[0]?.scriptPubKey?.hex !== initialScript) continue;
           await applyBirth(tx, blockHeight);
           continue;
@@ -9223,14 +8912,14 @@ async function scanBrowserPool({
         await applyTransition(tx, blockHeight);
       }
     }
-    demand4(birth, "pool birth not found");
-    demand4(await call("getbestblockhash") === tip, "tip changed during scan; retry");
+    demand3(birth, "pool birth not found");
+    demand3(await call("getbestblockhash") === tip, "tip changed during scan; retry");
     if (height === currentHeight) {
-      demand4(
+      demand3(
         await call("gettxout", ...stateOutpoint, false) !== null,
         "reconstructed state already spent"
       );
-      if (reserveOutpoint) demand4(
+      if (reserveOutpoint) demand3(
         await call("gettxout", ...reserveOutpoint, false) !== null,
         "reconstructed reserve already spent"
       );
@@ -9240,25 +8929,25 @@ async function scanBrowserPool({
     const anchors = new Map(restored ? [[restored.height, restored.blockhash]] : []);
     async function confirmed(txid, blockHeight) {
       const tx = await call("getrawtransaction", txid, true);
-      demand4(
+      demand3(
         tx?.txid === txid && typeof tx.blockhash === "string" && tx.confirmations >= 1 && (tx.height === void 0 || tx.height === blockHeight),
         "transaction is not confirmed at the expected height"
       );
-      demand4(
+      demand3(
         await call("getblockhash", blockHeight) === tx.blockhash,
         "transaction is not in the active chain"
       );
       anchors.set(blockHeight, tx.blockhash);
       return tx;
     }
-    demand4(
+    demand3(
       Number.isSafeInteger(manifest.birthHeight) && manifest.birthHeight <= height,
       "pool birth not found"
     );
     if (!restored) {
       onProgress({ height: manifest.birthHeight, total: height });
       const born = await confirmed(manifest.birth, manifest.birthHeight);
-      demand4(born.vout?.[0]?.scriptPubKey?.hex === initialScript, "pool birth not found");
+      demand3(born.vout?.[0]?.scriptPubKey?.hex === initialScript, "pool birth not found");
       await applyBirth(born, manifest.birthHeight);
     }
     let last = restored?.transitions.at(-1)?.height ?? manifest.birthHeight;
@@ -9271,17 +8960,17 @@ async function scanBrowserPool({
         spent = null;
       }
       if (spent && spent.height !== -1) {
-        demand4(
+        demand3(
           Number.isSafeInteger(spent.height) && spent.height >= last,
           "invalid or out-of-order spent index entry"
         );
         if (bounded && spent.height > height) break;
-        demand4(
+        demand3(
           spent.index === 0 && typeof spent.txid === "string",
           "state spent outside the pool contract"
         );
         const tx = await confirmed(spent.txid, spent.height);
-        demand4(sameOutpoint(tx.vin?.[0], stateOutpoint), "spent index disagrees with transaction");
+        demand3(sameOutpoint(tx.vin?.[0], stateOutpoint), "spent index disagrees with transaction");
         onProgress({ height: spent.height, total: Math.max(height, spent.height) });
         await applyTransition(tx, spent.height);
         last = spent.height;
@@ -9292,18 +8981,18 @@ async function scanBrowserPool({
       const through = await call("getblockcount");
       const reserveLive = !reserveOutpoint || await call("gettxout", ...reserveOutpoint, false) !== null;
       if (await call("gettxout", ...stateOutpoint, false) !== null) {
-        demand4(reserveLive, "reconstructed reserve already spent");
-        demand4(Number.isSafeInteger(through) && through >= last, "invalid scan height");
+        demand3(reserveLive, "reconstructed reserve already spent");
+        demand3(Number.isSafeInteger(through) && through >= last, "invalid scan height");
         scannedHeight = through;
         break;
       }
-      demand4(
+      demand3(
         ++unresolved < 2,
         "state spend missing from the spent index; the RPC node needs -spentindex"
       );
     }
     for (const [blockHeight, blockHash] of anchors) {
-      demand4(
+      demand3(
         await call("getblockhash", blockHeight) === blockHash,
         "chain reorganized during scan; retry"
       );
@@ -9336,11 +9025,11 @@ async function scanBrowserPool({
       const entry = remaining[position];
       const nf = decodeField(found.nf);
       const spent = spentBy.get(nf);
-      notes.set(hex6(entry.cm), {
-        cm: hex6(entry.cm),
+      notes.set(hex5(entry.cm), {
+        cm: hex5(entry.cm),
         amountAtomic: found.amountAtomic,
         nf,
-        note: hex6(found.note),
+        note: hex5(found.note),
         spent: !!spent,
         ...spent ? { spentTxid: spent.txid, spentHeight: spent.height } : {},
         slot: entry.slot,
@@ -9389,8 +9078,8 @@ async function scanBrowserPool({
 }
 
 // src/pool-operations.js
-var hex7 = (bytes4) => Array.from(bytes4, (b) => b.toString(16).padStart(2, "0")).join("");
-var MAX_ARTIFACT_BYTES = 150 * 1048576;
+var hex6 = (bytes4) => Array.from(bytes4, (b) => b.toString(16).padStart(2, "0")).join("");
+var MAX_ARTIFACT_BYTES = 256 * 1048576;
 function summarizeScan(scan) {
   return {
     balanceAtomic: String(scan.balanceAtomic),
@@ -9424,36 +9113,30 @@ function describeReceiving(identity, scan, { network }) {
   };
 }
 var selfRecipient = (identity) => identity.selfRecipient?.() ?? identity.recipient();
-function planC3Operation({
+function planC4Operation({
   identity,
   scan,
   action,
   amountAtomic,
   note,
   recipient,
+  recipients,
   pool,
-  depositLimitAtomic = C3_TEST_DEPOSIT_LIMIT_ATOMIC
+  depositLimitAtomic = MAX_ATOMIC
 }) {
   if (!identity) throw new Error("Unlock the private wallet first");
   if (action === "deposit") {
-    const amount = BigInt(amountAtomic);
-    if (amount <= 0n || amount > depositLimitAtomic) throw new Error(`Deposit must be more than 0 and at most ${formatXna(depositLimitAtomic)} XNA`);
+    const amount2 = BigInt(amountAtomic);
+    if (amount2 <= 0n || amount2 > depositLimitAtomic) throw new Error(`Deposit must be more than 0 and at most ${formatXna(depositLimitAtomic)} XNA`);
     return {
       form: scan.reserveAtomic === 0n ? "D0" : "D1",
-      created: [identity.createNote(selfRecipient(identity), String(amount))],
+      created: [identity.createNote(selfRecipient(identity), String(amount2))],
       consumed: void 0,
-      amountAtomic: String(amount)
+      amountAtomic: String(amount2)
     };
   }
   const consumed = scan.notes.find((n) => n.cm === note && !n.spent);
   if (!consumed) throw new Error("Selected note is no longer spendable");
-  if (action === "transfer") {
-    const amount = BigInt(amountAtomic), total = BigInt(consumed.amountAtomic);
-    if (amount <= 0n || amount > total) throw new Error("Amount exceeds the selected note");
-    const created = [identity.createNote(parseRecipient(recipient, pool), String(amount))];
-    if (amount < total) created.push(identity.createNote(selfRecipient(identity), String(total - amount)));
-    return { form: created.length === 1 ? "T1" : "T2", created, consumed, amountAtomic: String(amount) };
-  }
   if (action === "withdraw") {
     return {
       form: BigInt(consumed.amountAtomic) === BigInt(scan.reserveAtomic) ? "W_full" : "W_partial",
@@ -9462,7 +9145,24 @@ function planC3Operation({
       amountAtomic: String(consumed.amountAtomic)
     };
   }
-  throw new Error("Unknown pool action");
+  if (action !== "transfer") throw new Error("Unknown pool action");
+  const targets = recipients ?? [{ recipient, amountAtomic }];
+  if (!Array.isArray(targets) || targets.length < 1 || targets.length > 4) {
+    throw new Error("A transfer needs between one and four private recipients");
+  }
+  const validated = targets.map((target) => {
+    if (typeof target?.amountAtomic !== "string" || !/^[1-9][0-9]*$/.test(target.amountAtomic)) {
+      throw new Error("Recipient amounts must be exact positive atomic strings");
+    }
+    return { descriptor: parseRecipient(target.recipient, pool), amount: BigInt(target.amountAtomic) };
+  });
+  const amount = validated.reduce((sum, x) => sum + x.amount, 0n);
+  const total = BigInt(consumed.amountAtomic);
+  if (amount > total) throw new Error("Recipient total exceeds the selected note");
+  if (amount < total && targets.length === 4) throw new Error("A transfer creates at most four notes including change");
+  const created = validated.map((x) => identity.createNote(x.descriptor, String(x.amount)));
+  if (amount < total) created.push(identity.createNote(selfRecipient(identity), String(total - amount)));
+  return { form: `T${created.length}`, created, consumed, amountAtomic: String(amount) };
 }
 async function loadVerifiedArtifact({
   path,
@@ -9470,10 +9170,10 @@ async function loadVerifiedArtifact({
   fetchArtifact,
   onProgress,
   maxBytes = MAX_ARTIFACT_BYTES,
-  missingMessage = "C3 TEST parameters are not available"
+  missingMessage = "Pool proving parameters are not available"
 }) {
   const meta = artifacts.files[path];
-  if (!meta || meta.bytes > maxBytes) throw new Error("Unsupported C3 artifact");
+  if (!meta || meta.bytes > maxBytes) throw new Error("Unsupported pool artifact");
   const response = await fetchArtifact(path);
   if (!response?.ok) throw new Error(missingMessage);
   const bytes4 = new Uint8Array(meta.bytes);
@@ -9500,13 +9200,13 @@ async function loadVerifiedArtifact({
     at = whole.length;
     onProgress?.(100);
   }
-  if (at !== bytes4.length || hex7(sha256(bytes4)) !== meta.sha256) throw new Error("C3 artifact integrity mismatch");
+  if (at !== bytes4.length || hex6(sha256(bytes4)) !== meta.sha256) throw new Error("Pool artifact integrity mismatch");
   return bytes4;
 }
-async function proveC3({ form, prepared, artifacts, loadArtifact, snarkjs, onStage = () => {
+async function proveC4({ form, prepared, artifacts, loadArtifact, snarkjs, onStage = () => {
 } }) {
   const entry = artifacts.forms[form];
-  if (!entry) throw new Error("Unknown C3 form");
+  if (!entry) throw new Error("Unknown C4 form");
   const wasm = await loadArtifact(entry.wasm);
   const zkey = await loadArtifact(entry.zkey);
   const vk = JSON.parse(new TextDecoder().decode(await loadArtifact(entry.vk)));
@@ -9518,76 +9218,6 @@ async function proveC3({ form, prepared, artifacts, loadArtifact, snarkjs, onSta
   onStage("Verifying proof and transaction binding");
   if (!await snarkjs.groth16.verify(vk, publicSignals, proof)) throw new Error("Local proof verification failed");
   return { proof, publicSignals };
-}
-async function buildC3Transaction({
-  identity,
-  scan,
-  manifest,
-  artifacts,
-  loadArtifact,
-  snarkjs,
-  pool,
-  request,
-  depositLimitAtomic,
-  onStage = () => {
-  }
-}) {
-  const { action, amountAtomic, feeAtomic, funding, sponsor, payout, note, recipient } = request;
-  const plan = planC3Operation({
-    identity,
-    scan,
-    action,
-    amountAtomic,
-    note,
-    recipient,
-    pool,
-    ...depositLimitAtomic === void 0 ? {} : { depositLimitAtomic }
-  });
-  onStage("Building note paths and transaction witness");
-  const prepared = identity.prepareC3({
-    manifest,
-    scan,
-    form: plan.form,
-    created: plan.created,
-    consumed: plan.consumed,
-    funding,
-    sponsor,
-    payout,
-    feeAtomic
-  });
-  const { proof, publicSignals } = await proveC3({ form: plan.form, prepared, artifacts, loadArtifact, snarkjs, onStage });
-  return {
-    raw: finishC3(prepared, proof, publicSignals),
-    form: plan.form,
-    feeAtomic,
-    stateOutpoint: scan.state.stateOutpoint,
-    inputPoints: prepared.inputs.map((x) => ({ txid: x.txid, vout: x.vout })),
-    amountAtomic: plan.amountAtomic
-  };
-}
-function planC4Operation(options) {
-  const { identity, scan, action, note, pool, recipients } = options;
-  if (action !== "transfer") return planC3Operation(options);
-  if (!identity) throw new Error("Unlock the private wallet first");
-  const consumed = scan.notes.find((n) => n.cm === note && !n.spent);
-  if (!consumed) throw new Error("Selected note is no longer spendable");
-  const targets = recipients ?? [{ recipient: options.recipient, amountAtomic: options.amountAtomic }];
-  if (!Array.isArray(targets) || targets.length < 1 || targets.length > 4) {
-    throw new Error("C4 requires between one and four private recipients");
-  }
-  const validated = targets.map((target) => {
-    if (typeof target?.amountAtomic !== "string" || !/^[1-9][0-9]*$/.test(target.amountAtomic)) {
-      throw new Error("Recipient amounts must be exact positive atomic strings");
-    }
-    return { descriptor: parseRecipient(target.recipient, pool), amount: BigInt(target.amountAtomic) };
-  });
-  const amount = validated.reduce((sum, x) => sum + x.amount, 0n);
-  const total = BigInt(consumed.amountAtomic);
-  if (amount > total) throw new Error("Recipient total exceeds the selected note");
-  if (amount < total && targets.length === 4) throw new Error("C4 supports at most four notes including change");
-  const created = validated.map((x) => identity.createNote(x.descriptor, String(x.amount)));
-  if (amount < total) created.push(identity.createNote(selfRecipient(identity), String(total - amount)));
-  return { form: `T${created.length}`, created, consumed, amountAtomic: String(amount) };
 }
 async function buildC4Transaction({
   identity,
@@ -9615,7 +9245,7 @@ async function buildC4Transaction({
     recipients: request.recipients,
     ...depositLimitAtomic === void 0 ? {} : { depositLimitAtomic }
   });
-  onStage("Building C4 note paths and transaction witness");
+  onStage("Building note paths and transaction witness");
   const prepared = identity.prepareC4({
     manifest,
     scan,
@@ -9629,7 +9259,7 @@ async function buildC4Transaction({
     expectedGenesis,
     expectedCommitment
   });
-  const { proof, publicSignals } = await proveC3({ form: plan.form, prepared, artifacts, loadArtifact, snarkjs, onStage });
+  const { proof, publicSignals } = await proveC4({ form: plan.form, prepared, artifacts, loadArtifact, snarkjs, onStage });
   return {
     raw: finishC4(prepared, proof, publicSignals),
     form: plan.form,
@@ -9646,9 +9276,9 @@ function startPoolWorker({
   snarkjs,
   artifactBaseUrl,
   fetchArtifact,
-  manifest = C3_TESTNET_MANIFEST,
-  artifacts = C3_TESTNET_ARTIFACTS,
-  network = C3_TESTNET_NETWORK,
+  manifest,
+  artifacts = C4_TESTNET_ARTIFACTS,
+  network = C4_TESTNET_NETWORK,
   singleThread = true,
   missingArtifactMessage,
   depositLimitAtomic,
@@ -9660,12 +9290,15 @@ function startPoolWorker({
   if (depositLimitAtomic !== void 0 && (typeof depositLimitAtomic !== "bigint" || depositLimitAtomic <= 0n)) {
     throw new Error("depositLimitAtomic must be a positive bigint");
   }
-  const c4 = manifest?.schema === "neurai-c4-xna-test-v1";
-  if (c4) validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  if (manifest === void 0) {
+    manifest = C4_TESTNET_MANIFEST;
+    expectedCommitment ??= C4_TESTNET_COMMITMENT;
+  }
+  validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
   if (!Number.isSafeInteger(maxArtifactBytes) || maxArtifactBytes <= 0 || maxArtifactBytes > 256 * 1048576) {
     throw new Error("Artifact limit must be a positive integer of at most 256 MiB");
   }
-  const missing = missingArtifactMessage ?? (artifactBaseUrl ? "C3 TEST parameters are not available at " + artifactBaseUrl : "C3 TEST parameters are not available");
+  const missing = missingArtifactMessage ?? (artifactBaseUrl ? "Pool proving parameters are not available at " + artifactBaseUrl : "Pool proving parameters are not available");
   const pool = { network, domain: manifest.domain, assetId: manifest.assetId };
   const fetcher = fetchArtifact ?? ((path) => fetch(new URL(path, artifactBaseUrl)));
   let identity = null;
@@ -9716,8 +9349,8 @@ function startPoolWorker({
     if (!identity) throw new Error("Unlock the private wallet first");
     if (!snarkjs) throw new Error("This worker was started without snarkjs, so it cannot prove");
     await refresh();
-    for (const coin3 of [data.sponsor, data.funding].filter(Boolean)) await checkPoolCoin(rpc, coin3, { profile: c4 ? "C4" : "C3" });
-    const result = await (c4 ? buildC4Transaction : buildC3Transaction)({
+    for (const coin2 of [data.sponsor, data.funding].filter(Boolean)) await checkPoolCoin(rpc, coin2);
+    const result = await buildC4Transaction({
       identity,
       scan,
       manifest,
@@ -9830,9 +9463,6 @@ export {
   deriveViewPublic,
   sealNote,
   openNoteRecord,
-  validateC3Manifest,
-  prepareC3,
-  finishC3,
   C4_FORMS,
   c4DustAtomic,
   validateC4Manifest,
@@ -9860,11 +9490,9 @@ export {
   MAX_ARTIFACT_BYTES,
   summarizeScan,
   describeReceiving,
-  planC3Operation,
-  loadVerifiedArtifact,
-  proveC3,
-  buildC3Transaction,
   planC4Operation,
+  loadVerifiedArtifact,
+  proveC4,
   buildC4Transaction,
   startPoolWorker
 };
@@ -9890,4 +9518,4 @@ export {
 @scure/bip39/index.js:
   (*! scure-bip39 - MIT License (c) 2022 Patricio Palladino, Paul Miller (paulmillr.com) *)
 */
-//# sourceMappingURL=chunk-AHYUVOYP.js.map
+//# sourceMappingURL=chunk-HPK5I7TY.js.map
