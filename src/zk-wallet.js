@@ -409,6 +409,15 @@ export class ZkWalletIdentity {
   }
 
   prepareC4(options) { return this.spendingIdentity(options.consumed).prepareC4(options); }
+  prepareC5(options) { return this.spendingIdentity(options.consumed).prepareC5(options); }
+
+  prepareC6Deposit(wallet, options) { return this.identityAt(CHAIN_CHANGE, 0).prepareC6Deposit(wallet, options); }
+  prepareC6Transfer(wallet, options) { return this.spendingIdentity(options.consumed).prepareC6Transfer(wallet, options); }
+  prepareC6Withdrawal(wallet, options) { return this.spendingIdentity(options.consumed).prepareC6Withdrawal(wallet, options); }
+
+  prepareC6Join(wallet, {consumed, ...options}) {
+    return this.spendingIdentity(consumed[0]).prepareC6Join(wallet, { ...options, consumed, identities:consumed.map(n=>this.spendingIdentity(n)) });
+  }
 
   /** Derived identities are recovered from the words; there is no file backup. */
   backupJson() { return null; }
@@ -417,6 +426,12 @@ export class ZkWalletIdentity {
     this.#assertOpen();
     return expand(sha256, this.#prk,
       concat(label('scan-checkpoint'), accountScope({ family: this.#family, account: this.#account, domain: this.#domain, assetId: this.#assetId })), 32);
+  }
+
+  /** Stable opaque journal namespace, never a spending or encryption key. */
+  checkpointStoreId() {
+    const key = this.#checkpointKey();
+    try { return hex(sha256(new Uint8Array([...new TextEncoder().encode("Neurai/C6/journal-id/v1"), ...key]))); } finally { key.fill(0); }
   }
 
   sealCheckpoint(checkpoint) {

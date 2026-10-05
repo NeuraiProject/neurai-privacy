@@ -11,3 +11,20 @@ export * from './client.js';
 export * from './worker.js';
 
 export { C4_FORMS, validateC4Manifest, prepareC4, finishC4, c4DustAtomic } from './c4.js';
+
+export { C5_FORMS, validateC5Manifest, prepareC5, finishC5 } from './c5.js';
+export { C5_CHUNK_BYTES, C5_CHUNKS, c5TransitionBinding, encodeC5Transition, verifyC5Transition, splitC5Transition, joinC5Transition } from './c5-transition.js';
+
+export {c6SponsorWalletId} from './c6-sponsor-wallet-id.js';
+
+export {createC6JoinWallet} from './c6-join.js';
+
+export {createC6OperationWallet} from './c6-operations.js';
+
+export {scanC6Pool} from './c6-scan.js';
+
+export {startC6PoolWorker} from './c6-worker.js';
+
+export {buildC6Transaction,readC6Packet} from './c6-transaction.js';
+
+export {C6WorkerClient} from './c6-worker-client.js';

@@ -28,7 +28,13 @@ __export(index_exports, {
   C4_TESTNET_COMMITMENT: () => C4_TESTNET_COMMITMENT,
   C4_TESTNET_MANIFEST: () => C4_TESTNET_MANIFEST,
   C4_TESTNET_NETWORK: () => C4_TESTNET_NETWORK,
+  C5_CHUNKS: () => C5_CHUNKS,
+  C5_CHUNK_BYTES: () => C5_CHUNK_BYTES,
+  C5_FORMS: () => C5_FORMS,
+  C6SponsorFlow: () => C6SponsorFlow,
+  C6WorkerClient: () => C6WorkerClient,
   CliTestBackend: () => CliTestBackend,
+  IndexedDbSponsorStore: () => IndexedDbSponsorStore,
   LEGACY_P2PKH: () => LEGACY_P2PKH,
   MAX_ARTIFACT_BYTES: () => MAX_ARTIFACT_BYTES,
   MAX_ATOMIC: () => MAX_ATOMIC,
@@ -44,15 +50,26 @@ __export(index_exports, {
   PoolWorkerClient: () => PoolWorkerClient,
   RESET_TESTNET_GENESIS: () => RESET_TESTNET_GENESIS,
   ROTATION_MAX_GAP: () => ROTATION_MAX_GAP,
+  SponsorJournal: () => SponsorJournal,
   ZkWalletIdentity: () => ZkWalletIdentity,
   admitTransaction: () => admitTransaction,
   assertPoolChain: () => assertPoolChain,
   bech32mDecode: () => bech32mDecode,
   bech32mEncode: () => bech32mEncode,
   buildC4Transaction: () => buildC4Transaction,
+  buildC5Transaction: () => buildC5Transaction,
+  buildC6Transaction: () => buildC6Transaction,
   c4DustAtomic: () => c4DustAtomic,
+  c5TransitionBinding: () => c5TransitionBinding,
+  c6AssetMetadata: () => c6AssetMetadata,
+  c6AssetTransferScript: () => c6AssetTransferScript,
+  c6ReadAssetTransfer: () => c6ReadAssetTransfer,
+  c6SponsorIntent: () => c6SponsorIntent,
+  c6SponsorWalletId: () => c6SponsorWalletId,
   checkPoolCoin: () => checkPoolCoin,
   confirmedPoolCoins: () => confirmedPoolCoins,
+  createC6JoinWallet: () => createC6JoinWallet,
+  createC6OperationWallet: () => createC6OperationWallet,
   decodeField: () => decodeField,
   decodeNote: () => decodeNote,
   decodeNzkAddress: () => decodeNzkAddress,
@@ -62,13 +79,16 @@ __export(index_exports, {
   deriveZkAddressKeys: () => deriveZkAddressKeys,
   deriveZkRoot: () => deriveZkRoot,
   describeReceiving: () => describeReceiving,
+  encodeC5Transition: () => encodeC5Transition,
   encodeField: () => encodeField,
   encodeNote: () => encodeNote,
   encodeNzkAddress: () => encodeNzkAddress,
   finishC4: () => finishC4,
+  finishC5: () => finishC5,
   formatXna: () => formatXna,
   inspectFundingTransaction: () => inspectFundingTransaction,
   isPoolReadRpc: () => isPoolReadRpc,
+  joinC5Transition: () => joinC5Transition,
   loadRotation: () => loadRotation,
   loadVerifiedArtifact: () => loadVerifiedArtifact,
   noteCommitment: () => noteCommitment,
@@ -76,25 +96,37 @@ __export(index_exports, {
   nzkInstanceTag: () => nzkInstanceTag,
   openNoteRecord: () => openNoteRecord,
   openVault: () => openVault,
+  parseAssetAmount: () => parseAssetAmount,
   parseRecipient: () => parseRecipient,
   parseXna: () => parseXna,
   planC4Operation: () => planC4Operation,
   poseidonBytes: () => poseidonBytes,
   poseidonPermutation: () => poseidonPermutation,
   prepareC4: () => prepareC4,
+  prepareC5: () => prepareC5,
+  prepareSponsorSweep: () => prepareSponsorSweep,
   proveC4: () => proveC4,
   publicationStatus: () => publicationStatus,
   publishTransaction: () => publishTransaction,
+  readC6Packet: () => readC6Packet,
   recheckInputs: () => recheckInputs,
   rotationStorageKey: () => rotationStorageKey,
   rpcAmountToSatoshis: () => rpcAmountToSatoshis,
   saveRotation: () => saveRotation,
+  scanC6Pool: () => scanC6Pool,
+  scanC6SponsorChain: () => scanC6SponsorChain,
   sealNote: () => sealNote,
   sealVault: () => sealVault,
   selectPoolCoins: () => selectPoolCoins,
+  splitC5Transition: () => splitC5Transition,
+  startC6PoolWorker: () => startC6PoolWorker,
   startPoolWorker: () => startPoolWorker,
   summarizeScan: () => summarizeScan,
   validateC4Manifest: () => validateC4Manifest,
+  validateC5Manifest: () => validateC5Manifest,
+  validateC6SponsorDeployment: () => validateC6SponsorDeployment,
+  validateSponsorSignature: () => validateSponsorSignature,
+  verifyC5Transition: () => verifyC5Transition,
   walletSeedFromMnemonic: () => walletSeedFromMnemonic,
   withdrawalScript: () => withdrawalScript,
   zkFingerprint: () => zkFingerprint
@@ -111,21 +143,21 @@ function satoshiText(value, name) {
   if (typeof value !== "bigint" && typeof value !== "string") {
     throw new TypeError(name + " must be a decimal string or bigint");
   }
-  const text2 = String(value);
-  if (!/^[1-9][0-9]*$/.test(text2) || BigInt(text2) > MAX_MONEY_SATS) {
+  const text5 = String(value);
+  if (!/^[1-9][0-9]*$/.test(text5) || BigInt(text5) > MAX_MONEY_SATS) {
     throw new RangeError(name + " must be an exact positive XNA satoshi amount");
   }
-  return text2;
+  return text5;
 }
 function noteCmText(value) {
   if (typeof value !== "bigint" && typeof value !== "string") {
     throw new TypeError("noteCm must be a decimal string or bigint");
   }
-  const text2 = String(value);
-  if (!/^[1-9][0-9]*$/.test(text2) || BigInt(text2) >= BN254_FIELD) {
+  const text5 = String(value);
+  if (!/^[1-9][0-9]*$/.test(text5) || BigInt(text5) >= BN254_FIELD) {
     throw new RangeError("noteCm must be a canonical BN254 field element");
   }
-  return text2;
+  return text5;
 }
 function balanceText(value, name) {
   if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/.test(value) || BigInt(value) > MAX_MONEY_SATS) {
@@ -404,8 +436,8 @@ var NEURAI_PYTHON_CLI_MODULE = "contrib.nip045_wallet.cli";
 var NEURAI_PYTHON_PROGRESS_PREFIX = "NIP045_PROGRESS:";
 
 // src/node-cli-backend.js
-function resultObject(text2, command) {
-  const lines = text2.trim().split(/\r?\n/);
+function resultObject(text5, command) {
+  const lines = text5.trim().split(/\r?\n/);
   if (lines.length === 0 || !lines.at(-1)) {
     throw new Error("wallet CLI returned no JSON result");
   }
@@ -477,7 +509,7 @@ var CliTestBackend = class {
         let stderr = "";
         let progressBuffer = "";
         let settled = false;
-        const fail2 = (error) => {
+        const fail3 = (error) => {
           if (!settled) {
             settled = true;
             rejectResult(error);
@@ -485,13 +517,13 @@ var CliTestBackend = class {
         };
         const timer = setTimeout(() => {
           child.kill("SIGKILL");
-          fail2(new Error("wallet CLI timed out"));
+          fail3(new Error("wallet CLI timed out"));
         }, this.timeoutMs);
         child.stdout.on("data", (chunk) => {
           stdout += chunk.toString();
           if (stdout.length > 1e6) {
             child.kill("SIGKILL");
-            fail2(new Error("wallet CLI output limit exceeded"));
+            fail3(new Error("wallet CLI output limit exceeded"));
           }
         });
         child.stderr.on("data", (chunk) => {
@@ -511,15 +543,15 @@ var CliTestBackend = class {
           }
           if (stderr.length > 1e6) {
             child.kill("SIGKILL");
-            fail2(new Error("wallet CLI error output limit exceeded"));
+            fail3(new Error("wallet CLI error output limit exceeded"));
           }
         });
-        child.on("error", fail2);
+        child.on("error", fail3);
         child.on("close", (code) => {
           clearTimeout(timer);
           if (settled) return;
           if (code !== 0) {
-            fail2(new Error("wallet CLI failed: " + stderr.trim().slice(-1200)));
+            fail3(new Error("wallet CLI failed: " + stderr.trim().slice(-1200)));
             return;
           }
           try {
@@ -527,10 +559,10 @@ var CliTestBackend = class {
             settled = true;
             resolveResult(parsed);
           } catch (error) {
-            fail2(error);
+            fail3(error);
           }
         });
-        child.stdin.on("error", fail2);
+        child.stdin.on("error", fail3);
         child.stdin.end(input, () => input.fill(0));
       });
     } finally {
@@ -908,19 +940,19 @@ function canonical(value) {
 }
 function encodeField(value) {
   let remaining = canonical(value);
-  const bytes4 = new Uint8Array(32);
+  const bytes7 = new Uint8Array(32);
   for (let index = 31; index >= 0; index--) {
-    bytes4[index] = Number(remaining & 255n);
+    bytes7[index] = Number(remaining & 255n);
     remaining >>= 8n;
   }
-  return bytes4;
+  return bytes7;
 }
-function decodeField(bytes4) {
-  if (!(bytes4 instanceof Uint8Array) || bytes4.length !== 32) {
+function decodeField(bytes7) {
+  if (!(bytes7 instanceof Uint8Array) || bytes7.length !== 32) {
     throw new TypeError("field element must contain 32 bytes");
   }
   let value = 0n;
-  for (const byte of bytes4) value = value * 256n + BigInt(byte);
+  for (const byte of bytes7) value = value * 256n + BigInt(byte);
   return canonical(value);
 }
 function poseidonPermutation(input) {
@@ -928,15 +960,15 @@ function poseidonPermutation(input) {
     throw new TypeError("Poseidon state must have three elements");
   }
   let state = input.map(canonical);
-  const field = BN254_SCALAR_FIELD;
+  const field2 = BN254_SCALAR_FIELD;
   for (let round = 0; round < 65; round++) {
     const nonlinearity = state.map((value, index) => {
-      const shifted = (value + POSEIDON_RC[round * 3 + index]) % field;
+      const shifted = (value + POSEIDON_RC[round * 3 + index]) % field2;
       if (index !== 0 && round >= 4 && round < 61) return shifted;
-      const squared = shifted * shifted % field;
-      return squared * squared % field * shifted % field;
+      const squared = shifted * shifted % field2;
+      return squared * squared % field2 * shifted % field2;
     });
-    state = [0, 1, 2].map((row) => (POSEIDON_MDS[row * 3] * nonlinearity[0] + POSEIDON_MDS[row * 3 + 1] * nonlinearity[1] + POSEIDON_MDS[row * 3 + 2] * nonlinearity[2]) % field);
+    state = [0, 1, 2].map((row) => (POSEIDON_MDS[row * 3] * nonlinearity[0] + POSEIDON_MDS[row * 3 + 1] * nonlinearity[1] + POSEIDON_MDS[row * 3 + 2] * nonlinearity[2]) % field2);
   }
   return state;
 }
@@ -1069,17 +1101,17 @@ function noteNullifier(note, spendSecret) {
 // node_modules/@noble/hashes/_u64.js
 var U32_MASK64 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
 var _32n = /* @__PURE__ */ BigInt(32);
-function fromBig(n, le2 = false) {
-  if (le2)
+function fromBig(n, le4 = false) {
+  if (le4)
     return { h: Number(n & U32_MASK64), l: Number(n >> _32n & U32_MASK64) };
   return { h: Number(n >> _32n & U32_MASK64) | 0, l: Number(n & U32_MASK64) | 0 };
 }
-function split(lst, le2 = false) {
+function split(lst, le4 = false) {
   const len = lst.length;
   let Ah = new Uint32Array(len);
   let Al = new Uint32Array(len);
   for (let i = 0; i < len; i++) {
-    const { h, l } = fromBig(lst[i], le2);
+    const { h, l } = fromBig(lst[i], le4);
     [Ah[i], Al[i]] = [h, l];
   }
   return [Ah, Al];
@@ -1118,15 +1150,15 @@ function anumber(n, title = "") {
   }
 }
 function abytes(value, length, title = "") {
-  const bytes4 = isBytes(value);
+  const bytes7 = isBytes(value);
   const len = value?.length;
   const needsLen = length !== void 0;
-  if (!bytes4 || needsLen && len !== length) {
+  if (!bytes7 || needsLen && len !== length) {
     const prefix = title && `"${title}" `;
     const ofLen = needsLen ? ` of length ${length}` : "";
-    const got = bytes4 ? `length=${len}` : `type=${typeof value}`;
+    const got = bytes7 ? `length=${len}` : `type=${typeof value}`;
     const message2 = prefix + "expected Uint8Array" + ofLen + ", got " + got;
-    if (!bytes4)
+    if (!bytes7)
       throw new TypeError(message2);
     throw new RangeError(message2);
   }
@@ -1189,15 +1221,15 @@ var hasHexBuiltin = /* @__PURE__ */ (() => (
   typeof Uint8Array.from([]).toHex === "function" && typeof Uint8Array.fromHex === "function"
 ))();
 var hexes = /* @__PURE__ */ Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
-function bytesToHex(bytes4) {
-  abytes(bytes4);
+function bytesToHex(bytes7) {
+  abytes(bytes7);
   if (hasHexBuiltin)
-    return bytes4.toHex();
-  let hex7 = "";
-  for (let i = 0; i < bytes4.length; i++) {
-    hex7 += hexes[bytes4[i]];
+    return bytes7.toHex();
+  let hex17 = "";
+  for (let i = 0; i < bytes7.length; i++) {
+    hex17 += hexes[bytes7[i]];
   }
-  return hex7;
+  return hex17;
 }
 var asciis = { _0: 48, _9: 57, A: 65, F: 70, a: 97, f: 102 };
 function asciiToBase16(ch) {
@@ -1209,28 +1241,28 @@ function asciiToBase16(ch) {
     return ch - (asciis.a - 10);
   return;
 }
-function hexToBytes(hex7) {
-  if (typeof hex7 !== "string")
-    throw new TypeError("hex string expected, got " + typeof hex7);
+function hexToBytes(hex17) {
+  if (typeof hex17 !== "string")
+    throw new TypeError("hex string expected, got " + typeof hex17);
   if (hasHexBuiltin) {
     try {
-      return Uint8Array.fromHex(hex7);
+      return Uint8Array.fromHex(hex17);
     } catch (error) {
       if (error instanceof SyntaxError)
         throw new RangeError(error.message);
       throw error;
     }
   }
-  const hl = hex7.length;
+  const hl = hex17.length;
   const al = hl / 2;
   if (hl % 2)
     throw new RangeError("hex string expected, got unpadded hex of length " + hl);
   const array = new Uint8Array(al);
   for (let ai = 0, hi = 0; ai < al; ai++, hi += 2) {
-    const n1 = asciiToBase16(hex7.charCodeAt(hi));
-    const n2 = asciiToBase16(hex7.charCodeAt(hi + 1));
+    const n1 = asciiToBase16(hex17.charCodeAt(hi));
+    const n2 = asciiToBase16(hex17.charCodeAt(hi + 1));
     if (n1 === void 0 || n2 === void 0) {
-      const char = hex7[hi] + hex7[hi + 1];
+      const char = hex17[hi] + hex17[hi + 1];
       throw new RangeError('hex string expected, got non-hex character "' + char + '" at index ' + hi);
     }
     array[ai] = n1 * 16 + n2;
@@ -2300,15 +2332,15 @@ function anumber2(n) {
     throw new RangeError("positive integer expected, got " + n);
 }
 function abytes2(value, length, title = "") {
-  const bytes4 = isBytes2(value);
+  const bytes7 = isBytes2(value);
   const len = value?.length;
   const needsLen = length !== void 0;
-  if (!bytes4 || needsLen && len !== length) {
+  if (!bytes7 || needsLen && len !== length) {
     const prefix = title && `"${title}" `;
     const ofLen = needsLen ? ` of length ${length}` : "";
-    const got = bytes4 ? `length=${len}` : `type=${typeof value}`;
+    const got = bytes7 ? `length=${len}` : `type=${typeof value}`;
     const message2 = prefix + "expected Uint8Array" + ofLen + ", got " + got;
-    if (!bytes4)
+    if (!bytes7)
       throw new TypeError(message2);
     throw new RangeError(message2);
   }
@@ -2433,11 +2465,11 @@ function u64Lengths(dataLength, aadLength, isLE3) {
   view.setBigUint64(8, BigInt(dataLength), isLE3);
   return num;
 }
-function isAligned32(bytes4) {
-  return bytes4.byteOffset % 4 === 0;
+function isAligned32(bytes7) {
+  return bytes7.byteOffset % 4 === 0;
 }
-function copyBytes(bytes4) {
-  return Uint8Array.from(abytes2(bytes4));
+function copyBytes(bytes7) {
+  return Uint8Array.from(abytes2(bytes7));
 }
 
 // node_modules/@noble/ciphers/_arx.js
@@ -2974,21 +3006,21 @@ var decoder = new TextDecoder("utf-8", { fatal: true });
 var VAULT_AAD = utf8.encode(NEURAI_TEST_VAULT_AAD_V1);
 var MEMORY_KIB = 64 * 1024;
 var MAX_CIPHERTEXT = 16 * 1024 * 1024;
-function bytesToHex3(bytes4) {
-  return Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
+function bytesToHex3(bytes7) {
+  return Array.from(bytes7, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
-function hexToBytes2(hex7, length, name) {
-  if (typeof hex7 !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(hex7) || length !== null && hex7.length !== length * 2) {
+function hexToBytes2(hex17, length, name) {
+  if (typeof hex17 !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(hex17) || length !== null && hex17.length !== length * 2) {
     throw new TypeError(`invalid wallet vault ${name}`);
   }
-  return Uint8Array.from(hex7.match(/../g), (pair2) => parseInt(pair2, 16));
+  return Uint8Array.from(hex17.match(/../g), (pair3) => parseInt(pair3, 16));
 }
 function passwordBytes(password) {
-  const bytes4 = typeof password === "string" ? utf8.encode(password) : password;
-  if (!(bytes4 instanceof Uint8Array) || bytes4.length === 0) {
+  const bytes7 = typeof password === "string" ? utf8.encode(password) : password;
+  if (!(bytes7 instanceof Uint8Array) || bytes7.length === 0) {
     throw new TypeError("nonempty wallet password required");
   }
-  return bytes4;
+  return bytes7;
 }
 function canonicalJson(value) {
   if (Array.isArray(value)) return value.map(canonicalJson);
@@ -3427,7 +3459,7 @@ var abytes3 = (value, length, title) => abytes(value, length, title);
 var anumber3 = anumber;
 var bytesToHex4 = bytesToHex;
 var concatBytes3 = (...arrays) => concatBytes(...arrays);
-var hexToBytes3 = (hex7) => hexToBytes(hex7);
+var hexToBytes3 = (hex17) => hexToBytes(hex17);
 var isBytes3 = isBytes;
 var randomBytes3 = (bytesLength) => randomBytes(bytesLength);
 var _0n = /* @__PURE__ */ BigInt(0);
@@ -3457,26 +3489,26 @@ function asafenumber(value, title = "") {
     throw new RangeError(prefix + "expected safe integer, got " + value);
   }
 }
-function hexToNumber2(hex7) {
-  if (typeof hex7 !== "string")
-    throw new TypeError("hex string expected, got " + typeof hex7);
-  return hex7 === "" ? _0n : BigInt("0x" + hex7);
+function hexToNumber2(hex17) {
+  if (typeof hex17 !== "string")
+    throw new TypeError("hex string expected, got " + typeof hex17);
+  return hex17 === "" ? _0n : BigInt("0x" + hex17);
 }
-function bytesToNumberBE(bytes4) {
-  return hexToNumber2(bytesToHex(bytes4));
+function bytesToNumberBE(bytes7) {
+  return hexToNumber2(bytesToHex(bytes7));
 }
-function bytesToNumberLE(bytes4) {
-  return hexToNumber2(bytesToHex(copyBytes2(abytes(bytes4)).reverse()));
+function bytesToNumberLE(bytes7) {
+  return hexToNumber2(bytesToHex(copyBytes2(abytes(bytes7)).reverse()));
 }
 function numberToBytesBE2(n, len) {
   anumber(len);
   if (len === 0)
     throw new RangeError("zero length");
   n = abignumber(n);
-  const hex7 = n.toString(16);
-  if (hex7.length > len * 2)
+  const hex17 = n.toString(16);
+  if (hex17.length > len * 2)
     throw new RangeError("number too large");
-  return hexToBytes(hex7.padStart(len * 2, "0"));
+  return hexToBytes(hex17.padStart(len * 2, "0"));
 }
 function numberToBytesLE(n, len) {
   return numberToBytesBE2(n, len).reverse();
@@ -3491,8 +3523,8 @@ function equalBytes2(a, b) {
     diff |= a[i] ^ b[i];
   return diff === 0;
 }
-function copyBytes2(bytes4) {
-  return Uint8Array.from(abytes3(bytes4));
+function copyBytes2(bytes7) {
+  return Uint8Array.from(abytes3(bytes7));
 }
 function asciiToBytes(ascii) {
   if (typeof ascii !== "string")
@@ -3715,7 +3747,7 @@ var FIELD_FIELDS = [
   "mulN",
   "sqrN"
 ];
-function validateField(field) {
+function validateField(field2) {
   const initial = {
     ORDER: "bigint",
     BYTES: "number",
@@ -3725,14 +3757,14 @@ function validateField(field) {
     map[val] = "function";
     return map;
   }, initial);
-  validateObject(field, opts);
-  asafenumber(field.BYTES, "BYTES");
-  asafenumber(field.BITS, "BITS");
-  if (field.BYTES < 1 || field.BITS < 1)
+  validateObject(field2, opts);
+  asafenumber(field2.BYTES, "BYTES");
+  asafenumber(field2.BITS, "BITS");
+  if (field2.BYTES < 1 || field2.BITS < 1)
     throw new Error("invalid field: expected BYTES/BITS > 0");
-  if (field.ORDER <= _1n2)
-    throw new Error("invalid field: expected ORDER > 1, got " + field.ORDER);
-  return field;
+  if (field2.ORDER <= _1n2)
+    throw new Error("invalid field: expected ORDER > 1, got " + field2.ORDER);
+  return field2;
 }
 function FpPow(Fp2, num, power) {
   const F = Fp2;
@@ -3897,20 +3929,20 @@ var _Field = class {
   toBytes(num) {
     return this.isLE ? numberToBytesLE(num, this.BYTES) : numberToBytesBE2(num, this.BYTES);
   }
-  fromBytes(bytes4, skipValidation = false) {
-    abytes3(bytes4);
+  fromBytes(bytes7, skipValidation = false) {
+    abytes3(bytes7);
     const { _lengths: allowedLengths, BYTES, isLE: isLE3, ORDER, _mod: modFromBytes } = this;
     if (allowedLengths) {
-      if (bytes4.length < 1 || !allowedLengths.includes(bytes4.length) || bytes4.length > BYTES) {
-        throw new Error("Field.fromBytes: expected " + allowedLengths + " bytes, got " + bytes4.length);
+      if (bytes7.length < 1 || !allowedLengths.includes(bytes7.length) || bytes7.length > BYTES) {
+        throw new Error("Field.fromBytes: expected " + allowedLengths + " bytes, got " + bytes7.length);
       }
       const padded = new Uint8Array(BYTES);
-      padded.set(bytes4, isLE3 ? 0 : padded.length - bytes4.length);
-      bytes4 = padded;
+      padded.set(bytes7, isLE3 ? 0 : padded.length - bytes7.length);
+      bytes7 = padded;
     }
-    if (bytes4.length !== BYTES)
-      throw new Error("Field.fromBytes: expected " + BYTES + " bytes, got " + bytes4.length);
-    let scalar = isLE3 ? bytesToNumberLE(bytes4) : bytesToNumberBE(bytes4);
+    if (bytes7.length !== BYTES)
+      throw new Error("Field.fromBytes: expected " + BYTES + " bytes, got " + bytes7.length);
+    let scalar = isLE3 ? bytesToNumberLE(bytes7) : bytesToNumberBE(bytes7);
     if (modFromBytes)
       scalar = mod(scalar, ORDER);
     if (!skipValidation) {
@@ -4019,10 +4051,10 @@ var wNAF = class {
    * @param W - window size
    * @returns precomputed point tables flattened to a single array
    */
-  precomputeWindow(point, W) {
+  precomputeWindow(point4, W) {
     const { windows, windowSize } = calcWOpts(W, this.bits);
     const points = [];
-    let p = point;
+    let p = point4;
     let base = p;
     for (let window = 0; window < windows; window++) {
       base = p;
@@ -4082,27 +4114,27 @@ var wNAF = class {
     assert0(n);
     return acc;
   }
-  getPrecomputes(W, point, transform) {
-    let comp = pointPrecomputes.get(point);
+  getPrecomputes(W, point4, transform) {
+    let comp = pointPrecomputes.get(point4);
     if (!comp) {
-      comp = this.precomputeWindow(point, W);
+      comp = this.precomputeWindow(point4, W);
       if (W !== 1) {
         if (typeof transform === "function")
           comp = transform(comp);
-        pointPrecomputes.set(point, comp);
+        pointPrecomputes.set(point4, comp);
       }
     }
     return comp;
   }
-  cached(point, scalar, transform) {
-    const W = getW(point);
-    return this.wNAF(W, this.getPrecomputes(W, point, transform), scalar);
+  cached(point4, scalar, transform) {
+    const W = getW(point4);
+    return this.wNAF(W, this.getPrecomputes(W, point4, transform), scalar);
   }
-  unsafe(point, scalar, transform, prev) {
-    const W = getW(point);
+  unsafe(point4, scalar, transform, prev) {
+    const W = getW(point4);
     if (W === 1)
-      return this._unsafeLadder(point, scalar, prev);
-    return this.wNAFUnsafe(W, this.getPrecomputes(W, point, transform), scalar, prev);
+      return this._unsafeLadder(point4, scalar, prev);
+    return this.wNAFUnsafe(W, this.getPrecomputes(W, point4, transform), scalar, prev);
   }
   // We calculate precomputes for elliptic curve point multiplication
   // using windowed method. This specifies window size and
@@ -4116,12 +4148,12 @@ var wNAF = class {
     return getW(elm) !== 1;
   }
 };
-function createField(order, field, isLE3) {
-  if (field) {
-    if (field.ORDER !== order)
+function createField(order, field2, isLE3) {
+  if (field2) {
+    if (field2.ORDER !== order)
       throw new Error("Field.ORDER must match order: Fp == p, Fn == n");
-    validateField(field);
-    return field;
+    validateField(field2);
+    return field2;
   } else {
     return Field(order, { isLE: isLE3 });
   }
@@ -4231,13 +4263,13 @@ function edwards(params, extraOpts = {}) {
       return new Point(x, y, _1n4, modP(x * y));
     }
     // Uses algo from RFC8032 5.1.3.
-    static fromBytes(bytes4, zip215 = false) {
+    static fromBytes(bytes7, zip215 = false) {
       const len = Fp2.BYTES;
       const { a, d } = CURVE;
-      bytes4 = copyBytes2(abytes3(bytes4, len, "point"));
+      bytes7 = copyBytes2(abytes3(bytes7, len, "point"));
       abool2(zip215, "zip215");
-      const normed = copyBytes2(bytes4);
-      const lastByte = bytes4[len - 1];
+      const normed = copyBytes2(bytes7);
+      const lastByte = bytes7[len - 1];
       normed[len - 1] = lastByte & ~128;
       const y = bytesToNumberLE(normed);
       const max = zip215 ? MASK : Fp2.ORDER;
@@ -4256,8 +4288,8 @@ function edwards(params, extraOpts = {}) {
         x = modP(-x);
       return Point.fromAffine({ x, y });
     }
-    static fromHex(hex7, zip215 = false) {
-      return Point.fromBytes(hexToBytes3(hex7), zip215);
+    static fromHex(hex17, zip215 = false) {
+      return Point.fromBytes(hexToBytes3(hex17), zip215);
     }
     get x() {
       return this.toAffine().x;
@@ -4414,9 +4446,9 @@ function edwards(params, extraOpts = {}) {
     }
     toBytes() {
       const { x, y } = this.toAffine();
-      const bytes4 = Fp2.toBytes(y);
-      bytes4[bytes4.length - 1] |= x & _1n4 ? 128 : 0;
-      return bytes4;
+      const bytes7 = Fp2.toBytes(y);
+      bytes7[bytes7.length - 1] |= x & _1n4 ? 128 : 0;
+      return bytes7;
     }
     toHex() {
       return bytesToHex4(this.toBytes());
@@ -4724,11 +4756,11 @@ function ed25519_pow_2_252_3(x) {
   const pow_p_5_8 = pow2(b250, _2n4, P2) * x % P2;
   return { pow_p_5_8, b2 };
 }
-function adjustScalarBytes(bytes4) {
-  bytes4[0] &= 248;
-  bytes4[31] &= 127;
-  bytes4[31] |= 64;
-  return bytes4;
+function adjustScalarBytes(bytes7) {
+  bytes7[0] &= 248;
+  bytes7[31] &= 127;
+  bytes7[31] |= 64;
+  return bytes7;
 }
 var ED25519_SQRT_M1 = /* @__PURE__ */ BigInt("19681161376707505956807079304988542015446066515923890162744021073123829784752");
 function uvRatio(u, v) {
@@ -4773,7 +4805,7 @@ var ONE_MINUS_D_SQ = /* @__PURE__ */ BigInt("11598430216687798791937755218555866
 var D_MINUS_ONE_SQ = /* @__PURE__ */ BigInt("40440834346308536858101042469323190826248399146238708352240133220865137265952");
 var invertSqrt = (number) => uvRatio(_1n6, number);
 var MAX_255B = /* @__PURE__ */ BigInt("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-var bytes255ToNumberLE = (bytes4) => Fp.create(bytesToNumberLE(bytes4) & MAX_255B);
+var bytes255ToNumberLE = (bytes7) => Fp.create(bytesToNumberLE(bytes7) & MAX_255B);
 function calcElligatorRistrettoMap(r0) {
   const { d } = ed25519_CURVE;
   const P2 = ed25519_CURVE_p;
@@ -4828,13 +4860,13 @@ var _RistrettoPoint = class __RistrettoPoint extends PrimeEdwardsPoint {
   init(ep) {
     return new __RistrettoPoint(ep);
   }
-  static fromBytes(bytes4) {
-    abytes(bytes4, 32);
+  static fromBytes(bytes7) {
+    abytes(bytes7, 32);
     const { a, d } = ed25519_CURVE;
     const P2 = ed25519_CURVE_p;
     const mod2 = (n) => Fp.create(n);
-    const s = bytes255ToNumberLE(bytes4);
-    if (!equalBytes2(Fp.toBytes(s), bytes4) || isNegativeLE(s, P2))
+    const s = bytes255ToNumberLE(bytes7);
+    if (!equalBytes2(Fp.toBytes(s), bytes7) || isNegativeLE(s, P2))
       throw new Error("invalid ristretto255 encoding 1");
     const s2 = mod2(s * s);
     const u1 = mod2(_1n6 + a * s2);
@@ -4859,8 +4891,8 @@ var _RistrettoPoint = class __RistrettoPoint extends PrimeEdwardsPoint {
    * Described in [RFC9496](https://www.rfc-editor.org/rfc/rfc9496#name-decode).
    * @param hex - Ristretto-encoded 32 bytes. Not every 32-byte string is valid ristretto encoding
    */
-  static fromHex(hex7) {
-    return __RistrettoPoint.fromBytes(hexToBytes(hex7));
+  static fromHex(hex17) {
+    return __RistrettoPoint.fromBytes(hexToBytes(hex17));
   }
   /**
    * Encodes ristretto point to Uint8Array.
@@ -4949,11 +4981,11 @@ var ristretto255_hasher = Object.freeze({
    * It was later reused as a component in the newer
    * `hash_to_ristretto255` function defined in RFC 9380.
    */
-  deriveToCurve(bytes4) {
-    abytes(bytes4, 64);
-    const r1 = bytes255ToNumberLE(bytes4.subarray(0, 32));
+  deriveToCurve(bytes7) {
+    abytes(bytes7, 64);
+    const r1 = bytes255ToNumberLE(bytes7.subarray(0, 32));
     const R1 = calcElligatorRistrettoMap(r1);
-    const r2 = bytes255ToNumberLE(bytes4.subarray(32, 64));
+    const r2 = bytes255ToNumberLE(bytes7.subarray(32, 64));
     const R2 = calcElligatorRistrettoMap(r2);
     return new _RistrettoPoint(R1.add(R2));
   }
@@ -4968,21 +5000,21 @@ var _HMAC = class {
   canXOF = false;
   finished = false;
   destroyed = false;
-  constructor(hash, key) {
-    ahash(hash);
+  constructor(hash5, key) {
+    ahash(hash5);
     abytes(key, void 0, "key");
-    this.iHash = hash.create();
+    this.iHash = hash5.create();
     if (typeof this.iHash.update !== "function")
       throw new Error("Expected instance of class which extends utils.Hash");
     this.blockLen = this.iHash.blockLen;
     this.outputLen = this.iHash.outputLen;
     const blockLen = this.blockLen;
     const pad = new Uint8Array(blockLen);
-    pad.set(key.length > blockLen ? hash.create().update(key).digest() : key);
+    pad.set(key.length > blockLen ? hash5.create().update(key).digest() : key);
     for (let i = 0; i < pad.length; i++)
       pad[i] ^= 54;
     this.iHash.update(pad);
-    this.oHash = hash.create();
+    this.oHash = hash5.create();
     for (let i = 0; i < pad.length; i++)
       pad[i] ^= 54 ^ 92;
     this.oHash.update(pad);
@@ -5030,8 +5062,8 @@ var _HMAC = class {
   }
 };
 var hmac = /* @__PURE__ */ (() => {
-  const hmac_ = ((hash, key, message2) => new _HMAC(hash, key).update(message2).digest());
-  hmac_.create = (hash, key) => new _HMAC(hash, key);
+  const hmac_ = ((hash5, key, message2) => new _HMAC(hash5, key).update(message2).digest());
+  hmac_.create = (hash5, key) => new _HMAC(hash5, key);
   return hmac_;
 })();
 
@@ -5124,12 +5156,12 @@ function deriveViewPublic(viewSeed) {
   kp.secret.fill(0);
   return kp.publicKey;
 }
-function sealNote({ descriptor: descriptor2, amountAtomic }) {
-  if (!descriptor2 || typeof descriptor2 !== "object") throw new TypeError("recipient descriptor required");
-  const domain = hex32(descriptor2.domain, "pool domain");
-  const assetId = hex32(descriptor2.asset_id, "pool asset");
-  const owner = hex32(descriptor2.owner, "recipient owner");
-  const viewPub = validPublic(hex32(descriptor2.view_pub, "recipient view public key"));
+function sealNote({ descriptor: descriptor3, amountAtomic }) {
+  if (!descriptor3 || typeof descriptor3 !== "object") throw new TypeError("recipient descriptor required");
+  const domain = hex32(descriptor3.domain, "pool domain");
+  const assetId = hex32(descriptor3.asset_id, "pool asset");
+  const owner = hex32(descriptor3.owner, "recipient owner");
+  const viewPub = validPublic(hex32(descriptor3.view_pub, "recipient view public key"));
   if (decodeField(owner) === 0n) throw new RangeError("recipient owner must be nonzero");
   if (!globalThis.crypto?.getRandomValues) throw new Error("secure browser randomness is required");
   const ikm = globalThis.crypto.getRandomValues(new Uint8Array(32));
@@ -5403,6 +5435,35 @@ function emptyPoolState() {
     mode: 0
   };
 }
+function parsePoolStateOpening(opening2) {
+  if (!(opening2 instanceof Uint8Array) || opening2.length !== 109) {
+    throw new TypeError("pool state opening must be 109 bytes");
+  }
+  const noteRoot = opening2.slice(0, 32);
+  const nullifierRoot = opening2.slice(32, 64);
+  const seenRoot = opening2.slice(64, 96);
+  bytes323(noteRoot, "note root");
+  bytes323(nullifierRoot, "nullifier root");
+  bytes323(seenRoot, "seen root");
+  const view = new DataView(opening2.buffer, opening2.byteOffset, opening2.byteLength);
+  const noteCount = view.getUint32(96, true);
+  const nullifierCount = view.getUint32(100, true);
+  const seenCount = view.getUint32(104, true);
+  const mode = opening2[108];
+  if (nullifierCount === 0 || seenCount === 0 || mode > 1) {
+    throw new RangeError("invalid pool state opening counters or mode");
+  }
+  return {
+    noteRoot,
+    nullifierRoot,
+    seenRoot,
+    noteCount,
+    nullifierCount,
+    seenCount,
+    mode,
+    digest: poseidonBytes(opening2)
+  };
+}
 
 // src/pool-txhash.js
 var tag = sha256(new TextEncoder().encode("NeuraiTxHash"));
@@ -5422,13 +5483,13 @@ function bytes2(value, name) {
   if (!(value instanceof Uint8Array)) throw new TypeError(`${name} must be bytes`);
   return value;
 }
-function poolTxHash({ version, locktime, prevouts, sequences, outputs }) {
+function poolTxHash({ version, locktime, prevouts, sequences, outputs: outputs2 }) {
   bytes2(version, "version");
   bytes2(locktime, "locktime");
   bytes2(prevouts, "prevouts");
   bytes2(sequences, "sequences");
-  bytes2(outputs, "outputs");
-  if (version.length !== 4 || locktime.length !== 4 || prevouts.length === 0 || prevouts.length % 36 !== 0 || sequences.length !== prevouts.length / 9 || outputs.length === 0) {
+  bytes2(outputs2, "outputs");
+  if (version.length !== 4 || locktime.length !== 4 || prevouts.length === 0 || prevouts.length % 36 !== 0 || sequences.length !== prevouts.length / 9 || outputs2.length === 0) {
     throw new RangeError("invalid pool transaction preimage fields");
   }
   const payload = concat3(
@@ -5437,7 +5498,7 @@ function poolTxHash({ version, locktime, prevouts, sequences, outputs }) {
     locktime,
     doubleSha256(prevouts),
     doubleSha256(sequences),
-    doubleSha256(outputs),
+    doubleSha256(outputs2),
     doubleSha256(empty)
   );
   return sha256(concat3(tag, tag, payload));
@@ -5448,11 +5509,11 @@ function poolTxAnchor(fields) {
 
 // src/pool-transaction.js
 var MAX_MONEY = 2100000000000000000n;
-function bytes3(hex7, name) {
-  if (typeof hex7 !== "string" || hex7.length % 2 || !/^[0-9a-f]*$/i.test(hex7)) {
+function bytes3(hex17, name) {
+  if (typeof hex17 !== "string" || hex17.length % 2 || !/^[0-9a-f]*$/i.test(hex17)) {
     throw new TypeError(`${name} must be even-length hex`);
   }
-  return Uint8Array.from(hex7.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
+  return Uint8Array.from(hex17.match(/../g) ?? [], (pair3) => parseInt(pair3, 16));
 }
 function concat4(...parts) {
   const result = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
@@ -5485,16 +5546,16 @@ function compactSize(value) {
   if (value <= 65535) return Uint8Array.of(253, value & 255, value >>> 8);
   return concat4(Uint8Array.of(254), u323(value));
 }
-function serializePoolTemplate({ inputs, outputs }) {
-  if (!Array.isArray(inputs) || !inputs.length || !Array.isArray(outputs) || !outputs.length) {
+function serializePoolTemplate({ inputs, outputs: outputs2 }) {
+  if (!Array.isArray(inputs) || !inputs.length || !Array.isArray(outputs2) || !outputs2.length) {
     throw new TypeError("nonempty pool inputs and outputs required");
   }
   const prevouts = concat4(...inputs.map(({ txid, vout }) => {
-    const hash = bytes3(txid, "txid");
-    if (hash.length !== 32) throw new TypeError("txid must be 32 bytes");
-    return concat4(hash.reverse(), u323(vout));
+    const hash5 = bytes3(txid, "txid");
+    if (hash5.length !== 32) throw new TypeError("txid must be 32 bytes");
+    return concat4(hash5.reverse(), u323(vout));
   }));
-  const serializedOutputs = concat4(...outputs.map(({ valueSats, scriptHex }) => {
+  const serializedOutputs = concat4(...outputs2.map(({ valueSats, scriptHex }) => {
     const script = bytes3(scriptHex, "script");
     return concat4(u64(valueSats), compactSize(script.length), script);
   }));
@@ -5573,11 +5634,11 @@ function validateC4Manifest(m, { expectedGenesis = RESET_TESTNET_GENESIS, expect
   demand2(/^[0-9a-f]{64}$/.test(m.commitment) && /^[0-9a-f]{64}$/.test(m.reserveCommitment), "Bad commitments");
   demand2(C4_FORMS.every((f) => m.forms?.[f]) && Object.keys(m.forms).length === 8, "Eight circuit forms required");
   for (const f of C4_FORMS) {
-    const entry = m.forms[f], script = unhex(entry.script), control = unhex(entry.control), vk = unhex(entry.vk);
-    demand2(script.length > 0 && script.length <= 1e4 && control[0] === 1 && (control.length - 1) % 32 === 0, "Invalid MAST leaf");
+    const entry = m.forms[f], script = unhex(entry.script), control2 = unhex(entry.control), vk = unhex(entry.vk);
+    demand2(script.length > 0 && script.length <= 1e4 && control2[0] === 1 && (control2.length - 1) % 32 === 0, "Invalid MAST leaf");
     let root = tagged("NeuraiAuthLeaf", cat(le(1, 1), variable(script)));
-    for (let at = 1; at < control.length; at += 32) {
-      const sibling = control.slice(at, at + 32);
+    for (let at = 1; at < control2.length; at += 32) {
+      const sibling = control2.slice(at, at + 32);
       root = tagged("NeuraiAuthBranch", hex(root) < hex(sibling) ? cat(root, sibling) : cat(sibling, root));
     }
     demand2(hex(tagged("NeuraiAuthScript", cat(le(4, 1), le(0, 1), root))) === m.commitment, "MAST commitment mismatch");
@@ -5587,8 +5648,8 @@ function validateC4Manifest(m, { expectedGenesis = RESET_TESTNET_GENESIS, expect
   demand2(hex(tagged("NeuraiAuthScript", cat(le(1, 1), le(0, 1), sha256(unhex(m.guard))))) === m.reserveCommitment, "Reserve commitment mismatch");
   return m;
 }
-function c4StateScript(m, digest) {
-  const payload = cat(utf84("xnat"), variable(utf84(m.identity)), le(1e8, 8), unhex("5420"), digest);
+function c4StateScript(m, digest2) {
+  const payload = cat(utf84("xnat"), variable(utf84(m.identity)), le(1e8, 8), unhex("5420"), digest2);
   return hex(cat(unhex("5120" + m.commitment + "c0"), push(payload), unhex("75")));
 }
 function c4Path(slots, index) {
@@ -5727,23 +5788,23 @@ function prepareC4({ manifest, scan, form, created = [], consumed, secret, fundi
   if (form[0] === "D") inputs.push(funding);
   inputs.push(sponsor);
   demand2(new Set(inputs.map((x) => x.txid + ":" + x.vout)).size === inputs.length, "Duplicate transaction input");
-  const outputs = [{ valueSats: 0n, scriptHex: c4StateScript(m, encodeField(data.S_new)) }];
+  const outputs2 = [{ valueSats: 0n, scriptHex: c4StateScript(m, encodeField(data.S_new)) }];
   if (form !== "W_full") {
     demand2(nextReserve >= c4DustAtomic("5120" + m.reserveCommitment, dustRelayFeePerKb), "Reserve output would be dust under the selected policy");
-    outputs.push({ valueSats: nextReserve, scriptHex: "5120" + m.reserveCommitment });
+    outputs2.push({ valueSats: nextReserve, scriptHex: "5120" + m.reserveCommitment });
   }
   if (form[0] === "W") {
     demand2(amount >= c4DustAtomic(payout, dustRelayFeePerKb), "Withdrawal would be dust under the selected policy");
-    outputs.push({ valueSats: amount, scriptHex: payout });
+    outputs2.push({ valueSats: amount, scriptHex: payout });
   }
-  outputs.push({ valueSats: BigInt(sponsor.valueSats) - fee, scriptHex: sponsor.scriptHex });
-  const template = serializePoolTemplate({ inputs, outputs });
+  outputs2.push({ valueSats: BigInt(sponsor.valueSats) - fee, scriptHex: sponsor.scriptHex });
+  const template = serializePoolTemplate({ inputs, outputs: outputs2 });
   data.anchor = decodeField(template.anchor);
   const publics = [data.ctx, data.S_old, data.S_new];
   if (form[0] === "D") publics.push(data.dep, data.wdr, data.req, data.data_hash, data.anchor, amount);
   else if (form[0] === "T") publics.push(data.nf, data.data_hash, data.anchor, ...created.map((x) => decodeField(x.cm)));
   else publics.push(data.nf, data.anchor, amount, reserve, nextReserve);
-  return { state, form, inputs, outputs, template, input: decimal(data), publicSignals: publics.map(String), blob, nf: data.nf === void 0 ? void 0 : encodeField(data.nf), feeAtomic, manifest: m };
+  return { state, form, inputs, outputs: outputs2, template, input: decimal(data), publicSignals: publics.map(String), blob, nf: data.nf === void 0 ? void 0 : encodeField(data.nf), feeAtomic, manifest: m };
 }
 var FP = 21888242871839275222246405745257275088696311157297823662689037894645226208583n;
 function g1(p) {
@@ -5763,12 +5824,204 @@ function c4ProofBytes(proof) {
 }
 function finishC4(prepared, proof, publicSignals) {
   demand2(JSON.stringify(publicSignals.map(String)) === JSON.stringify(prepared.publicSignals), "Proof public inputs differ from the transaction");
-  const { form, inputs, outputs, template, manifest: m } = prepared, entry = m.forms[form];
+  const { form, inputs, outputs: outputs2, template, manifest: m } = prepared, entry = m.forms[form];
   const args = prepared.blob ? [prepared.blob.slice(0, 2048), prepared.blob.slice(2048)] : [prepared.nf];
   const own = [unhex("10"), c4ProofBytes(proof), unhex(entry.vk), ...args, template.prevouts, unhex(entry.script), unhex(entry.control)];
   const witnesses = [own, ...form === "D0" ? [] : [[unhex("00"), unhex(m.guard)]], ...form[0] === "D" ? [[]] : [], []];
   demand2(witnesses.length === inputs.length, "Witness count mismatch");
-  return hex(cat(le(3, 4), unhex("0001"), compact(inputs.length), ...inputs.map((x) => cat(unhex(x.txid).reverse(), le(x.vout, 4), le(0, 1), unhex("ffffffff"))), compact(outputs.length), template.outputs, le(0, 1), ...witnesses.map((w) => cat(compact(w.length), ...w.map(variable))), le(0, 4)));
+  return hex(cat(le(3, 4), unhex("0001"), compact(inputs.length), ...inputs.map((x) => cat(unhex(x.txid).reverse(), le(x.vout, 4), le(0, 1), unhex("ffffffff"))), compact(outputs2.length), template.outputs, le(0, 1), ...witnesses.map((w) => cat(compact(w.length), ...w.map(variable))), le(0, 4)));
+}
+
+// src/c5-transition.js
+var C5_CHUNK_BYTES = 3072;
+var C5_CHUNKS = 5;
+var ZERO2 = new Uint8Array(32);
+var equal2 = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+var need = (ok, message2) => {
+  if (!ok) throw new Error("C5 transition: " + message2);
+};
+var outputs = (form) => form[0] === "D" ? 1 : form[0] === "T" ? Number(form[1]) : 0;
+function c5TransitionBinding(form, oldHash, newHash, nf, cms) {
+  need(C4_FORMS.includes(form), "unknown form");
+  need(cms.length === outputs(form), "output count");
+  for (const field2 of [oldHash, newHash, nf, ...cms]) decodeField(field2);
+  return cat(Uint8Array.of(C4_FORMS.indexOf(form)), oldHash, newHash, nf, ...cms);
+}
+function splitC5Transition(raw) {
+  need(raw instanceof Uint8Array && raw.length > 0 && raw.length <= C5_CHUNK_BYTES * C5_CHUNKS, "size");
+  return Array.from({ length: C5_CHUNKS }, (_, i) => raw.slice(i * C5_CHUNK_BYTES, (i + 1) * C5_CHUNK_BYTES));
+}
+function joinC5Transition(chunks) {
+  need(Array.isArray(chunks) && chunks.length === C5_CHUNKS, "chunk count");
+  let short = false;
+  for (const chunk of chunks) {
+    need(chunk instanceof Uint8Array && chunk.length <= C5_CHUNK_BYTES && !(short && chunk.length), "noncanonical chunks");
+    if (chunk.length < C5_CHUNK_BYTES) short = true;
+  }
+  const raw = cat(...chunks);
+  need(raw.length > 0, "empty transcript");
+  return raw;
+}
+function pathRoot(leaf, index, path) {
+  need(Number.isSafeInteger(index) && index >= 0 && index <= 4294967295 && path.length === 32, "path shape");
+  decodeField(leaf);
+  for (const sibling of path) {
+    decodeField(sibling);
+    leaf = index % 2 ? poolTreeNode(sibling, leaf) : poolTreeNode(leaf, sibling);
+    index = Math.floor(index / 2);
+  }
+  return leaf;
+}
+var Reader = class {
+  constructor(raw) {
+    need(raw instanceof Uint8Array && raw.length <= 15360, "size");
+    this.raw = raw;
+    this.pos = 0;
+  }
+  take(n) {
+    const raw = this.raw.slice(this.pos, this.pos + n);
+    need(raw.length === n, "truncated");
+    this.pos += n;
+    return raw;
+  }
+  u32() {
+    const b = this.take(4);
+    return new DataView(b.buffer, b.byteOffset, 4).getUint32(0, true);
+  }
+  field() {
+    const b = this.take(32);
+    decodeField(b);
+    return b;
+  }
+  path() {
+    return Array.from({ length: 32 }, () => this.field());
+  }
+};
+function indexed(reader, kind, oldRoot, next, value) {
+  const pred = reader.u32(), pv = decodeField(reader.field()), nv = decodeField(reader.field()), ni = reader.u32();
+  const predPath = reader.path(), emptyPath = reader.path();
+  need(next >= 1 && next <= 4294967294 && pred < next && ni < next, "allocation");
+  need(nv === 0n === (ni === 0) && pv === 0n === (pred === 0), "sentinel");
+  need(value > pv && (nv === 0n || value < nv), "ordering");
+  need(equal2(pathRoot(poolIndexedLeaf(kind, pv, nv, ni), pred, predPath), oldRoot), "old predecessor");
+  const mid = pathRoot(poolIndexedLeaf(kind, pv, value, next), pred, predPath);
+  need(equal2(pathRoot(ZERO2, next, emptyPath), mid), "empty indexed slot");
+  return pathRoot(poolIndexedLeaf(kind, value, nv, ni), next, emptyPath);
+}
+function verifyC5Transition(raw, expectedBinding) {
+  const reader = new Reader(raw);
+  need(reader.take(1)[0] === 1, "version");
+  const code = reader.take(1)[0], form = C4_FORMS[code];
+  need(form, "form");
+  const oldRaw = reader.take(109), newRaw = reader.take(109);
+  const old = parsePoolStateOpening(oldRaw), fresh = parsePoolStateOpening(newRaw);
+  need(old.seenCount === old.noteCount + 1 && fresh.seenCount === fresh.noteCount + 1, "state counts");
+  const nf = reader.field(), cms = Array.from({ length: outputs(form) }, () => reader.field());
+  need(equal2(c5TransitionBinding(form, old.digest, fresh.digest, nf, cms), expectedBinding), "transaction/ZK binding");
+  need(old.mode === Number(form !== "D0"), "old mode");
+  let noteRoot = old.noteRoot, nfRoot = old.nullifierRoot, seenRoot = old.seenRoot;
+  let noteCount = old.noteCount, nfCount = old.nullifierCount, seenCount = old.seenCount;
+  if (form[0] === "D") need(equal2(nf, ZERO2), "deposit nullifier");
+  else {
+    nfRoot = indexed(reader, "nf", nfRoot, nfCount, decodeField(nf));
+    nfCount++;
+  }
+  for (const cm of cms) {
+    need(decodeField(cm) > 0n && noteCount <= 4294967293, "append capacity/value");
+    const path = reader.path();
+    need(equal2(pathRoot(ZERO2, noteCount, path), noteRoot), "old append slot");
+    noteRoot = pathRoot(cm, noteCount, path);
+    seenRoot = indexed(reader, "cm", seenRoot, seenCount, decodeField(cm));
+    noteCount++;
+    seenCount++;
+  }
+  const computed = cat(noteRoot, nfRoot, seenRoot, le(noteCount, 4), le(nfCount, 4), le(seenCount, 4), Uint8Array.of(Number(form !== "W_full")));
+  need(equal2(computed, newRaw), "new state");
+  need(reader.pos === raw.length, "trailing bytes");
+  return true;
+}
+function encodeC5Transition(form, data) {
+  need(C4_FORMS.includes(form), "unknown form");
+  const old = Uint8Array.from(data.oldState), fresh = Uint8Array.from(form[0] === "T" ? data.states.at(-1) : data.newState);
+  const nf = form[0] === "D" ? ZERO2 : encodeField(BigInt(data.nf));
+  const cms = form[0] === "T" ? data.cms.map((x) => encodeField(BigInt(x))) : form[0] === "D" ? [encodeField(BigInt(data.cm))] : [];
+  const parts = [Uint8Array.of(1, C4_FORMS.indexOf(form)), old, fresh, nf, ...cms];
+  const path = (values) => {
+    need(values.length === 32, "path length");
+    parts.push(...values.map((x) => encodeField(BigInt(x))));
+  };
+  const insert2 = (get) => {
+    parts.push(le(get("predIndex"), 4), encodeField(BigInt(get("predValue"))), encodeField(BigInt(get("predNextValue"))), le(get("predNextIndex"), 4));
+    path(get("predPath"));
+    path(get("emptyPath"));
+  };
+  if (form[0] === "T") insert2((k) => data["nf" + k[0].toUpperCase() + k.slice(1)]);
+  else if (form[0] === "W") insert2((k) => data[k]);
+  for (let i = 0; i < cms.length; i++) {
+    if (form[0] === "T") {
+      path(data.notePaths[i]);
+      const names = { predIndex: "predIndices", predValue: "predValues", predNextValue: "predNextValues", predNextIndex: "predNextIndices", predPath: "predPaths", emptyPath: "emptyPaths" };
+      insert2((k) => data[names[k]][i]);
+    } else {
+      path(data.notePath);
+      insert2((k) => data[k]);
+    }
+  }
+  const raw = cat(...parts);
+  verifyC5Transition(raw, c5TransitionBinding(form, encodeField(BigInt(data.S_old)), encodeField(BigInt(data.S_new)), nf, cms));
+  return raw;
+}
+
+// src/c5.js
+var C5_FORMS = Object.freeze([...C4_FORMS]);
+var adapted = (manifest) => ({ ...manifest, schema: "neurai-c4-xna-test-v1" });
+function requireProfile2(script) {
+  let at = 0, previous = null, calls = 0;
+  while (at < script.length) {
+    const op = script[at++];
+    let size = 0, item = null;
+    if (op <= 75) size = op;
+    else if (op === 76 || op === 77 || op === 78) {
+      const width = op === 76 ? 1 : op === 77 ? 2 : 4;
+      if (at + width > script.length) throw new Error("Truncated C5 leaf push");
+      for (let i = 0; i < width; i++) size += script[at++] * 2 ** (8 * i);
+    } else if (op >= 81 && op <= 96) item = Uint8Array.of(op - 80);
+    if (op <= 78) {
+      if (size > script.length - at) throw new Error("Truncated C5 leaf data");
+      item = script.slice(at, at + size);
+      at += size;
+    }
+    if (op === 195) {
+      if (previous?.length !== 1 || previous[0] !== 2) throw new Error("C5 leaf must pin ZK profile 2");
+      calls++;
+    }
+    previous = item;
+  }
+  if (calls !== 1) throw new Error("C5 leaf must contain exactly one ZK verification");
+}
+function validateC5Manifest(manifest, options) {
+  if (manifest?.schema !== "neurai-c5-xna-test-v1" || manifest.zkProfile !== 2) throw new Error("Explicit C5 profile-2 TEST manifest required");
+  validateC4Manifest(adapted(manifest), options);
+  for (const form of C5_FORMS) requireProfile2(unhex(manifest.forms[form].script));
+  return manifest;
+}
+function prepareC5(options) {
+  const manifest = validateC5Manifest(options.manifest, options);
+  const prepared = prepareC4({ ...options, manifest: adapted(manifest) });
+  const transition = encodeC5Transition(prepared.form, prepared.input);
+  return { ...prepared, manifest, zkProfile: 2, transition, chunks: splitC5Transition(transition) };
+}
+function finishC5(prepared, proof, publicSignals) {
+  if (prepared.zkProfile !== 2 || prepared.manifest?.zkProfile !== 2) throw new Error("Prepared C5 profile required");
+  if (JSON.stringify(publicSignals.map(String)) !== JSON.stringify(prepared.publicSignals)) throw new Error("Proof public inputs differ from the transaction");
+  const chunks = splitC5Transition(encodeC5Transition(prepared.form, prepared.input));
+  const { form, inputs, outputs: outputs2, template, manifest: m } = prepared, entry = m.forms[form];
+  const args = prepared.blob ? [prepared.blob.slice(0, 2048), prepared.blob.slice(2048)] : [prepared.nf];
+  const own = [unhex("10"), ...chunks, c4ProofBytes(proof), unhex(entry.vk), ...args, template.prevouts, unhex(entry.script), unhex(entry.control)];
+  const witnesses = [own, ...form === "D0" ? [] : [[unhex("00"), unhex(m.guard)]], ...form[0] === "D" ? [[]] : [], []];
+  if (witnesses.length !== inputs.length) throw new Error("Witness count mismatch");
+  const variable2 = (b) => cat(compact(b.length), b);
+  return hex(cat(le(3, 4), unhex("0001"), compact(inputs.length), ...inputs.map((x) => cat(unhex(x.txid).reverse(), le(x.vout, 4), le(0, 1), unhex("ffffffff"))), compact(outputs2.length), template.outputs, le(0, 1), ...witnesses.map((w) => cat(compact(w.length), ...w.map(variable2))), le(0, 4)));
 }
 
 // src/checkpoint-crypto.js
@@ -5776,10 +6029,10 @@ var encoder2 = new TextEncoder();
 var decoder2 = new TextDecoder("utf-8", { fatal: true });
 var AAD2 = encoder2.encode("Neurai/privacy/scan-checkpoint/v1");
 var MAX_BYTES = 32 * 1024 * 1024;
-var hex2 = (bytes4) => Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
+var hex2 = (bytes7) => Array.from(bytes7, (byte) => byte.toString(16).padStart(2, "0")).join("");
 function unhex2(value) {
   if (typeof value !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(value)) throw new Error("Invalid scan checkpoint");
-  return Uint8Array.from(value.match(/../g), (pair2) => parseInt(pair2, 16));
+  return Uint8Array.from(value.match(/../g), (pair3) => parseInt(pair3, 16));
 }
 function sealScanCheckpoint(checkpoint, key) {
   if (!globalThis.crypto?.getRandomValues) throw new Error("Secure randomness is required");
@@ -5814,10 +6067,10 @@ function bytesFromHex(value, name) {
   }
   return Uint8Array.from(value.match(/../g), (byte) => parseInt(byte, 16));
 }
-function hex3(bytes4) {
-  return Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
+function hex3(bytes7) {
+  return Array.from(bytes7, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
-function equal2(a, b) {
+function equal3(a, b) {
   if (a.length !== b.length) return false;
   let mismatch = 0;
   for (let i = 0; i < a.length; i++) mismatch |= a[i] ^ b[i];
@@ -5883,7 +6136,7 @@ var BrowserTestIdentity = class _BrowserTestIdentity {
   /** Seal a note for a descriptor in this exact pool instance. No transaction is created. */
   createNote(recipient, amountAtomic) {
     this.#assertOpen();
-    if (!recipient || typeof recipient !== "object" || !equal2(bytesFromHex(recipient.domain, "recipient domain"), this.#domain) || !equal2(bytesFromHex(recipient.asset_id, "recipient asset"), this.#assetId)) {
+    if (!recipient || typeof recipient !== "object" || !equal3(bytesFromHex(recipient.domain, "recipient domain"), this.#domain) || !equal3(bytesFromHex(recipient.asset_id, "recipient asset"), this.#assetId)) {
       throw new Error("recipient belongs to another pool instance");
     }
     return sealNote({ descriptor: recipient, amountAtomic });
@@ -5908,6 +6161,66 @@ var BrowserTestIdentity = class _BrowserTestIdentity {
     }
     return prepareC4({ ...options, secret: this.#spendSecret });
   }
+  /** Experimental C5 preparation; secrets remain in the dedicated worker. */
+  prepareC5(options) {
+    this.#assertOpen();
+    if (options.manifest.domain !== hex3(this.#domain) || options.manifest.assetId !== hex3(this.#assetId)) {
+      throw new Error("wallet belongs to another pool instance");
+    }
+    return prepareC5({ ...options, secret: this.#spendSecret });
+  }
+  /** C6 secrets stay in the proving worker; no spending-key getter is added. */
+  prepareC6Deposit(wallet, options) {
+    this.#assertOpen();
+    return wallet.prepareDeposit({
+      ...options,
+      domain: this.#domain,
+      assetId: this.#assetId,
+      recipient: options.recipient ?? this.recipient()
+    });
+  }
+  prepareC6Transfer(wallet, { consumed, ...options }) {
+    this.#assertOpen();
+    return wallet.prepareTransfer({
+      ...options,
+      domain: this.#domain,
+      assetId: this.#assetId,
+      root: consumed.root,
+      spent: {
+        note: consumed.note,
+        index: consumed.index,
+        path: consumed.path,
+        spendSecret: this.#spendSecret
+      }
+    });
+  }
+  prepareC6Withdrawal(wallet, { consumed, ...options }) {
+    this.#assertOpen();
+    return wallet.prepareWithdrawal({
+      ...options,
+      domain: this.#domain,
+      assetId: this.#assetId,
+      root: consumed.root,
+      spent: {
+        note: consumed.note,
+        index: consumed.index,
+        path: consumed.path,
+        spendSecret: this.#spendSecret
+      }
+    });
+  }
+  prepareC6Join(wallet, { consumed, identities = [this, this], ...options }) {
+    this.#assertOpen();
+    if (consumed.length !== 2 || identities.length !== 2) throw Error("Two owned notes required");
+    for (const identity of identities) identity.#assertOpen();
+    return wallet.prepare({
+      ...options,
+      domain: this.#domain,
+      assetId: this.#assetId,
+      root: consumed[0].root,
+      notes: consumed.map((n, i) => ({ note: n.note, index: n.index, path: n.path, spendSecret: identities[i].#spendSecret }))
+    });
+  }
   #checkpointKey() {
     this.#assertOpen();
     const label2 = new TextEncoder().encode("Neurai/privacy/checkpoint/file/v1");
@@ -5921,6 +6234,15 @@ var BrowserTestIdentity = class _BrowserTestIdentity {
       return sha256(material);
     } finally {
       material.fill(0);
+    }
+  }
+  /** Stable opaque journal namespace, never a spending or encryption key. */
+  checkpointStoreId() {
+    const key = this.#checkpointKey();
+    try {
+      return hex3(sha256(new Uint8Array([...new TextEncoder().encode("Neurai/C6/journal-id/v1"), ...key])));
+    } finally {
+      key.fill(0);
     }
   }
   sealCheckpoint(checkpoint) {
@@ -5953,13 +6275,13 @@ function isBytes4(a) {
   return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array";
 }
 function abytes4(value, length, title = "") {
-  const bytes4 = isBytes4(value);
+  const bytes7 = isBytes4(value);
   const len = value?.length;
   const needsLen = length !== void 0;
-  if (!bytes4 || needsLen && len !== length) {
+  if (!bytes7 || needsLen && len !== length) {
     const prefix = title && `"${title}" `;
     const ofLen = needsLen ? ` of length ${length}` : "";
-    const got = bytes4 ? `length=${len}` : `type=${typeof value}`;
+    const got = bytes7 ? `length=${len}` : `type=${typeof value}`;
     throw new Error(prefix + "expected Uint8Array" + ofLen + ", got " + got);
   }
   return value;
@@ -6479,10 +6801,10 @@ function radix(num) {
   anumber4(num);
   const _256 = 2 ** 8;
   return {
-    encode: (bytes4) => {
-      if (!isBytes5(bytes4))
+    encode: (bytes7) => {
+      if (!isBytes5(bytes7))
         throw new Error("radix.encode input should be Uint8Array");
-      return convertRadix(Array.from(bytes4), _256, num);
+      return convertRadix(Array.from(bytes7), _256, num);
     },
     decode: (digits) => {
       anumArr("radix.decode", digits);
@@ -6498,10 +6820,10 @@ function radix2(bits, revPadding = false) {
   if (/* @__PURE__ */ radix2carry(8, bits) > 32 || /* @__PURE__ */ radix2carry(bits, 8) > 32)
     throw new Error("radix2: carry overflow");
   return {
-    encode: (bytes4) => {
-      if (!isBytes5(bytes4))
+    encode: (bytes7) => {
+      if (!isBytes5(bytes7))
         throw new Error("radix2.encode input should be Uint8Array");
-      return convertRadix2(Array.from(bytes4), 8, bits, !revPadding);
+      return convertRadix2(Array.from(bytes7), 8, bits, !revPadding);
     },
     decode: (digits) => {
       anumArr("radix2.decode", digits);
@@ -8644,19 +8966,19 @@ zone
 zoo`.split("\n");
 
 // node_modules/@noble/hashes/hkdf.js
-function extract(hash, ikm, salt) {
-  ahash(hash);
+function extract(hash5, ikm, salt) {
+  ahash(hash5);
   if (salt === void 0)
-    salt = new Uint8Array(hash.outputLen);
-  return hmac(hash, salt, ikm);
+    salt = new Uint8Array(hash5.outputLen);
+  return hmac(hash5, salt, ikm);
 }
 var HKDF_COUNTER = /* @__PURE__ */ Uint8Array.of(0);
 var EMPTY_BUFFER = /* @__PURE__ */ Uint8Array.of();
-function expand(hash, prk, info, length = 32) {
-  ahash(hash);
+function expand(hash5, prk, info, length = 32) {
+  ahash(hash5);
   anumber(length, "length");
   abytes(prk, void 0, "prk");
-  const olen = hash.outputLen;
+  const olen = hash5.outputLen;
   if (prk.length < olen)
     throw new Error('"prk" must be at least HashLen octets');
   if (length > 255 * olen)
@@ -8667,7 +8989,7 @@ function expand(hash, prk, info, length = 32) {
   else
     abytes(info, void 0, "info");
   const okm = new Uint8Array(blocks * olen);
-  const HMAC = hmac.create(hash, prk);
+  const HMAC = hmac.create(hash5, prk);
   const HMACTmp = HMAC._cloneInto();
   const T = new Uint8Array(HMAC.outputLen);
   for (let counter = 0; counter < blocks; counter++) {
@@ -8683,8 +9005,8 @@ function expand(hash, prk, info, length = 32) {
 }
 
 // node_modules/@noble/hashes/pbkdf2.js
-function pbkdf2Init(hash, _password, _salt, _opts) {
-  ahash(hash);
+function pbkdf2Init(hash5, _password, _salt, _opts) {
+  ahash(hash5);
   const opts = checkOpts({ dkLen: 32, asyncTick: 10 }, _opts);
   const { c, dkLen, asyncTick } = opts;
   anumber(c, "c");
@@ -8694,12 +9016,12 @@ function pbkdf2Init(hash, _password, _salt, _opts) {
     throw new Error("iterations (c) must be >= 1");
   if (dkLen < 1)
     throw new Error('"dkLen" must be >= 1');
-  if (dkLen > (2 ** 32 - 1) * hash.outputLen)
+  if (dkLen > (2 ** 32 - 1) * hash5.outputLen)
     throw new Error("derived key too long");
   const password = kdfInputToBytes(_password, "password");
   const salt = kdfInputToBytes(_salt, "salt");
   const DK = new Uint8Array(dkLen);
-  const PRF = hmac.create(hash, password);
+  const PRF = hmac.create(hash5, password);
   const PRFSalt = PRF._cloneInto().update(salt);
   return { c, dkLen, asyncTick, DK, PRF, PRFSalt };
 }
@@ -8711,8 +9033,8 @@ function pbkdf2Output(PRF, PRFSalt, DK, prfW, u) {
   clean(u);
   return DK;
 }
-async function pbkdf2Async(hash, password, salt, opts) {
-  const { c, dkLen, asyncTick, DK, PRF, PRFSalt } = pbkdf2Init(hash, password, salt, opts);
+async function pbkdf2Async(hash5, password, salt, opts) {
+  const { c, dkLen, asyncTick, DK, PRF, PRFSalt } = pbkdf2Init(hash5, password, salt, opts);
   let prfW;
   const arr = new Uint8Array(4);
   const view = createView(arr);
@@ -8777,19 +9099,19 @@ function u32le(value) {
   new DataView(out.buffer).setUint32(0, value, true);
   return out;
 }
-function hex4(bytes4) {
-  return Array.from(bytes4, (b) => b.toString(16).padStart(2, "0")).join("");
+function hex4(bytes7) {
+  return Array.from(bytes7, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 function bytes324(value, name) {
   if (value instanceof Uint8Array && value.length === 32) return value;
   if (typeof value === "string" && /^[0-9a-f]{64}$/i.test(value)) return Uint8Array.from(value.match(/../g), (b) => parseInt(b, 16));
   return fail(name + " must be 32 bytes");
 }
-function beInt(bytes4) {
-  return BigInt("0x" + (hex4(bytes4) || "0"));
+function beInt(bytes7) {
+  return BigInt("0x" + (hex4(bytes7) || "0"));
 }
-function leInt(bytes4) {
-  return beInt(Uint8Array.from(bytes4).reverse());
+function leInt(bytes7) {
+  return beInt(Uint8Array.from(bytes7).reverse());
 }
 function index31(value, name) {
   if (!Number.isInteger(value) || value < 0 || value >= MAX_INDEX2) fail(name + " must be an integer in [0, 2^31)");
@@ -8832,17 +9154,17 @@ function convertBits(data, from, to, pad) {
   } else if (bits >= from || acc << to - bits & max) fail("invalid bit padding");
   return out;
 }
-function bech32mEncode(hrp, bytes4) {
+function bech32mEncode(hrp, bytes7) {
   if (!/^[a-z]{1,83}$/.test(hrp)) fail("invalid HRP");
-  const data = convertBits(bytes4, 8, 5, true);
+  const data = convertBits(bytes7, 8, 5, true);
   const mod2 = polymod([...expandHrp(hrp), ...data, 0, 0, 0, 0, 0, 0]) ^ BECH32M_CONST;
   const checksum2 = [0, 1, 2, 3, 4, 5].map((i) => mod2 >>> 5 * (5 - i) & 31);
   return hrp + "1" + [...data, ...checksum2].map((v) => CHARSET[v]).join("");
 }
-function bech32mDecode(text2) {
-  if (typeof text2 !== "string" || text2.length > 1023) fail("address must be a string");
-  if (text2 !== text2.toLowerCase() && text2 !== text2.toUpperCase()) fail("mixed-case address");
-  const s = text2.toLowerCase();
+function bech32mDecode(text5) {
+  if (typeof text5 !== "string" || text5.length > 1023) fail("address must be a string");
+  if (text5 !== text5.toLowerCase() && text5 !== text5.toUpperCase()) fail("mixed-case address");
+  const s = text5.toLowerCase();
   const sep = s.lastIndexOf("1");
   if (sep < 1 || s.length - sep - 1 < 6) fail("malformed address");
   const hrp = s.slice(0, sep);
@@ -8915,13 +9237,13 @@ function deriveZkAddressKeys(root, options) {
 function nzkInstanceTag(domain, assetId) {
   return sha256(concat5(utf85.encode("NeuraiZK/v1/instance"), bytes324(domain, "domain"), bytes324(assetId, "assetId"))).subarray(0, 4);
 }
-function encodeNzkAddress(descriptor2, network) {
-  if (!descriptor2 || typeof descriptor2 !== "object") fail("descriptor required");
-  const owner = bytes324(descriptor2.owner, "owner");
-  const viewPub = bytes324(descriptor2.view_pub, "view_pub");
+function encodeNzkAddress(descriptor3, network) {
+  if (!descriptor3 || typeof descriptor3 !== "object") fail("descriptor required");
+  const owner = bytes324(descriptor3.owner, "owner");
+  const viewPub = bytes324(descriptor3.view_pub, "view_pub");
   checkOwner(owner);
   checkViewPublic(viewPub);
-  const payload = concat5(Uint8Array.of(1), owner, viewPub, nzkInstanceTag(descriptor2.domain, descriptor2.asset_id));
+  const payload = concat5(Uint8Array.of(1), owner, viewPub, nzkInstanceTag(descriptor3.domain, descriptor3.asset_id));
   return bech32mEncode(hrpFor(network), payload);
 }
 function checkOwner(owner) {
@@ -8934,11 +9256,11 @@ function checkViewPublic(viewPub) {
   if (SMALL_ORDER_U.has(u)) fail("view key has small order");
 }
 function decodeNzkAddress(address, { network, domain, assetId }) {
-  const { hrp, bytes: bytes4 } = bech32mDecode(address);
+  const { hrp, bytes: bytes7 } = bech32mDecode(address);
   if (hrp !== hrpFor(network)) fail("address belongs to another network");
-  if (bytes4.length !== PAYLOAD_BYTES) fail("invalid address length");
-  if (bytes4[0] !== 1) fail("unsupported address version");
-  const owner = bytes4.subarray(1, 33), viewPub = bytes4.subarray(33, 65), tag2 = bytes4.subarray(65, 69);
+  if (bytes7.length !== PAYLOAD_BYTES) fail("invalid address length");
+  if (bytes7[0] !== 1) fail("unsupported address version");
+  const owner = bytes7.subarray(1, 33), viewPub = bytes7.subarray(33, 65), tag2 = bytes7.subarray(65, 69);
   const expected = nzkInstanceTag(domain, assetId);
   if (tag2.some((b, i) => b !== expected[i])) fail("address belongs to another pool instance");
   checkOwner(owner);
@@ -8951,27 +9273,27 @@ function decodeNzkAddress(address, { network, domain, assetId }) {
   };
 }
 function parseRecipient(input, { network, domain, assetId }) {
-  let descriptor2;
+  let descriptor3;
   if (typeof input === "string") {
     const value = input.trim();
     if (!value) fail("recipient required");
     if (value[0] !== "{") return decodeNzkAddress(value, { network, domain, assetId });
     try {
-      descriptor2 = JSON.parse(value);
+      descriptor3 = JSON.parse(value);
     } catch {
       fail("recipient is neither an nzk address nor a JSON descriptor");
     }
   } else {
-    descriptor2 = input;
+    descriptor3 = input;
   }
-  if (!descriptor2 || typeof descriptor2 !== "object" || Array.isArray(descriptor2)) {
+  if (!descriptor3 || typeof descriptor3 !== "object" || Array.isArray(descriptor3)) {
     fail("recipient must be an nzk address or a descriptor");
   }
   const normalized = {
-    domain: hex4(bytes324(descriptor2.domain, "domain")),
-    asset_id: hex4(bytes324(descriptor2.asset_id, "asset_id")),
-    owner: hex4(bytes324(descriptor2.owner, "owner")),
-    view_pub: hex4(bytes324(descriptor2.view_pub, "view_pub"))
+    domain: hex4(bytes324(descriptor3.domain, "domain")),
+    asset_id: hex4(bytes324(descriptor3.asset_id, "asset_id")),
+    owner: hex4(bytes324(descriptor3.owner, "owner")),
+    view_pub: hex4(bytes324(descriptor3.view_pub, "view_pub"))
   };
   if (normalized.domain !== hex4(bytes324(domain, "domain")) || normalized.asset_id !== hex4(bytes324(assetId, "assetId"))) {
     fail("recipient belongs to another pool instance");
@@ -9186,6 +9508,21 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
   prepareC4(options) {
     return this.spendingIdentity(options.consumed).prepareC4(options);
   }
+  prepareC5(options) {
+    return this.spendingIdentity(options.consumed).prepareC5(options);
+  }
+  prepareC6Deposit(wallet, options) {
+    return this.identityAt(CHAIN_CHANGE, 0).prepareC6Deposit(wallet, options);
+  }
+  prepareC6Transfer(wallet, options) {
+    return this.spendingIdentity(options.consumed).prepareC6Transfer(wallet, options);
+  }
+  prepareC6Withdrawal(wallet, options) {
+    return this.spendingIdentity(options.consumed).prepareC6Withdrawal(wallet, options);
+  }
+  prepareC6Join(wallet, { consumed, ...options }) {
+    return this.spendingIdentity(consumed[0]).prepareC6Join(wallet, { ...options, consumed, identities: consumed.map((n) => this.spendingIdentity(n)) });
+  }
   /** Derived identities are recovered from the words; there is no file backup. */
   backupJson() {
     return null;
@@ -9198,6 +9535,15 @@ var ZkWalletIdentity = class _ZkWalletIdentity {
       concat5(label("scan-checkpoint"), accountScope({ family: this.#family, account: this.#account, domain: this.#domain, assetId: this.#assetId })),
       32
     );
+  }
+  /** Stable opaque journal namespace, never a spending or encryption key. */
+  checkpointStoreId() {
+    const key = this.#checkpointKey();
+    try {
+      return hex4(sha256(new Uint8Array([...new TextEncoder().encode("Neurai/C6/journal-id/v1"), ...key])));
+    } finally {
+      key.fill(0);
+    }
   }
   sealCheckpoint(checkpoint) {
     const key = this.#checkpointKey();
@@ -9229,9 +9575,9 @@ var MAX_ATOMIC = 2100000000000000000n;
 var DECIMAL = /^(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i;
 function rpcAmountToSatoshis(value) {
   if (typeof value === "number" && !Number.isFinite(value)) throw new Error("Invalid RPC amount");
-  const text2 = typeof value === "number" ? String(value) : value;
-  if (typeof text2 !== "string") throw new Error("Invalid RPC amount");
-  const match = DECIMAL.exec(text2);
+  const text5 = typeof value === "number" ? String(value) : value;
+  if (typeof text5 !== "string") throw new Error("Invalid RPC amount");
+  const match = DECIMAL.exec(text5);
   if (!match) throw new Error("Invalid RPC amount");
   const fraction = match[2] ?? "";
   const exponent = Number(match[3] ?? 0);
@@ -9248,8 +9594,8 @@ function rpcAmountToSatoshis(value) {
   if (satoshis > MAX_ATOMIC) throw new Error("RPC amount out of range");
   return satoshis;
 }
-function parseXna(text2, { allowZero = false } = {}) {
-  const value = typeof text2 === "string" ? text2.trim() : "";
+function parseXna(text5, { allowZero = false } = {}) {
+  const value = typeof text5 === "string" ? text5.trim() : "";
   const match = /^(\d+)(?:\.(\d{1,8}))?$/.exec(value);
   if (!match) throw new Error("Enter a decimal XNA amount with at most 8 decimal places");
   const satoshis = BigInt(match[1]) * ATOMIC_PER_XNA + BigInt((match[2] ?? "").padEnd(8, "0"));
@@ -9290,6 +9636,12 @@ function message(error) {
 }
 async function assertPoolChain(rpc, manifest) {
   if (await rpc("getblockhash", [0]) !== manifest.genesis) throw new Error("RPC node is not on the network of this pool");
+  if (manifest.schema === "neurai-c5-xna-test-v1") {
+    const info = await rpc("getblockchaininfo", []);
+    if (info?.zk_public_tree?.active_for_next_block !== true) {
+      throw new Error("This RPC node does not have C5 public-tree validation active for the next block");
+    }
+  }
 }
 async function confirmedPoolCoins(rpc, utxos, { baseCurrency }) {
   const coins = [];
@@ -9350,8 +9702,8 @@ async function inspectFundingTransaction(rpc, raw) {
     if (!live) throw new Error("Funding input already spent");
     inputs += rpcAmountToSatoshis(live.value);
   }
-  const outputs = tx.vout.reduce((sum, output) => sum + rpcAmountToSatoshis(output.value), 0n);
-  return { txid: tx.txid, feeAtomic: inputs - outputs, points: tx.vin.map((input) => ({ txid: input.txid, vout: input.vout })) };
+  const outputs2 = tx.vout.reduce((sum, output) => sum + rpcAmountToSatoshis(output.value), 0n);
+  return { txid: tx.txid, feeAtomic: inputs - outputs2, points: tx.vin.map((input) => ({ txid: input.txid, vout: input.vout })) };
 }
 async function publishTransaction(rpc, manifest, { raw, txid, points }, { onBroadcast } = {}) {
   await recheckInputs(rpc, manifest, points);
@@ -9758,6 +10110,985 @@ var PoolWorkerClient = class {
   }
 };
 
+// src/sponsor-sweep.js
+var hex5 = (bytes7) => Array.from(bytes7, (b) => b.toString(16).padStart(2, "0")).join("");
+var bytes4 = (value) => Uint8Array.from(value.match(/../g) ?? [], (b) => parseInt(b, 16));
+var le2 = (value, size) => {
+  let n = BigInt(value);
+  const out = new Uint8Array(size);
+  for (let i = 0; i < size; i++) {
+    out[i] = Number(n & 255n);
+    n >>= 8n;
+  }
+  return hex5(out);
+};
+function compact2(n) {
+  return n < 253 ? le2(n, 1) : n <= 65535 ? "fd" + le2(n, 2) : "fe" + le2(n, 4);
+}
+function readSponsorTransaction(raw) {
+  if (typeof raw !== "string" || !/^(?:[0-9a-f]{2})+$/.test(raw) || raw.length > 8e5) throw new Error("Canonical bounded transaction hex required");
+  const b = bytes4(raw);
+  let at = 0;
+  function take(n2) {
+    if (!Number.isSafeInteger(n2) || n2 < 0 || at + n2 > b.length) throw new Error("Truncated transaction");
+    const out = b.slice(at, at + n2);
+    at += n2;
+    return out;
+  }
+  const int = (n2) => {
+    let v = 0n;
+    const a = take(n2);
+    for (let i = n2 - 1; i >= 0; i--) v = (v << 8n) + BigInt(a[i]);
+    return v;
+  };
+  function count() {
+    const f = Number(int(1));
+    if (f < 253) return f;
+    const v = int(f === 253 ? 2 : f === 254 ? 4 : 8);
+    if (v < (f === 253 ? 253n : f === 254 ? 65536n : 4294967296n) || v > BigInt(b.length)) throw new Error("Invalid CompactSize");
+    return Number(v);
+  }
+  const blob = () => hex5(take(count()));
+  const version = Number(int(4));
+  if (version !== 3) throw new Error("C6 signing requires transaction v3");
+  let marker = false;
+  if (b[at] === 0) {
+    take(1);
+    if (Number(int(1)) !== 1) throw new Error("Unknown witness flags");
+    marker = true;
+  }
+  const baseStart = at;
+  const inputs = [], outputs2 = [], refs = [];
+  let n = count();
+  if (!n || n > 1e4) throw new Error("Invalid input count");
+  for (let i = 0; i < n; i++) inputs.push({ txid: hex5(take(32).reverse()), vout: Number(int(4)), scriptSig: blob(), sequence: Number(int(4)), witness: [] });
+  n = count();
+  if (!n || n > 1e4) throw new Error("Invalid output count");
+  for (let i = 0; i < n; i++) outputs2.push({ valueAtomic: String(int(8)), script: blob() });
+  n = count();
+  if (n > 1e4) throw new Error("Invalid reference count");
+  for (let i = 0; i < n; i++) refs.push({ txid: hex5(take(32).reverse()), vout: Number(int(4)) });
+  const baseEnd = at;
+  if (marker) {
+    for (const input of inputs) {
+      n = count();
+      if (n > 1e3) throw new Error("Invalid witness count");
+      for (let j = 0; j < n; j++) input.witness.push(blob());
+    }
+    if (!inputs.some((i) => i.witness.length)) throw new Error("Superfluous witness marker");
+  }
+  const locktime = Number(int(4));
+  if (at !== b.length) throw new Error("Trailing transaction bytes");
+  const base = new Uint8Array(4 + baseEnd - baseStart + 4);
+  base.set(b.slice(0, 4));
+  base.set(b.slice(baseStart, baseEnd), 4);
+  base.set(b.slice(-4), base.length - 4);
+  const txid = hex5(sha256(sha256(base)).reverse());
+  return { version, inputs, outputs: outputs2, refs, locktime, txid };
+}
+function pushes(script) {
+  const b = bytes4(script), result = [];
+  let at = 0;
+  while (at < b.length) {
+    let n = b[at++];
+    if (!n || n > 78) throw new Error("Sponsor scriptSig must contain data pushes");
+    if (n === 76) {
+      if (at >= b.length) throw new Error("Truncated push");
+      n = b[at++];
+    } else if (n === 77) {
+      if (at + 2 > b.length) throw new Error("Truncated push");
+      n = b[at] + 256 * b[at + 1];
+      at += 2;
+    } else if (n === 78) throw new Error("Oversized sponsor push");
+    if (at + n > b.length) throw new Error("Truncated push");
+    result.push(hex5(b.slice(at, at + n)));
+    at += n;
+  }
+  return result;
+}
+function prepareSponsorSweep(value, feeAtomic) {
+  const offer = validateSponsorOffer(value), fee = sponsorAtomic(feeAtomic), input = sponsorAtomic(offer.inputAtomic);
+  const dust = offer.inputScript.startsWith("5220") ? 3060n : offer.inputScript.startsWith("5320") ? 336n : 546n;
+  if (fee <= 0n || fee >= input || input - fee < dust) throw new Error("Invalid sponsor sweep fee or dust");
+  const [txid, vout] = offer.outpoint.split(":");
+  const script = offer.inputScript;
+  const raw = "0300000001" + hex5(bytes4(txid).reverse()) + le2(vout, 4) + "00ffffffff01" + le2(input - fee, 8) + compact2(script.length / 2) + script + "0000000000";
+  return { raw, outpoint: offer.outpoint, outputAtomic: String(input - fee), outputScript: script, hashType: 1 };
+}
+function validateSponsorSignature(raw, value, sweep = null) {
+  const offer = validateSponsorOffer(value), tx = readSponsorTransaction(raw), index = sweep ? 0 : 2, type = sweep ? 1 : 131;
+  const input = tx.inputs[index], output = tx.outputs[index];
+  if (tx.locktime !== 0 || tx.refs.length || tx.inputs.some((i) => i.sequence !== 4294967295) || !input || !output || `${input.txid}:${input.vout}` !== offer.outpoint) throw new Error("Signed sponsor fields changed");
+  if (sweep && (tx.inputs.length !== 1 || tx.outputs.length !== 1 || sweep.outpoint !== offer.outpoint)) throw new Error("Sweep must have one input and one output");
+  if (output.script !== (sweep ? sweep.outputScript : offer.changeScript) || output.valueAtomic !== (sweep ? sweep.outputAtomic : offer.changeAtomic)) throw new Error("Signed sponsor change modified");
+  let signature;
+  if (offer.inputScript.startsWith("76")) {
+    const p = pushes(input.scriptSig);
+    if (input.witness.length || p.length !== 2 || !/^(?:02|03)[0-9a-f]{64}$|^04[0-9a-f]{128}$/.test(p[1])) throw new Error("Invalid Legacy sponsor signature shape");
+    signature = p[0];
+  } else {
+    const pq = offer.inputScript.startsWith("52"), w = input.witness;
+    if (input.scriptSig || w.length !== 4 || w[0] !== (pq ? "01" : "02") || w[3] !== "51" || (pq ? w[2].length !== 2626 || !w[2].startsWith("05") : !/^(?:02|03)[0-9a-f]{64}$/.test(w[2]))) throw new Error("Invalid strict sponsor signature shape");
+    signature = w[1];
+    if (pq && signature.length !== 4842) throw new Error("Invalid PQ signature length");
+  }
+  if (signature.length < 18 || !signature.endsWith(type.toString(16).padStart(2, "0"))) throw new Error("Sponsor signer used the wrong sighash");
+  return true;
+}
+
+// src/sponsor-journal.js
+var SCHEMA = "neurai-c6-sponsor-journal-test-v1";
+var HASH = /^[0-9a-f]{64}$/;
+var SCRIPT = /^(?:76a914[0-9a-f]{40}88ac|(?:52|53)20[0-9a-f]{64})$/;
+var clone = (value) => JSON.parse(JSON.stringify(value));
+var exact = (value, fields) => {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join(",") !== [...fields].sort().join(",")) throw new Error("Invalid sponsor record shape");
+};
+function sponsorAtomic(value) {
+  if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/.test(value) || BigInt(value) > MAX_ATOMIC) throw new Error("Canonical atomic amount required");
+  return BigInt(value);
+}
+function hash(value) {
+  if (typeof value !== "string" || !HASH.test(value)) throw new Error("Canonical identifier required");
+  return value;
+}
+function point(value) {
+  if (typeof value !== "string" || !/^[0-9a-f]{64}:(0|[1-9][0-9]*)$/.test(value) || BigInt(value.split(":")[1]) > 0xffffffffn) throw new Error("Canonical outpoint required");
+  return value;
+}
+function validateSponsorOffer(value) {
+  exact(value, ["changeAtomic", "changeScript", "index", "inputAtomic", "inputScript", "outpoint", "sighash"]);
+  point(value.outpoint);
+  const input = sponsorAtomic(value.inputAtomic), change = sponsorAtomic(value.changeAtomic);
+  const dust = value.inputScript?.startsWith("5220") ? 3060n : value.inputScript?.startsWith("5320") ? 336n : 546n;
+  if (value.index !== 2 || value.sighash !== 131 || !SCRIPT.test(value.inputScript) || value.changeScript !== value.inputScript || input <= change || change < dust) throw new Error("Invalid sponsor authorization or change");
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, value[key]]));
+}
+function resources(value) {
+  if (!Array.isArray(value) || value.length > 16) throw new Error("Bounded private note reservations required");
+  const cm = /* @__PURE__ */ new Set(), nf = /* @__PURE__ */ new Set();
+  return value.map((row) => {
+    exact(row, ["cm", "nf"]);
+    hash(row.cm);
+    hash(row.nf);
+    if (/^0+$/.test(row.cm) || /^0+$/.test(row.nf) || cm.has(row.cm) || nf.has(row.nf)) throw new Error("Duplicate or empty private note");
+    cm.add(row.cm);
+    nf.add(row.nf);
+    return { cm: row.cm, nf: row.nf };
+  });
+}
+var delta = (row) => sponsorAtomic(row.offer.inputAtomic) - sponsorAtomic(row.offer.changeAtomic);
+var authorized = (op) => op.rows.reduce((sum, row) => sum + delta(row), 0n);
+var SponsorJournal = class {
+  #store;
+  #key;
+  #identity;
+  #readyRevision = null;
+  constructor({ store, genesis, walletId, budgetAtomic }) {
+    if (!store || typeof store.read !== "function" || typeof store.compareAndSwap !== "function") throw new Error("Transactional sponsor storage required");
+    hash(genesis);
+    hash(walletId);
+    sponsorAtomic(budgetAtomic);
+    this.#store = store;
+    this.#identity = { genesis, walletId, budgetAtomic };
+    this.#key = `neurai:c6:sponsors:${genesis}:${walletId}`;
+  }
+  #decode(raw) {
+    if (typeof raw === "string" && raw.length > 2e6) throw new Error("Sponsor journal size limit exceeded");
+    if (raw === null) throw new Error("Sponsor journal missing; explicit initialization required");
+    const s = JSON.parse(raw);
+    exact(s, ["schema", "genesis", "walletId", "budgetAtomic", "revision", "tip", "operations"]);
+    if (s.schema !== SCHEMA || Object.keys(this.#identity).some((k) => s[k] !== this.#identity[k]) || !Number.isSafeInteger(s.revision) || s.revision < 0 || !Array.isArray(s.operations)) throw new Error("Sponsor journal restoration mismatch");
+    if (s.tip !== null) {
+      exact(s.tip, ["height", "hash"]);
+      hash(s.tip.hash);
+      if (!Number.isSafeInteger(s.tip.height) || s.tip.height < 0) throw new Error("Invalid chain tip");
+    }
+    const ids = /* @__PURE__ */ new Set(), points = /* @__PURE__ */ new Set(), cms = /* @__PURE__ */ new Set(), nfs = /* @__PURE__ */ new Set();
+    for (const op of s.operations) {
+      exact(op, ["id", "budgetAtomic", "resources", "confirmation", "conflicted", "privateExposed", "rows"]);
+      hash(op.id);
+      sponsorAtomic(op.budgetAtomic);
+      resources(op.resources);
+      if (ids.has(op.id) || !Array.isArray(op.rows) || typeof op.conflicted !== "boolean" || typeof op.privateExposed !== "boolean") throw new Error("Duplicate operation or invalid journal");
+      ids.add(op.id);
+      if (op.confirmation !== null) hash(op.confirmation);
+      for (const r of op.resources) {
+        if (cms.has(r.cm) || nfs.has(r.nf)) throw new Error("Private resources reused across operations");
+        cms.add(r.cm);
+        nfs.add(r.nf);
+      }
+      for (const row of op.rows) {
+        exact(row, ["offer", "spentBy", "sweepTxid"]);
+        validateSponsorOffer(row.offer);
+        if (points.has(row.offer.outpoint)) throw new Error("Sponsor outpoint reused across operations");
+        points.add(row.offer.outpoint);
+        if (row.spentBy !== null) hash(row.spentBy);
+        if (row.sweepTxid !== null) hash(row.sweepTxid);
+      }
+      if (authorized(op) > sponsorAtomic(op.budgetAtomic)) throw new Error("Operation sponsor budget exceeded");
+    }
+    if (s.operations.reduce((sum, op) => sum + authorized(op), 0n) > sponsorAtomic(s.budgetAtomic)) throw new Error("Wallet sponsor budget exceeded");
+    return s;
+  }
+  async initialize({ create = false } = {}) {
+    const current = await this.#store.read(this.#key);
+    if (current !== null) {
+      this.#decode(current);
+      return this.snapshot();
+    }
+    if (!create) throw new Error("Sponsor journal missing; restore a backup or explicitly create a new wallet journal");
+    const s = { schema: SCHEMA, ...this.#identity, revision: 0, tip: null, operations: [] };
+    const created = await this.#store.compareAndSwap(this.#key, null, JSON.stringify(s));
+    if (created) this.#readyRevision = 0;
+    return this.snapshot();
+  }
+  async restore(serialized) {
+    this.#decode(serialized);
+    if (!await this.#store.compareAndSwap(this.#key, null, serialized)) throw new Error("Cannot overwrite an existing sponsor journal with a backup");
+    this.#readyRevision = null;
+    return this.snapshot();
+  }
+  async #mutate(update, requireFresh = false, establishesFresh = false) {
+    for (let attempt = 0; attempt < 32; attempt++) {
+      const raw = await this.#store.read(this.#key), s = this.#decode(raw);
+      if (requireFresh && this.#readyRevision !== s.revision) throw new Error("Fresh confirmed-chain reconciliation required before authorization");
+      update(s);
+      s.revision++;
+      if (!Number.isSafeInteger(s.revision)) throw new Error("Journal revision exhausted");
+      this.#decode(JSON.stringify(s));
+      if (await this.#store.compareAndSwap(this.#key, raw, JSON.stringify(s))) {
+        if (establishesFresh || this.#readyRevision === s.revision - 1) this.#readyRevision = s.revision;
+        return this.#view(s);
+      }
+    }
+    throw new Error("Concurrent sponsor update; retry after reconciliation");
+  }
+  async reserveOperation({ operationId, budgetAtomic, notes }) {
+    hash(operationId);
+    sponsorAtomic(budgetAtomic);
+    const selected = resources(notes);
+    return this.#mutate((s) => {
+      if (s.operations.some((op) => op.id === operationId)) throw new Error("Operation already reserved");
+      s.operations.push({ id: operationId, budgetAtomic, resources: selected, confirmation: null, conflicted: false, privateExposed: false, rows: [] });
+    });
+  }
+  async abandonUnexposed(operationId) {
+    hash(operationId);
+    return this.#mutate((s) => {
+      const op = this.#operation(s, operationId);
+      if (op.privateExposed || op.rows.length || op.confirmation || op.conflicted) throw new Error("Exposed private notes cannot be released");
+      s.operations = s.operations.filter((row) => row !== op);
+    });
+  }
+  async markPrivateExposure(operationId) {
+    hash(operationId);
+    return this.#mutate((s) => {
+      this.#operation(s, operationId).privateExposed = true;
+    });
+  }
+  #operation(s, id) {
+    const op = s.operations.find((row) => row.id === id);
+    if (!op) throw new Error("Unknown sponsor operation");
+    return op;
+  }
+  async exposeAuthorization(operationId, value) {
+    hash(operationId);
+    const offer = validateSponsorOffer(value);
+    return this.#mutate((s) => {
+      const op = this.#operation(s, operationId);
+      if (op.confirmation || op.conflicted) throw new Error("Private operation confirmed or conflicted");
+      if (s.operations.some((other) => other.rows.some((row) => row.offer.outpoint === offer.outpoint))) throw new Error("Sponsor outpoint already authorized");
+      if (op.rows.some((row) => row.spentBy === null)) throw new Error("Previous sponsor authorization is still exposed");
+      op.privateExposed = true;
+      op.rows.push({ offer, spentBy: null, sweepTxid: null });
+    }, true);
+  }
+  async signAuthorization(operationId, offer, { rpc, sign }) {
+    if (typeof sign !== "function") throw new Error("Local signer required");
+    const intent = validateSponsorOffer(offer);
+    await assertPoolChain(rpc, { genesis: this.#identity.genesis });
+    const [txid, vout] = intent.outpoint.split(":");
+    await checkPoolCoin(rpc, { txid, vout: Number(vout), valueSats: intent.inputAtomic, scriptHex: intent.inputScript });
+    await this.exposeAuthorization(operationId, intent);
+    const raw = await sign({ offer: clone(intent), hashType: 131 });
+    validateSponsorSignature(raw, intent);
+    return raw;
+  }
+  async reconcile({ expectedRevision, genesis, tip, confirmedSpends, operations }) {
+    if (genesis !== this.#identity.genesis || !tip || !Number.isSafeInteger(tip.height) || tip.height < 0) throw new Error("Authenticated chain snapshot required");
+    exact(tip, ["height", "hash"]);
+    hash(tip.hash);
+    if (!Array.isArray(operations) || !confirmedSpends || typeof confirmedSpends !== "object" || Array.isArray(confirmedSpends)) throw new Error("Complete chain snapshot required");
+    return this.#mutate((s) => {
+      if (s.revision !== expectedRevision) throw new Error("Stale chain snapshot; scan again");
+      const known = new Set(s.operations.flatMap((op) => op.rows.map((row) => row.offer.outpoint)));
+      for (const [p, txid] of Object.entries(confirmedSpends)) {
+        point(p);
+        hash(txid);
+        if (!known.has(p)) throw new Error("Unknown sponsor observation");
+      }
+      if (operations.length !== s.operations.length || new Set(operations.map((op) => op.operationId)).size !== operations.length) throw new Error("Incomplete private-operation observations");
+      for (const observed of operations) {
+        exact(observed, ["operationId", "txid", "spentNullifiers"]);
+        hash(observed.operationId);
+        const op = this.#operation(s, observed.operationId);
+        if (observed.txid !== null) hash(observed.txid);
+        if (!Array.isArray(observed.spentNullifiers) || new Set(observed.spentNullifiers).size !== observed.spentNullifiers.length || observed.spentNullifiers.some((nf) => !op.resources.some((r) => r.nf === nf))) throw new Error("Invalid nullifier observations");
+        if (observed.txid !== null && observed.spentNullifiers.length !== op.resources.length) throw new Error("Operation confirmation must consume every reserved note");
+        if (observed.txid || observed.spentNullifiers.length) op.privateExposed = true;
+        op.confirmation = observed.txid;
+        op.conflicted = observed.txid === null && observed.spentNullifiers.length > 0;
+        for (const row of op.rows) row.spentBy = confirmedSpends[row.offer.outpoint] ?? null;
+      }
+      s.tip = clone(tip);
+    }, false, true);
+  }
+  #view(s) {
+    return {
+      revision: s.revision,
+      genesis: s.genesis,
+      walletId: s.walletId,
+      budgetAtomic: s.budgetAtomic,
+      tip: s.tip,
+      authorizedAtomic: String(s.operations.reduce((sum, op) => sum + authorized(op), 0n)),
+      operations: s.operations.map((op) => ({
+        operationId: op.id,
+        budgetAtomic: op.budgetAtomic,
+        authorizedAtomic: String(authorized(op)),
+        privateOperation: op.confirmation ? "confirmed" : op.conflicted ? "conflicted" : "pending",
+        operationTxid: op.confirmation,
+        reservationClosed: op.confirmation !== null,
+        privateExposed: op.privateExposed,
+        notes: op.resources,
+        exposedOutpoints: op.rows.filter((row) => !row.spentBy).map((row) => row.offer.outpoint),
+        sponsors: op.rows.map((row) => ({ ...row, status: !row.spentBy ? "exposed" : row.spentBy === op.confirmation ? "spent-for-operation" : "spent-elsewhere" }))
+      }))
+    };
+  }
+  async snapshot() {
+    return clone(this.#view(this.#decode(await this.#store.read(this.#key))));
+  }
+  async export() {
+    const raw = await this.#store.read(this.#key);
+    this.#decode(raw);
+    return raw;
+  }
+  async prepareSweep(outpoint, { rpc, feeAtomic, sign }) {
+    point(outpoint);
+    if (typeof sign !== "function") throw new Error("Local ALL signer required");
+    const s = this.#decode(await this.#store.read(this.#key));
+    const row = s.operations.flatMap((op) => op.rows).find((row2) => row2.offer.outpoint === outpoint);
+    if (row && sponsorAtomic(feeAtomic) > delta(row)) throw new Error("Sweep fee exceeds the authorized sponsor loss budget");
+    if (!row || row.spentBy) throw new Error("Sponsor is not exposed");
+    await assertPoolChain(rpc, { genesis: this.#identity.genesis });
+    const [txid, vout] = outpoint.split(":");
+    await checkPoolCoin(rpc, { txid, vout: Number(vout), valueSats: row.offer.inputAtomic, scriptHex: row.offer.inputScript });
+    const template = prepareSponsorSweep(row.offer, feeAtomic);
+    const raw = await sign({ raw: template.raw, hashType: 1, offer: clone(row.offer) });
+    validateSponsorSignature(raw, row.offer, template);
+    const admitted = await admitTransaction(rpc, raw);
+    await this.#mutate((current) => {
+      const live = current.operations.flatMap((op) => op.rows).find((r) => r.offer.outpoint === outpoint);
+      if (!live || live.spentBy) throw new Error("Sponsor changed while preparing sweep");
+      live.sweepTxid = admitted.txid;
+    });
+    return { raw, txid: admitted.txid, points: [{ txid, vout: Number(vout) }], feeAtomic };
+  }
+};
+
+// src/sponsor-store.js
+var IndexedDbSponsorStore = class {
+  #database;
+  constructor({ indexedDB = globalThis.indexedDB, name = "neurai-sponsor-journal-v1" } = {}) {
+    if (!indexedDB || typeof name !== "string" || !name) throw new Error("IndexedDB sponsor storage is required");
+    this.#database = new Promise((resolve2, reject) => {
+      const request = indexedDB.open(name, 1);
+      request.onupgradeneeded = () => request.result.createObjectStore("journals");
+      request.onerror = () => reject(request.error ?? new Error("Sponsor database open failed"));
+      request.onblocked = () => reject(new Error("Sponsor database upgrade is blocked"));
+      request.onsuccess = () => resolve2(request.result);
+    });
+  }
+  async #run(key, expected, replacement, write) {
+    const db = await this.#database;
+    return new Promise((resolve2, reject) => {
+      const tx = write ? db.transaction("journals", "readwrite", { durability: "strict" }) : db.transaction("journals", "readonly");
+      const store = tx.objectStore("journals");
+      const request = store.get(key);
+      let result;
+      request.onsuccess = () => {
+        const current = request.result ?? null;
+        if (write) {
+          result = current === expected;
+          if (result) store.put(replacement, key);
+        } else result = current;
+      };
+      tx.oncomplete = () => resolve2(result);
+      tx.onabort = tx.onerror = () => reject(tx.error ?? new Error("Sponsor storage transaction failed"));
+    });
+  }
+  read(key) {
+    return this.#run(key, null, null, false);
+  }
+  compareAndSwap(key, expected, replacement) {
+    return this.#run(key, expected, replacement, true);
+  }
+  async close() {
+    (await this.#database).close();
+  }
+};
+
+// src/c6-sponsor-chain.js
+var hex6 = (b) => Array.from(b, (n) => n.toString(16).padStart(2, "0")).join("");
+var unhex3 = (s) => Uint8Array.from(s.match(/../g) ?? [], (n) => parseInt(n, 16));
+var hash2 = (s) => hex6(sha256(new TextEncoder().encode(s)));
+var point2 = (i) => `${i.txid}:${i.vout}`;
+var HASH2 = /^[0-9a-f]{64}$/;
+var FR2 = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+var forms = ["D0", "D1", "T1", "T2", "T3", "W_partial_no_change", "W_partial_change", "W_full_no_change", "J2"];
+function field(s) {
+  if (!HASH2.test(s) || BigInt("0x" + s) >= FR2) throw Error("Noncanonical C6 field");
+  return s;
+}
+function stateTemplate(s) {
+  if (typeof s !== "string" || !/^5120[0-9a-f]+75$/.test(s) || s.length < 140) throw Error("C6 state asset script required");
+  return s.slice(0, -66);
+}
+function validateC6SponsorDeployment(d) {
+  if (!d || !HASH2.test(d.genesis) || !HASH2.test(d.commitment) || !["xna", "asset"].includes(d.kind) || !Number.isSafeInteger(d.anchor?.height) || d.anchor.height < 0 || !HASH2.test(d.anchor.hash) || !/^[0-9a-f]{64}:0$/.test(d.anchor.outpoint) || !/^[0-9a-f]{290}$/.test(d.anchor.opening) || !Array.isArray(d.leaves) || !d.leaves.length || d.leaves.length > 64) throw Error("Pinned C6 deployment required");
+  if (!d.anchor.script.startsWith("5120" + d.commitment) || hex6(poseidonBytes(unhex3(d.anchor.opening))) !== d.anchor.script.slice(-66, -2)) throw Error("Pinned state opening mismatch");
+  stateTemplate(d.anchor.script);
+  const scripts = /* @__PURE__ */ new Set();
+  for (const l of d.leaves) {
+    if (!forms.includes(l.form) || typeof l.script !== "string" || !/^(?:[0-9a-f]{2})+$/.test(l.script) || l.script.length > 2e4 || scripts.has(l.script) || !Array.isArray(l.args) || new Set(l.args).size !== l.args.length || l.args.some((a) => typeof a !== "string") || ["proof", "vk", ...[0, 1, 2, 3, 4].map((i) => "tree" + i)].some((a) => !l.args.includes(a))) throw Error("Pinned C6 leaf specification required");
+    scripts.add(l.script);
+  }
+  return d;
+}
+function describe(tx, d) {
+  const w = tx.inputs[0]?.witness;
+  if (!w || w[0] !== "10") throw Error("C6 NoAuth MAST witness required");
+  const leaf = d.leaves.find((l) => l.script === w.at(-2));
+  if (!leaf || w.length !== leaf.args.length + 3) throw Error("Unknown C6 leaf or witness shape");
+  const args = Object.fromEntries(leaf.args.map((name, i) => [name, w[i + 1]]));
+  const transcript = [0, 1, 2, 3, 4].map((i) => args["tree" + i]).join("");
+  if (transcript.slice(0, 4) !== (leaf.form === "J2" ? "03" : "02") + forms.indexOf(leaf.form).toString(16).padStart(2, "0") || transcript.length < 648 || transcript.length > 32768) throw Error("C6 transcript profile/form mismatch");
+  const old = transcript.slice(4, 294), next = transcript.slice(294, 584);
+  const nfs = leaf.form.startsWith("D") ? [] : [field(transcript.slice(584, 648)), ...leaf.form === "J2" ? [field(transcript.slice(648, 712))] : []];
+  if (nfs.some((s) => /^0+$/.test(s)) || new Set(nfs).size !== nfs.length) throw Error("Invalid C6 nullifiers");
+  const stable = Object.fromEntries(Object.entries(args).filter(([k]) => !/^tree[0-4]$/.test(k) && k !== "prevouts").sort());
+  const payout = leaf.form.startsWith("W") ? tx.outputs[leaf.form === "W_full_no_change" ? 1 : d.kind === "asset" ? 3 : 2] : null;
+  const funding = leaf.form.startsWith("D") ? tx.inputs[d.kind === "asset" ? leaf.form === "D0" ? 1 : 3 : tx.inputs.length - 1] : null;
+  const operation = leaf.form.startsWith("W") ? "W" : leaf.form.startsWith("D") ? "D" : leaf.form;
+  return { old, next, nfs, operationId: hash2(JSON.stringify([
+    "NeuraiC6Intent/v1",
+    d.genesis,
+    d.commitment,
+    operation,
+    stable,
+    payout ? [payout.valueAtomic, payout.script] : null,
+    funding ? point2(funding) : null
+  ])) };
+}
+function c6SponsorIntent(raw, deployment) {
+  const d = validateC6SponsorDeployment(deployment), tx = readSponsorTransaction(raw), parsed = describe(tx, d);
+  if (tx.locktime || tx.refs.length || tx.inputs.some((i) => i.sequence !== 4294967295)) throw Error("C6 transaction fixed fields changed");
+  return { operationId: parsed.operationId, pool: d.commitment, nullifiers: parsed.nfs };
+}
+async function scanC6SponsorChain({ rpc, snapshot, deployments, intents, signal, onProgress }) {
+  const check = () => {
+    if (signal?.aborted) throw Error("C6 scan cancelled");
+  };
+  check();
+  const activation = await rpc("getblockchaininfo");
+  if (activation?.zk_portable_tree?.active_for_next_block !== true) throw Error("C6 portable public-tree verification is not active");
+  if (await rpc("getblockhash", [0]) !== snapshot.genesis) throw Error("Sponsor scanner chain mismatch");
+  const height = await rpc("getblockcount"), tipHash = await rpc("getblockhash", [height]);
+  if (!Number.isSafeInteger(height) || height < 0 || !HASH2.test(tipHash)) throw Error("Invalid chain tip");
+  const contexts = deployments.map((d) => ({ d: validateC6SponsorDeployment(d), point: d.anchor.outpoint, opening: d.anchor.opening, events: [] }));
+  if (new Set(contexts.map((c) => c.d.commitment)).size !== contexts.length || contexts.some((c) => c.d.genesis !== snapshot.genesis)) throw Error("Ambiguous C6 pool deployments");
+  let first = height;
+  for (const c of contexts) {
+    check();
+    if (c.d.anchor.height > height || await rpc("getblockhash", [c.d.anchor.height]) !== c.d.anchor.hash) throw Error("Pinned pool anchor reorganized; restore an earlier deployment");
+    const block2 = await rpc("getblock", [c.d.anchor.hash, 2]);
+    const tx = block2.tx?.find((t) => t.txid === c.d.anchor.outpoint.split(":")[0]);
+    if (!tx || tx.vout?.[0]?.scriptPubKey?.hex !== c.d.anchor.script) throw Error("Pinned pool UTXO absent");
+    first = Math.min(first, c.d.anchor.height + 1);
+  }
+  const offers = snapshot.operations.flatMap((o) => o.sponsors.map((s) => s.offer));
+  const created = /* @__PURE__ */ new Set(), spent = {}, pools = new Map(contexts.map((c) => [c.d.commitment, c]));
+  for (const op of snapshot.operations) {
+    const intent = intents.find((i) => i.operationId === op.operationId);
+    if (!intent || !pools.has(intent.pool) || JSON.stringify([...intent.nullifiers].sort()) !== JSON.stringify(op.notes.map((n) => n.nf).sort())) throw Error("Missing or inconsistent C6 intent metadata");
+  }
+  for (const offer of offers) {
+    check();
+    const [id, vout] = offer.outpoint.split(":"), tx = await rpc("getrawtransaction", [id, true]);
+    if (tx.txid !== id || !(tx.confirmations > 0) || !tx.blockhash) throw Error("Sponsor funding missing or reorganized");
+    const header = await rpc("getblockheader", [tx.blockhash]);
+    if (await rpc("getblockhash", [header.height]) !== tx.blockhash) throw Error("Sponsor funding not in active chain");
+    const block2 = await rpc("getblock", [tx.blockhash, 2]), actual = block2.tx?.find((t) => t.txid === id)?.vout?.[Number(vout)];
+    if (!actual || actual.scriptPubKey?.hex !== offer.inputScript || String(rpcAmountToSatoshis(actual.value)) !== offer.inputAtomic) throw Error("Sponsor funding binding mismatch");
+    created.add(offer.outpoint);
+    first = Math.min(first, header.height);
+  }
+  const tracked = new Set(offers.map((o) => o.outpoint));
+  let previous = first > 0 ? await rpc("getblockhash", [first - 1]) : null;
+  for (let h = first; h <= height; h++) {
+    check();
+    const id = await rpc("getblockhash", [h]), block2 = await rpc("getblock", [id, 2]);
+    if (block2.hash !== id || block2.height !== h || h > 0 && block2.previousblockhash !== previous || !Array.isArray(block2.tx)) throw Error("Incomplete active-chain block scan");
+    for (const tx of block2.tx) {
+      for (const i of tx.vin ?? []) if (tracked.has(point2(i))) {
+        if (spent[point2(i)]) throw Error("Duplicate confirmed sponsor spend");
+        spent[point2(i)] = tx.txid;
+      }
+      for (const c of contexts) {
+        if (h <= c.d.anchor.height || !tx.vin?.some((i) => point2(i) === c.point)) continue;
+        if (point2(tx.vin[0]) !== c.point) throw Error("Pool state spent outside input zero");
+        const raw = await rpc("getrawtransaction", [tx.txid, false]);
+        const parsedTx = readSponsorTransaction(raw), parsed = describe(parsedTx, c.d);
+        if (parsedTx.txid !== tx.txid || point2(parsedTx.inputs[0]) !== c.point || parsed.old !== c.opening || stateTemplate(parsedTx.outputs[0]?.script) !== stateTemplate(c.d.anchor.script) || hex6(poseidonBytes(unhex3(parsed.next))) !== parsedTx.outputs[0].script.slice(-66, -2)) throw Error("C6 state chain discontinuity");
+        c.events.push({ txid: tx.txid, ...parsed });
+        c.point = tx.txid + ":0";
+        c.opening = parsed.next;
+      }
+    }
+    previous = id;
+    onProgress?.({ height: h, target: height });
+  }
+  for (const offer of offers) {
+    check();
+    const [id, vout] = offer.outpoint.split(":"), coin2 = await rpc("gettxout", [id, Number(vout), false]);
+    if (!created.has(offer.outpoint) || (spent[offer.outpoint] ? coin2 !== null : !coin2 || coin2.confirmations < 1 || coin2.scriptPubKey?.hex !== offer.inputScript || String(rpcAmountToSatoshis(coin2.value)) !== offer.inputAtomic)) throw Error("Unresolved sponsor spend; scan incomplete");
+  }
+  const operations = snapshot.operations.map((op) => {
+    const intent = intents.find((i) => i.operationId === op.operationId), events = pools.get(intent.pool).events;
+    const matching = events.filter((e) => e.operationId === op.operationId);
+    if (matching.length > 1) throw Error("Duplicate confirmed private intent");
+    const used = op.notes.map((n) => n.nf).filter((nf) => events.some((e) => e.nfs.includes(nf)));
+    return { operationId: op.operationId, txid: matching[0]?.txid ?? null, spentNullifiers: used };
+  });
+  check();
+  if (await rpc("getbestblockhash") !== tipHash || await rpc("getblockhash", [height]) !== tipHash) throw Error("Chain changed during C6 scan; retry");
+  return { expectedRevision: snapshot.revision, genesis: snapshot.genesis, tip: { height, hash: tipHash }, confirmedSpends: spent, operations };
+}
+
+// src/c6-sponsor-flow.js
+var clone2 = (s) => JSON.parse(JSON.stringify(s));
+var HASH3 = /^[0-9a-f]{64}$/;
+var C6SponsorFlow = class {
+  #store;
+  #key;
+  #journal;
+  #rpc;
+  #deployments;
+  #locks;
+  #fee;
+  #sign;
+  #checkedRevision = null;
+  constructor({ store, genesis, walletId, budgetAtomic, rpc, deployments, locks = globalThis.navigator?.locks, sweepFeeAtomic, sign }) {
+    if (!locks || typeof locks.request !== "function") throw Error("Cross-tab Web Locks are required for C6 sponsorship");
+    if (typeof rpc !== "function" || typeof sign !== "function" || typeof sweepFeeAtomic !== "function") throw Error("C6 RPC, local signer and bounded sweep fee policy required");
+    this.#store = store;
+    this.#key = `neurai:c6:flow:${genesis}:${walletId}`;
+    this.#journal = new SponsorJournal({ store, genesis, walletId, budgetAtomic });
+    this.#rpc = rpc;
+    this.#deployments = clone2(deployments).map(validateC6SponsorDeployment);
+    this.#locks = locks;
+    this.#fee = sweepFeeAtomic;
+    this.#sign = sign;
+  }
+  #exclusive(fn) {
+    return this.#locks.request(this.#key, { mode: "exclusive" }, fn);
+  }
+  #decode(raw) {
+    if (typeof raw !== "string" || raw.length > 4e6) throw Error("Missing or oversized C6 flow metadata; restore the complete backup");
+    const s = JSON.parse(raw);
+    if (s.schema !== "neurai-c6-flow-test-v1" || !Array.isArray(s.intents) || !Array.isArray(s.sweeps) || !Array.isArray(s.prepared)) throw Error("Invalid C6 flow metadata");
+    const ids = /* @__PURE__ */ new Set(), points = /* @__PURE__ */ new Set();
+    for (const i of s.intents) {
+      if (!HASH3.test(i.operationId) || !this.#deployments.some((d) => d.commitment === i.pool) || ids.has(i.operationId) || !Array.isArray(i.nullifiers) || i.nullifiers.some((n) => !HASH3.test(n))) throw Error("Invalid C6 intent metadata");
+      ids.add(i.operationId);
+    }
+    for (const t of [...s.sweeps, ...s.prepared]) {
+      if (!HASH3.test(t.txid) || readSponsorTransaction(t.raw).txid !== t.txid) throw Error("Corrupt persisted signed transaction");
+      if (s.sweeps.includes(t)) {
+        const decoded = readSponsorTransaction(t.raw);
+        if (points.has(t.outpoint) || decoded.inputs.length !== 1 || decoded.outputs.length !== 1 || `${decoded.inputs[0].txid}:${decoded.inputs[0].vout}` !== t.outpoint) throw Error("Invalid persisted sweep");
+        points.add(t.outpoint);
+      } else {
+        const intent = s.intents.find((i) => i.operationId === t.operationId);
+        const deployment = this.#deployments.find((d) => d.commitment === intent?.pool);
+        if (!ids.has(t.operationId) || c6SponsorIntent(t.raw, deployment).operationId !== t.operationId) throw Error("Prepared operation without matching intent");
+      }
+    }
+    return s;
+  }
+  async #load() {
+    return this.#decode(await this.#store.read(this.#key));
+  }
+  async #save(update) {
+    const raw = await this.#store.read(this.#key), s = this.#decode(raw);
+    update(s);
+    const next = JSON.stringify(s);
+    this.#decode(next);
+    if (!await this.#store.compareAndSwap(this.#key, raw, next)) throw Error("Concurrent flow update; stop and rescan");
+    return s;
+  }
+  async initialize({ create = false } = {}) {
+    return this.#exclusive(async () => {
+      await assertPoolChain(this.#rpc, { genesis: (await this.#journal.initialize({ create })).genesis });
+      if (await this.#store.read(this.#key) === null) {
+        if (!create) throw Error("C6 flow metadata missing; restore the full backup");
+        const state = await this.#journal.snapshot();
+        if (state.operations.length) throw Error("Cannot reset metadata for an existing sponsor history");
+        await this.#store.compareAndSwap(this.#key, null, JSON.stringify({ schema: "neurai-c6-flow-test-v1", intents: [], sweeps: [], prepared: [] }));
+      }
+      await this.#load();
+      return this.#journal.snapshot();
+    });
+  }
+  async #scan(options = {}) {
+    if (options.signal?.aborted) throw Error("C6 scan cancelled");
+    if ((await this.#rpc("getblockchaininfo"))?.zk_portable_tree?.active_for_next_block !== true) throw Error("C6 verification is not active; keep reservations");
+    const snapshot = await this.#journal.snapshot(), meta = await this.#load();
+    if (this.#checkedRevision === snapshot.revision && snapshot.tip && await this.#rpc("getbestblockhash") === snapshot.tip.hash) {
+      await assertPoolChain(this.#rpc, { genesis: snapshot.genesis });
+      return snapshot;
+    }
+    const observation = await scanC6SponsorChain({ rpc: this.#rpc, snapshot, deployments: this.#deployments, intents: meta.intents, ...options });
+    const result = await this.#journal.reconcile(observation);
+    this.#checkedRevision = result.revision;
+    return result;
+  }
+  scan(options = {}) {
+    return this.#exclusive(() => this.#scan(options));
+  }
+  snapshot() {
+    return this.#journal.snapshot();
+  }
+  pending() {
+    return this.#exclusive(async () => {
+      const state = await this.#scan(), meta = await this.#load();
+      return state.operations.filter((op) => op.privateOperation === "pending").flatMap((op) => {
+        const tx = meta.prepared.filter((t) => t.operationId === op.operationId).at(-1);
+        const input = tx ? readSponsorTransaction(tx.raw).inputs[2] : null;
+        const row = input ? op.sponsors.find((s) => s.offer.outpoint === `${input.txid}:${input.vout}`) : null;
+        return tx && row && !row.spentBy && !row.sweepTxid ? [{ operationId: tx.operationId, txid: tx.txid }] : [];
+      });
+    });
+  }
+  async backup() {
+    return this.#exclusive(async () => ({ schema: "neurai-c6-backup-test-v1", journal: await this.#journal.export(), flow: JSON.stringify(await this.#load()) }));
+  }
+  async restore(backup) {
+    return this.#exclusive(async () => {
+      if (backup?.schema !== "neurai-c6-backup-test-v1") throw Error("Complete C6 backup required");
+      this.#decode(backup.flow);
+      if (await this.#store.read(this.#key) !== null) throw Error("Cannot replace existing C6 flow history");
+      await this.#journal.restore(backup.journal);
+      if (!await this.#store.compareAndSwap(this.#key, null, backup.flow)) throw Error("Concurrent restore; retain backup and stop");
+      return this.#scan();
+    });
+  }
+  async authorize({ raw, pool, notes, budgetAtomic, offer }) {
+    return this.#exclusive(async () => {
+      const d = this.#deployments.find((d2) => d2.commitment === pool);
+      if (!d) throw Error("Unconfigured C6 pool");
+      const intent = c6SponsorIntent(raw, d);
+      if (JSON.stringify([...intent.nullifiers].sort()) !== JSON.stringify(notes.map((n) => n.nf).sort())) throw Error("Prepared proof does not match reserved notes");
+      const meta = await this.#load(), old = meta.intents.find((i) => i.operationId === intent.operationId);
+      if (!old) await this.#save((s) => s.intents.push(intent));
+      const before = await this.#journal.snapshot();
+      if (!before.operations.some((o) => o.operationId === intent.operationId)) await this.#journal.reserveOperation({ operationId: intent.operationId, budgetAtomic, notes });
+      await this.#scan();
+      const signed = await this.#journal.signAuthorization(intent.operationId, offer, { rpc: this.#rpc, sign: ({ offer: offer2, hashType }) => this.#sign({ raw, offer: offer2, hashType, index: 2 }) });
+      if (c6SponsorIntent(signed, d).operationId !== intent.operationId) throw Error("Signer changed private C6 intent");
+      const admitted = await admitTransaction(this.#rpc, signed);
+      await this.#save((s) => s.prepared.push({ operationId: intent.operationId, raw: signed, txid: admitted.txid }));
+      return { operationId: intent.operationId, raw: signed, txid: admitted.txid };
+    });
+  }
+  async #send(tx) {
+    const snapshot = await this.#journal.snapshot();
+    await assertPoolChain(this.#rpc, { genesis: snapshot.genesis });
+    let known;
+    try {
+      known = await this.#rpc("getrawtransaction", [tx.txid, true]);
+    } catch (e) {
+      if (e?.code !== -5) throw Error("Publication status unresolved; retain signed bytes");
+    }
+    if (known) {
+      if (known.txid !== tx.txid) throw Error("RPC transaction mismatch");
+      if (known.confirmations > 0) return { txid: tx.txid, status: "confirmed" };
+      const pending = await this.#rpc("getrawmempool");
+      if (!Array.isArray(pending) || pending.some((id) => !HASH3.test(id))) throw Error("Invalid mempool observation");
+      if (pending.includes(tx.txid)) return { txid: tx.txid, status: "mempool" };
+    }
+    const accepted = await admitTransaction(this.#rpc, tx.raw);
+    if (accepted.txid !== tx.txid) throw Error("Persisted transaction id mismatch");
+    try {
+      if (await this.#rpc("sendrawtransaction", [tx.raw]) !== tx.txid) throw Error("Unexpected publication id");
+    } catch (e) {
+      throw Object.assign(Error("Publication uncertain; no replacement authorization allowed"), { uncertain: true });
+    }
+    return { txid: tx.txid, status: "mempool" };
+  }
+  publish(operationId) {
+    return this.#exclusive(async () => {
+      const state = await this.#scan(), op = state.operations.find((o) => o.operationId === operationId);
+      if (!op || op.privateOperation !== "pending") throw Error("Private operation no longer pending");
+      const tx = (await this.#load()).prepared.filter((t) => t.operationId === operationId).at(-1);
+      if (!tx) throw Error("Signed C6 operation missing");
+      const input = readSponsorTransaction(tx.raw).inputs[2], row = op.sponsors.find((s) => s.offer.outpoint === `${input.txid}:${input.vout}`);
+      if (!row || row.spentBy || row.sweepTxid) throw Error("This sponsor was spent or scheduled for recovery; do not publish its authorization");
+      return this.#send(tx);
+    });
+  }
+  async #sweep(outpoint) {
+    const snapshot = await this.#journal.snapshot();
+    const row = snapshot.operations.flatMap((o) => o.sponsors).find((s) => s.offer.outpoint === outpoint);
+    if (!row || row.spentBy) return null;
+    let tx = (await this.#load()).sweeps.find((t) => t.outpoint === outpoint);
+    if (!tx) {
+      if (row.sweepTxid) throw Error("Sweep bytes missing; recover the complete backup before retrying");
+      const prepared = await this.#journal.prepareSweep(outpoint, { rpc: this.#rpc, feeAtomic: await this.#fee(clone2(row.offer)), sign: ({ raw, offer, hashType }) => this.#sign({ raw, offer, hashType, index: 0 }) });
+      tx = { raw: prepared.raw, txid: prepared.txid, outpoint };
+      await this.#save((s) => s.sweeps.push(tx));
+    }
+    const decoded = readSponsorTransaction(tx.raw), fee = BigInt(row.offer.inputAtomic) - BigInt(decoded.outputs[0].valueAtomic);
+    if (fee <= 0n || fee > BigInt(row.offer.inputAtomic) - BigInt(row.offer.changeAtomic)) throw Error("Persisted sweep exceeds authorization budget");
+    validateSponsorSignature(tx.raw, row.offer, prepareSponsorSweep(row.offer, String(fee)));
+    return this.#send(tx);
+  }
+  /** Explicit recovery of a still-pending authorization. This invalidates its
+   * sponsor but does not cancel the portable private proof or free notes. */
+  sweep(outpoint) {
+    return this.#exclusive(async () => {
+      await this.#scan();
+      return this.#sweep(outpoint);
+    });
+  }
+  /** Automatic cleanup only after the private operation confirms/conflicts.
+   * A pending legitimate sponsor is never swept merely because time elapsed. */
+  tick({ autoSweep = false, ...options } = {}) {
+    return this.#exclusive(async () => {
+      const state = await this.#scan(options), sweeps = [];
+      if (autoSweep) {
+        for (const op of state.operations) for (const row of op.sponsors) if (!row.spentBy && (op.privateOperation !== "pending" || row.sweepTxid)) sweeps.push(await this.#sweep(row.offer.outpoint));
+      }
+      return { snapshot: await this.#journal.snapshot(), sweeps };
+    });
+  }
+};
+
+// src/c6-worker-client.js
+function errorText(value, depth = 0) {
+  if (depth > 4) return "C6 request failed";
+  if (typeof value === "string" && value.trim()) return value;
+  if (value && typeof value === "object") {
+    for (const key of ["message", "description"]) if (typeof value[key] === "string" && value[key].trim()) return value[key];
+    if (value.error !== void 0) return errorText(value.error, depth + 1);
+  }
+  return "C6 request failed";
+}
+var C6WorkerClient = class {
+  #worker;
+  #rpc;
+  #store;
+  #stage;
+  #pending = null;
+  #stopped = false;
+  constructor({ worker, rpc, store, onStage, onCrash }) {
+    if (!worker || typeof rpc !== "function" || !store?.read || !store?.compareAndSwap) throw Error("C6 worker, RPC and durable CAS store required");
+    this.#worker = worker;
+    this.#rpc = rpc;
+    this.#store = store;
+    this.#stage = onStage;
+    worker.onmessage = (e) => {
+      void this.#handle(e.data);
+    };
+    worker.onerror = (e) => {
+      e.preventDefault?.();
+      const error = Error(e.message || "C6 worker stopped");
+      this.terminate(error);
+      onCrash?.(error);
+    };
+    worker.onmessageerror = () => {
+      const error = Error("C6 worker message could not be decoded");
+      this.terminate(error);
+      onCrash?.(error);
+    };
+  }
+  get stopped() {
+    return this.#stopped;
+  }
+  async #handle(data) {
+    if (this.#stopped) return;
+    if (["rpc", "journal-read", "journal-write"].includes(data?.type)) {
+      let result, error;
+      try {
+        if (data.type === "rpc") {
+          if (!["getblockchaininfo", "getblockhash", "getblockcount", "getbestblockhash", "getblock", "getrawtransaction", "gettxout", "getspentinfo"].includes(data.method)) throw Error("C6 worker RPC must be read-only");
+          result = await this.#rpc(data.method, data.params);
+          if (result === void 0) throw Error("C6 RPC returned no result: " + data.method);
+          if (result?.error) throw Error(errorText(result.error));
+        } else {
+          if (typeof data.key !== "string" || data.key.length > 200) throw Error("C6 journal key");
+          if (data.type === "journal-write") {
+            if (typeof data.replacement !== "string" || data.replacement.length > 8001e3 || !(data.expected === null || typeof data.expected === "string")) throw Error("C6 encrypted journal bounds");
+            result = await this.#store.compareAndSwap(data.key, data.expected, data.replacement);
+          } else result = await this.#store.read(data.key);
+        }
+      } catch (e) {
+        error = errorText(e);
+      }
+      if (!this.#stopped) this.#worker.postMessage({ type: data.type === "rpc" ? "rpc-result" : "journal-result", id: data.id, result, error });
+      return;
+    }
+    if (data?.type === "stage") {
+      this.#stage?.(data.message);
+      return;
+    }
+    if (!this.#pending) return;
+    if (data.type === "done") {
+      const p = this.#pending;
+      this.#pending = null;
+      p.resolve(p.result);
+    } else if (data.type === "error") {
+      const p = this.#pending;
+      this.#pending = null;
+      p.reject(Error(errorText(data.message)));
+    } else this.#pending.result[data.type] = data;
+  }
+  request(type, payload = {}) {
+    if (this.#stopped) return Promise.reject(Error("C6 worker terminated"));
+    if (this.#pending) return Promise.reject(Error("C6 operation already running"));
+    return new Promise((resolve2, reject) => {
+      this.#pending = { resolve: resolve2, reject, result: {} };
+      try {
+        this.#worker.postMessage({ type, ...payload });
+      } catch (e) {
+        this.terminate(Error(errorText(e)));
+      }
+    });
+  }
+  derive(options) {
+    return this.request("derive", options);
+  }
+  openJournal(options = {}) {
+    return this.request("journal-open", options);
+  }
+  scan() {
+    return this.request("scan");
+  }
+  async prepare(options) {
+    return (await this.request("prepare", options)).prepared.result;
+  }
+  async rebuild(id, options = {}) {
+    return (await this.request("rebuild", { ...options, id })).prepared.result;
+  }
+  async recordSigned(id, raw) {
+    const reply = await this.request("record-signed", { id, raw });
+    return { ...reply.signed.result, ...reply.journal ? { journal: reply.journal } : {} };
+  }
+  broadcastAttempt(id) {
+    return this.request("record-broadcast", { id });
+  }
+  async backup() {
+    return (await this.request("journal-backup")).backup.result;
+  }
+  newAddress() {
+    return this.request("new-address");
+  }
+  releaseDraft(id) {
+    return this.request("release-draft", { id });
+  }
+  terminate(error = Error("C6 worker terminated")) {
+    this.#stopped = true;
+    this.#worker.terminate?.();
+    this.#pending?.reject(error);
+    this.#pending = null;
+  }
+};
+
+// src/c6-assets.js
+var hex7 = (b) => Array.from(b, (v) => v.toString(16).padStart(2, "0")).join("");
+var text2 = (s) => new TextEncoder().encode(s);
+var MAX = 2100000000000000000n;
+var need2 = (ok, msg) => {
+  if (!ok) throw Error("C6 asset: " + msg);
+};
+function c6AssetMetadata(manifest) {
+  need2(manifest?.profile === "C6-ORDINARY-ASSET-TEST-J2-v1", "ordinary asset profile");
+  const name = manifest.asset;
+  need2(typeof name === "string" && /^[A-Z0-9_.\/]+(?:#[A-Za-z0-9_.@-]+)?$/.test(name) && text2(name).length <= 64, "ordinary asset name");
+  need2(Number.isInteger(manifest.units) && manifest.units >= 0 && manifest.units <= 8, "asset precision");
+  const unit2 = 10n ** BigInt(8 - manifest.units);
+  need2(String(manifest.unit) === String(unit2) && String(manifest.private_fee) === "0" && manifest.sponsor_index === 2, "asset denomination/fee policy");
+  return { name, unit: unit2, units: manifest.units };
+}
+function c6NativeDestination(script) {
+  need2(script instanceof Uint8Array && (script.length === 25 && hex7(script.slice(0, 3)) === "76a914" && hex7(script.slice(-2)) === "88ac" || script.length === 34 && [82, 83].includes(script[0]) && script[1] === 32), "Legacy or strict PQ/ECDSA destination");
+  return script;
+}
+function c6AssetTransferScript(destination2, asset, amountAtomic, { allowContract = false } = {}) {
+  if (!(allowContract && destination2.length === 34 && destination2[0] === 81 && destination2[1] === 32)) c6NativeDestination(destination2);
+  c6AssetMetadata({ profile: "C6-ORDINARY-ASSET-TEST-J2-v1", asset, units: 8, unit: "1", private_fee: 0, sponsor_index: 2 });
+  const name = text2(asset);
+  let n = BigInt(amountAtomic);
+  need2(n > 0n && n <= MAX, "quantity range");
+  const payload = new Uint8Array(5 + name.length + 8);
+  payload.set(text2("xnat"));
+  payload[4] = name.length;
+  payload.set(name, 5);
+  for (let i = 0; i < 8; i++, n >>= 8n) payload[5 + name.length + i] = Number(n & 255n);
+  const push3 = payload.length <= 75 ? Uint8Array.of(payload.length) : Uint8Array.of(76, payload.length);
+  const out = new Uint8Array(destination2.length + 1 + push3.length + payload.length + 1);
+  let at = 0;
+  for (const part of [destination2, Uint8Array.of(192), push3, payload, Uint8Array.of(117)]) {
+    out.set(part, at);
+    at += part.length;
+  }
+  return out;
+}
+function c6ReadAssetTransfer(script, { asset, unit: unit2 = "1", allowContract = false } = {}) {
+  need2(script instanceof Uint8Array, "transfer bytes");
+  const at = script[0] === 118 ? 25 : 34;
+  const dest = script.slice(0, at);
+  if (allowContract && dest.length === 34 && dest[0] === 81 && dest[1] === 32) {
+  } else c6NativeDestination(dest);
+  need2(script[at] === 192, "asset suffix");
+  let pos = at + 1, size = script[pos++];
+  if (size === 76) {
+    size = script[pos++];
+    need2(size > 75, "minimal payload push");
+  } else need2(size <= 75, "bounded payload push");
+  const payload = script.slice(pos, pos + size);
+  need2(pos + size + 1 === script.length && script.at(-1) === 117 && hex7(payload.slice(0, 4)) === "786e6174", "exact transfer framing");
+  const len = payload[4];
+  need2(len > 0 && len <= 64 && payload.length === 5 + len + 8, "exact name/quantity payload");
+  const name = new TextDecoder("utf-8", { fatal: true }).decode(payload.slice(5, 5 + len));
+  need2(asset === void 0 || name === asset, "wrong asset");
+  c6AssetMetadata({ profile: "C6-ORDINARY-ASSET-TEST-J2-v1", asset: name, units: 8, unit: "1", private_fee: 0, sponsor_index: 2 });
+  let amount = 0n;
+  for (let i = 7; i >= 0; i--) amount = amount << 8n | BigInt(payload[5 + len + i]);
+  need2(amount > 0n && amount <= MAX && amount % BigInt(unit2) === 0n, "asset quantity/precision");
+  return { asset: name, amountAtomic: String(amount), destination: dest };
+}
+function parseAssetAmount(value, units) {
+  need2(Number.isInteger(units) && units >= 0 && units <= 8, "precision");
+  need2(typeof value === "string" && /^(0|[1-9][0-9]*)(?:\.[0-9]+)?$/.test(value), "exact decimal quantity");
+  const [whole, fraction = ""] = value.split(".");
+  need2(fraction.length <= units, "too many asset decimals");
+  const n = BigInt(whole) * 100000000n + BigInt((fraction + "0".repeat(8)).slice(0, 8));
+  need2(n > 0n && n <= MAX, "quantity range");
+  return n;
+}
+
 // src/browser-chain.js
 var HEX322 = /^[0-9a-f]{64}$/i;
 var MAX_MONEY2 = 2100000000000000000n;
@@ -9765,12 +11096,12 @@ var utf86 = new TextEncoder();
 function demand3(ok, reason) {
   if (!ok) throw new Error(`pool scan: ${reason}`);
 }
-function unhex3(hex7, name) {
-  demand3(typeof hex7 === "string" && /^(?:[0-9a-f]{2})*$/i.test(hex7), `${name} is not hex`);
-  return Uint8Array.from(hex7.match(/../g) ?? [], (pair2) => parseInt(pair2, 16));
+function unhex4(hex17, name) {
+  demand3(typeof hex17 === "string" && /^(?:[0-9a-f]{2})*$/i.test(hex17), `${name} is not hex`);
+  return Uint8Array.from(hex17.match(/../g) ?? [], (pair3) => parseInt(pair3, 16));
 }
-function hex5(bytes4) {
-  return Array.from(bytes4, (byte) => byte.toString(16).padStart(2, "0")).join("");
+function hex8(bytes7) {
+  return Array.from(bytes7, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 function concat6(...parts) {
   const out = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
@@ -9826,10 +11157,10 @@ function checkpointFor({
   notes,
   identity
 }) {
-  const indexed = (tree) => [...tree].map(([index, [value, next, nextIndex]]) => [index, [String(value), String(next), nextIndex]]);
+  const indexed2 = (tree) => [...tree].map(([index, [value, next, nextIndex]]) => [index, [String(value), String(next), nextIndex]]);
   return {
     version: 1,
-    manifestId: hex5(sha256(utf86.encode(JSON.stringify(manifest)))),
+    manifestId: hex8(sha256(utf86.encode(JSON.stringify(manifest)))),
     height,
     blockhash,
     birth,
@@ -9838,12 +11169,12 @@ function checkpointFor({
     reserveOutpoint,
     state: {
       mode: state.mode,
-      slots: [...state.slots].map(([index, value]) => [index, hex5(value)]),
-      seen: indexed(state.seen),
-      nfs: indexed(state.nfs)
+      slots: [...state.slots].map(([index, value]) => [index, hex8(value)]),
+      seen: indexed2(state.seen),
+      nfs: indexed2(state.nfs)
     },
     transitions: transitions.map((t) => ({ ...t, reserveAtomic: String(t.reserveAtomic) })),
-    published: published.map((e) => ({ ...e, cm: hex5(e.cm), record: hex5(e.record) })),
+    published: published.map((e) => ({ ...e, cm: hex8(e.cm), record: hex8(e.record) })),
     spentBy: [...spentBy].map(([nf, spent]) => [String(nf), spent]),
     walletTag: walletCheckpointTag(identity),
     walletWindow: identity?.gap === void 0 ? null : { gap: identity.gap, issued: identity.issued },
@@ -9860,29 +11191,29 @@ function checkpointFor({
   };
 }
 function restoreCheckpoint(saved, manifest, limit) {
-  if (saved?.version !== 1 || saved.manifestId !== hex5(sha256(utf86.encode(JSON.stringify(manifest)))) || !Number.isSafeInteger(saved.height) || saved.height < 1 || saved.height > limit || !HEX322.test(saved.blockhash) || !saved.birth || !Array.isArray(saved.stateOutpoint) || !Array.isArray(saved.transitions) || !Array.isArray(saved.published) || !Array.isArray(saved.spentBy) || !Array.isArray(saved.owned)) return null;
+  if (saved?.version !== 1 || saved.manifestId !== hex8(sha256(utf86.encode(JSON.stringify(manifest)))) || !Number.isSafeInteger(saved.height) || saved.height < 1 || saved.height > limit || !HEX322.test(saved.blockhash) || !saved.birth || !Array.isArray(saved.stateOutpoint) || !Array.isArray(saved.transitions) || !Array.isArray(saved.published) || !Array.isArray(saved.spentBy) || !Array.isArray(saved.owned)) return null;
   try {
-    const indexed = (rows) => new Map(rows.map(([index, [value, next, nextIndex]]) => [index, [BigInt(value), BigInt(next), nextIndex]]));
+    const indexed2 = (rows) => new Map(rows.map(([index, [value, next, nextIndex]]) => [index, [BigInt(value), BigInt(next), nextIndex]]));
     const state = {
       mode: saved.state.mode,
-      slots: new Map(saved.state.slots.map(([index, value]) => [index, unhex3(value, "cached note")])),
-      seen: indexed(saved.state.seen),
-      nfs: indexed(saved.state.nfs)
+      slots: new Map(saved.state.slots.map(([index, value]) => [index, unhex4(value, "cached note")])),
+      seen: indexed2(saved.state.seen),
+      nfs: indexed2(saved.state.nfs)
     };
     if (!state.seen.has(0) || !state.nfs.has(0) || state.slots.size !== saved.published.length || saved.stateOutpoint[1] !== 0 || !HEX322.test(saved.stateOutpoint[0])) return null;
     const transitions = saved.transitions.map((t) => ({ ...t, reserveAtomic: BigInt(t.reserveAtomic) }));
     const published = saved.published.map((e) => ({
       ...e,
-      cm: unhex3(e.cm, "cached commitment"),
-      record: unhex3(e.record, "cached record")
+      cm: unhex4(e.cm, "cached commitment"),
+      record: unhex4(e.record, "cached record")
     }));
     if (published.some((e) => e.cm.length !== 32 || e.record.length !== 1024 || !Number.isSafeInteger(e.slot) || e.slot < 0 || !HEX322.test(e.txid))) return null;
     const spentBy = new Map(saved.spentBy.map(([nf, spent]) => [BigInt(nf), spent]));
     const reserve = BigInt(saved.reserveAtomic);
-    const digest = poolStateDigest(state);
+    const digest2 = poolStateDigest(state);
     return {
       state,
-      digest,
+      digest: digest2,
       birth: saved.birth,
       stateOutpoint: saved.stateOutpoint,
       reserveOutpoint: saved.reserveOutpoint,
@@ -9912,14 +11243,15 @@ async function scanBrowserPool({
   expectedGenesis,
   expectedCommitment
 }) {
-  validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
-  const forms = C4_FORMS;
-  const vkHashes = Object.fromEntries(forms.map((f) => [f, manifest.forms[f].vkHash]));
+  const c5 = manifest?.schema === "neurai-c5-xna-test-v1";
+  (c5 ? validateC5Manifest : validateC4Manifest)(manifest, { expectedGenesis, expectedCommitment });
+  const forms3 = C4_FORMS;
+  const vkHashes = Object.fromEntries(forms3.map((f) => [f, manifest.forms[f].vkHash]));
   const mode = strategy;
   demand3(mode === "blocks" || mode === "spent-index", "unknown scan strategy");
-  const makeStateScript = (digest2) => c4StateScript(manifest, digest2);
+  const makeStateScript = (digest3) => c4StateScript(manifest, digest3);
   demand3(typeof rpc === "function", "RPC function required");
-  demand3(new Set(Object.values(vkHashes)).size === forms.length, "duplicate VK registry");
+  demand3(new Set(Object.values(vkHashes)).size === forms3.length, "duplicate VK registry");
   const call = (method, ...params) => rpc(method, params);
   demand3(await call("getblockhash", 0) === manifest.genesis, "wrong genesis");
   const tip = await call("getbestblockhash");
@@ -9936,8 +11268,8 @@ async function scanBrowserPool({
   let restored = checkpoint && mode === "spent-index" ? restoreCheckpoint(checkpoint, manifest, height) : null;
   if (restored && await call("getblockhash", restored.height) !== restored.blockhash) restored = null;
   const state = restored?.state ?? emptyPoolState();
-  let digest = restored?.digest ?? poolStateDigest(state);
-  const initialScript = makeStateScript(digest);
+  let digest2 = restored?.digest ?? poolStateDigest(state);
+  const initialScript = makeStateScript(digest2);
   let birth = restored?.birth ?? null;
   let stateOutpoint = restored?.stateOutpoint ?? null;
   let reserveOutpoint = restored?.reserveOutpoint ?? null;
@@ -9954,7 +11286,7 @@ async function scanBrowserPool({
       if (!vin.txid) continue;
       const parent = await call("getrawtransaction", vin.txid, true);
       const script = parent?.vout?.[vin.vout]?.scriptPubKey?.hex;
-      if (typeof script === "string" && script.includes(hex5(utf86.encode(manifest.identity)))) {
+      if (typeof script === "string" && script.includes(hex8(utf86.encode(manifest.identity)))) {
         uniqueConsumed = true;
         break;
       }
@@ -9965,13 +11297,21 @@ async function scanBrowserPool({
   }
   async function applyTransition(tx, blockHeight) {
     const vin = tx.vin ?? [];
-    const witness = vin[0].txinwitness;
+    let witness = vin[0].txinwitness;
+    let transcript = null;
+    const oldDigest = digest2;
+    if (c5) {
+      demand3(Array.isArray(witness) && (witness.length === 12 || witness.length === 13) && witness[0] === "10", "invalid C5 witness");
+      transcript = joinC5Transition(witness.slice(1, 6).map((x) => unhex4(x, "public transition")));
+      witness = [witness[0], ...witness.slice(6)];
+    }
+    let publicNf = new Uint8Array(32), publicCms = [];
     demand3(
       Array.isArray(witness) && witness.length >= 5 && witness[0] === "10",
       "state spend is not MAST"
     );
-    const vkHash = hex5(sha256(unhex3(witness[2], "VK")));
-    const form = forms.find((name) => vkHashes[name] === vkHash);
+    const vkHash = hex8(sha256(unhex4(witness[2], "VK")));
+    const form = forms3.find((name) => vkHashes[name] === vkHash);
     demand3(form, "unknown pool VK");
     const expected = manifest.forms[form];
     demand3(
@@ -9987,11 +11327,13 @@ async function scanBrowserPool({
     if (form.startsWith("D") || form.startsWith("T")) {
       demand3(witness.length >= 7, "missing publication");
       const blob = concat6(
-        unhex3(witness[3], "blob first half"),
-        unhex3(witness[4], "blob second half")
+        unhex4(witness[3], "blob first half"),
+        unhex4(witness[4], "blob second half")
       );
       demand3(blob.length === 4096, "bad publication size");
       const publication = decodeC4Publication(form, blob);
+      publicNf = publication.nf ?? publicNf;
+      publicCms = publication.cms;
       if (publication.nf) {
         const nf = decodeField(publication.nf);
         state.nfs = poolIndexedInsert("nf", state.nfs, nf);
@@ -10007,14 +11349,16 @@ async function scanBrowserPool({
       }
       state.mode = 1;
     } else {
-      const nf = decodeField(unhex3(witness[3], "nullifier"));
+      publicNf = unhex4(witness[3], "nullifier");
+      const nf = decodeField(publicNf);
       state.nfs = poolIndexedInsert("nf", state.nfs, nf);
       spentBy.set(nf, { txid: tx.txid, height: blockHeight });
       state.mode = form === "W_full" ? 0 : 1;
     }
-    digest = poolStateDigest(state);
+    digest2 = poolStateDigest(state);
+    if (c5) verifyC5Transition(transcript, c5TransitionBinding(form, oldDigest, digest2, publicNf, publicCms));
     demand3(
-      tx.vout?.[0]?.scriptPubKey?.hex === makeStateScript(digest),
+      tx.vout?.[0]?.scriptPubKey?.hex === makeStateScript(digest2),
       "pool state root disagrees with block"
     );
     let newReserve = 0n;
@@ -10059,7 +11403,7 @@ async function scanBrowserPool({
       txid: tx.txid,
       height: blockHeight,
       form,
-      digest: decodeField(digest).toString(),
+      digest: decodeField(digest2).toString(),
       reserveAtomic: reserve
     });
   }
@@ -10195,11 +11539,11 @@ async function scanBrowserPool({
       const entry = remaining[position];
       const nf = decodeField(found.nf);
       const spent = spentBy.get(nf);
-      notes.set(hex5(entry.cm), {
-        cm: hex5(entry.cm),
+      notes.set(hex8(entry.cm), {
+        cm: hex8(entry.cm),
         amountAtomic: found.amountAtomic,
         nf,
-        note: hex5(found.note),
+        note: hex8(found.note),
         spent: !!spent,
         ...spent ? { spentTxid: spent.txid, spentHeight: spent.height } : {},
         slot: entry.slot,
@@ -10221,7 +11565,7 @@ async function scanBrowserPool({
       slots: state.slots,
       seen: state.seen,
       nfs: state.nfs,
-      digest: decodeField(digest).toString(),
+      digest: decodeField(digest2).toString(),
       stateOutpoint,
       reserveOutpoint
     },
@@ -10248,7 +11592,7 @@ async function scanBrowserPool({
 }
 
 // src/pool-operations.js
-var hex6 = (bytes4) => Array.from(bytes4, (b) => b.toString(16).padStart(2, "0")).join("");
+var hex9 = (bytes7) => Array.from(bytes7, (b) => b.toString(16).padStart(2, "0")).join("");
 var MAX_ARTIFACT_BYTES = 256 * 1048576;
 function summarizeScan(scan) {
   return {
@@ -10346,7 +11690,7 @@ async function loadVerifiedArtifact({
   if (!meta || meta.bytes > maxBytes) throw new Error("Unsupported pool artifact");
   const response = await fetchArtifact(path);
   if (!response?.ok) throw new Error(missingMessage);
-  const bytes4 = new Uint8Array(meta.bytes);
+  const bytes7 = new Uint8Array(meta.bytes);
   let at = 0;
   if (response.body?.getReader) {
     const reader = response.body.getReader();
@@ -10354,10 +11698,10 @@ async function loadVerifiedArtifact({
     for (; ; ) {
       const { value, done } = await reader.read();
       if (done) break;
-      if (at + value.length > bytes4.length) throw new Error("Artifact exceeds pinned size");
-      bytes4.set(value, at);
+      if (at + value.length > bytes7.length) throw new Error("Artifact exceeds pinned size");
+      bytes7.set(value, at);
       at += value.length;
-      const percent = Math.floor(at / bytes4.length * 20) * 5;
+      const percent = Math.floor(at / bytes7.length * 20) * 5;
       if (percent !== last) {
         last = percent;
         onProgress?.(percent);
@@ -10365,13 +11709,13 @@ async function loadVerifiedArtifact({
     }
   } else {
     const whole = new Uint8Array(await response.arrayBuffer());
-    if (whole.length > bytes4.length) throw new Error("Artifact exceeds pinned size");
-    bytes4.set(whole);
+    if (whole.length > bytes7.length) throw new Error("Artifact exceeds pinned size");
+    bytes7.set(whole);
     at = whole.length;
     onProgress?.(100);
   }
-  if (at !== bytes4.length || hex6(sha256(bytes4)) !== meta.sha256) throw new Error("Pool artifact integrity mismatch");
-  return bytes4;
+  if (at !== bytes7.length || hex9(sha256(bytes7)) !== meta.sha256) throw new Error("Pool artifact integrity mismatch");
+  return bytes7;
 }
 async function proveC4({ form, prepared, artifacts, loadArtifact, snarkjs, onStage = () => {
 } }) {
@@ -10416,7 +11760,8 @@ async function buildC4Transaction({
     ...depositLimitAtomic === void 0 ? {} : { depositLimitAtomic }
   });
   onStage("Building note paths and transaction witness");
-  const prepared = identity.prepareC4({
+  const c5 = manifest.schema === "neurai-c5-xna-test-v1";
+  const prepared = identity[c5 ? "prepareC5" : "prepareC4"]({
     manifest,
     scan,
     form: plan.form,
@@ -10431,13 +11776,17 @@ async function buildC4Transaction({
   });
   const { proof, publicSignals } = await proveC4({ form: plan.form, prepared, artifacts, loadArtifact, snarkjs, onStage });
   return {
-    raw: finishC4(prepared, proof, publicSignals),
+    raw: (c5 ? finishC5 : finishC4)(prepared, proof, publicSignals),
     form: plan.form,
     feeAtomic: request.feeAtomic,
     stateOutpoint: scan.state.stateOutpoint,
     inputPoints: prepared.inputs.map((x) => ({ txid: x.txid, vout: x.vout })),
     amountAtomic: plan.amountAtomic
   };
+}
+async function buildC5Transaction(options) {
+  if (options.manifest?.schema !== "neurai-c5-xna-test-v1") throw new Error("Explicit C5 manifest required");
+  return buildC4Transaction(options);
 }
 
 // src/pool-worker.js
@@ -10464,7 +11813,11 @@ function startPoolWorker({
     manifest = C4_TESTNET_MANIFEST;
     expectedCommitment ??= C4_TESTNET_COMMITMENT;
   }
-  validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  const c5 = manifest.schema === "neurai-c5-xna-test-v1";
+  if (c5 && (expectedGenesis === void 0 || expectedCommitment === void 0 || artifacts === C4_TESTNET_ARTIFACTS)) {
+    throw new Error("C5 requires explicit genesis, commitment and TEST artifacts");
+  }
+  (c5 ? validateC5Manifest : validateC4Manifest)(manifest, { expectedGenesis, expectedCommitment });
   if (!Number.isSafeInteger(maxArtifactBytes) || maxArtifactBytes <= 0 || maxArtifactBytes > 256 * 1048576) {
     throw new Error("Artifact limit must be a positive integer of at most 256 MiB");
   }
@@ -10610,6 +11963,1929 @@ function startPoolWorker({
     scope.onmessage = null;
   } };
 }
+
+// src/c6-join.js
+var hex10 = (b) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+var unhex5 = (s) => {
+  if (typeof s !== "string" || !/^([0-9a-f]{2})*$/.test(s)) throw Error("Canonical hex required");
+  return Uint8Array.from(s.match(/../g) ?? [], (x) => parseInt(x, 16));
+};
+var text3 = (s) => new TextEncoder().encode(s);
+var cat2 = (...parts) => {
+  const out = new Uint8Array(parts.reduce((n, x) => n + x.length, 0));
+  let at = 0;
+  for (const x of parts) {
+    out.set(x, at);
+    at += x.length;
+  }
+  return out;
+};
+var same2 = (a, b) => hex10(a) === hex10(b);
+var decimal2 = (x) => typeof x === "bigint" ? String(x) : Array.isArray(x) ? x.map(decimal2) : x && typeof x === "object" ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, decimal2(v)])) : x;
+var LE = (value, length) => {
+  let n = BigInt(value);
+  if (n < 0n) throw Error("Negative unsigned integer");
+  const out = new Uint8Array(length);
+  for (let i = 0; i < length; i++) {
+    out[i] = Number(n & 255n);
+    n >>= 8n;
+  }
+  if (n) throw Error("Integer overflow");
+  return out;
+};
+var MAX_MONEY3 = 2100000000000000000n;
+var money = (n, zero = false) => {
+  if (typeof n !== "bigint" && !(typeof n === "string" && /^(0|[1-9][0-9]*)$/.test(n))) throw Error("Exact atomic amount required");
+  n = BigInt(n);
+  if (n < (zero ? 0n : 1n) || n > MAX_MONEY3) throw Error("Money range");
+  return n;
+};
+var bytes5 = (value, length) => {
+  if (!(value instanceof Uint8Array) || value.length !== length) throw Error("Byte length");
+  return value;
+};
+function compress(proof) {
+  const FP2 = 21888242871839275222246405745257275088696311157297823662689037894645226208583n;
+  const g12 = (p) => {
+    const x = BigInt(p[0]), y = BigInt(p[1]);
+    if (x < 0n || x >= FP2 || y <= 0n || y >= FP2 || (y * y - x * x * x - 3n) % FP2 !== 0n) throw Error("G1 encoding");
+    return LE(x | (y > FP2 - y ? 1n : 0n) << 255n, 32);
+  };
+  const g22 = (p) => {
+    const x = p[0].map(BigInt), y = p[1].map(BigInt), neg = y.map((v) => (FP2 - v) % FP2);
+    if ([...x, ...y].some((v) => v < 0n || v >= FP2)) throw Error("G2 encoding");
+    return cat2(LE(x[0], 32), LE(x[1] | (y[1] > neg[1] || y[1] === neg[1] && y[0] > neg[0] ? 1n : 0n) << 255n, 32));
+  };
+  return cat2(g12(proof.pi_a), g22(proof.pi_b), g12(proof.pi_c));
+}
+function createJoinWallet(sdk) {
+  const intents = /* @__PURE__ */ new WeakMap();
+  const fingerprint = (p) => hex10(sdk.sha256(cat2(
+    text3(JSON.stringify({ input: p.input, publics: p.publics, resources: p.resources })),
+    p.blob,
+    p.network,
+    p.pool,
+    p.created.note,
+    p.created.cm,
+    p.created.record
+  )));
+  const num = (b) => {
+    const value = BigInt("0x" + hex10(bytes5(b, 32)));
+    if (value >= 21888242871839275222246405745257275088548364400416034343698204186575808495617n) throw Error("Noncanonical Fr");
+    return value;
+  };
+  const merkle = (leaf, index, path) => {
+    if (!Number.isInteger(index) || index < 0 || index > 4294967295 || path.length !== 32) throw Error("Merkle shape");
+    let value = num(leaf), i = BigInt(index);
+    for (const sibling of path) {
+      const other = num(sibling);
+      value = sdk.poseidonPermutation(i & 1n ? [0n, other, value] : [0n, value, other])[0];
+      i >>= 1n;
+    }
+    return sdk.encodeField(value);
+  };
+  function prepare({ manifest, domain, assetId, root, notes, fee }) {
+    const D = bytes5(domain, 32), AID = bytes5(assetId, 32), R = bytes5(root, 32), ctx = unhex5(manifest.context);
+    if (num(R) === 0n || num(ctx) === 0n || notes.length !== 2) throw Error("Join context");
+    if (!Array.isArray(manifest.fees?.J2) || !manifest.fees.J2.some((v) => money(String(v), true) === money(fee, true))) throw Error("Manifest J2 fee level");
+    fee = money(fee, true);
+    const opened = notes.map((row) => {
+      const note = bytes5(row.note, 169), sk = bytes5(row.spendSecret, 32), decoded = sdk.decodeNote(note), cm = sdk.noteCommitment(note), nf = sdk.noteNullifier(note, sk);
+      if (!same2(decoded.domain, D) || !same2(decoded.assetId, AID) || !same2(merkle(cm, row.index, row.path), R)) throw Error("Note instance or membership");
+      return { note: note.slice(), sk: sk.slice(), decoded, cm, nf, index: row.index, path: row.path.map((x) => x.slice()) };
+    });
+    if (opened[0].index === opened[1].index || same2(opened[0].cm, opened[1].cm) || same2(opened[0].nf, opened[1].nf)) throw Error("Distinct real notes required");
+    if (opened.some((x) => x.decoded.amountAtomic % sdk.unit !== 0n)) throw Error("Asset note precision");
+    const total = money(opened[0].decoded.amountAtomic + opened[1].decoded.amountAtomic), amount = money(total - fee);
+    const first = opened[0].decoded;
+    const created = sdk.sealNote({ descriptor: { domain: hex10(D), asset_id: hex10(AID), owner: hex10(first.owner), view_pub: hex10(first.viewPub) }, amountAtomic: amount });
+    if (opened.some((x) => same2(x.cm, created.cm))) throw Error("Fresh output required");
+    const blob = new Uint8Array(4096);
+    blob.set([3, 1]);
+    blob.set(opened[0].nf, 2);
+    blob.set(opened[1].nf, 34);
+    blob.set(created.cm, 66);
+    blob.set(created.record.slice(0, 220), 98);
+    if (hex10(blob.slice(98, 101)) !== "01d900") throw Error("HPKE framing");
+    const P2 = sdk.poseidonBytes, dh = P2(cat2(P2(cat2(P2(text3("NeuraiPoolC6/J2/data")), blob.slice(0, 2048))), blob.slice(2048)));
+    const publics = [num(ctx), num(R), ...opened.map((x) => num(x.nf)), num(dh), fee, num(created.cm)];
+    const input = {
+      ctx: num(ctx),
+      D: Array.from(D),
+      AID: Array.from(AID),
+      unit: sdk.unit,
+      registryRoot: Array(32).fill(0),
+      R: num(R),
+      nf_0: publics[2],
+      nf_1: publics[3],
+      data_hash: publics[4],
+      fee,
+      cm: publics[6],
+      sk: opened.map((x) => Array.from(x.sk)),
+      spentNote: opened.map((x) => Array.from(x.note)),
+      spentCm: opened.map((x) => num(x.cm)),
+      spentAmount: opened.map((x) => x.decoded.amountAtomic),
+      spentIndex: opened.map((x) => x.index),
+      spentPath: opened.map((x) => x.path.map(num)),
+      note: Array.from(created.note),
+      amount
+    };
+    const prepared = {
+      input: decimal2(input),
+      publics: publics.map(String),
+      blob,
+      created,
+      resources: opened.map((x) => ({ cm: hex10(x.cm), nf: hex10(x.nf) })),
+      network: unhex5(manifest.network),
+      pool: unhex5(manifest.commitment)
+    };
+    bytes5(prepared.network, 32);
+    bytes5(prepared.pool, 32);
+    intents.set(prepared, fingerprint(prepared));
+    return prepared;
+  }
+  async function prove(prepared, { api, wasm, zkey, vk, stage = () => {
+  }, signal }) {
+    const abort = () => {
+      if (signal?.aborted) throw Error("Aborted locally; an exposed packet is not cancelled on chain");
+    };
+    const expected = intents.get(prepared);
+    const checkIntent = () => {
+      abort();
+      if (expected === void 0 || fingerprint(prepared) !== expected) throw Error("Wallet intent changed after preparation");
+    };
+    checkIntent();
+    const stable = structuredClone(prepared);
+    if (fingerprint(stable) !== expected) throw Error("Wallet intent changed after preparation");
+    stage("Compute witness");
+    checkIntent();
+    const witness = { type: "mem" };
+    await api.wtns.calculate(structuredClone(stable.input), wasm, witness);
+    checkIntent();
+    stage("Generate J2 proof");
+    checkIntent();
+    const result = structuredClone(await api.groth16.prove(zkey, witness, void 0, { singleThread: true }));
+    checkIntent();
+    if (JSON.stringify(result.publicSignals.map(String)) !== JSON.stringify(stable.publics)) throw Error("Public signals differ from wallet intent");
+    stage("Verify J2 proof");
+    checkIntent();
+    if (!await api.groth16.verify(vk, structuredClone(result.publicSignals), structuredClone(result.proof))) throw Error("Invalid generated proof");
+    checkIntent();
+    const proof = compress(result.proof), fields = result.publicSignals.map((v) => sdk.encodeField(BigInt(v)));
+    bytes5(stable.network, 32);
+    bytes5(stable.pool, 32);
+    const packet = cat2(unhex5("4e4336504b540200"), stable.network, stable.pool, Uint8Array.of(5, 7), ...fields, proof, LE(4096, 2), stable.blob, Uint8Array.of(0, 0));
+    if (packet.length !== 4526) throw Error("J2 packet length");
+    return { packet, packetId: hex10(sdk.sha256(cat2(text3("NeuraiC6Packet"), packet))), proof: result.proof, publicSignals: result.publicSignals };
+  }
+  return { prepare, prove };
+}
+function createC6JoinWallet({ expectedGenesis, expectedCommitment, kind = "xna" } = {}) {
+  if (!["xna", "asset"].includes(kind)) throw Error("Unsupported C6 custody kind");
+  const pin = (value) => typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+  if (!pin(expectedGenesis) || !pin(expectedCommitment)) throw Error("C6 J2 needs independently pinned genesis and commitment");
+  let api;
+  return {
+    prepare(request) {
+      if (request?.manifest?.profile !== (kind === "asset" ? "C6-ORDINARY-ASSET-TEST-J2-v1" : "C6-XNA-TEST-J2-v2")) throw Error("Unsupported C6 J2 manifest profile");
+      if (request.manifest.network !== expectedGenesis || request.manifest.commitment !== expectedCommitment) throw Error("C6 J2 manifest differs from pinned instance");
+      const domain = bytes5(request.domain, 32), asset = bytes5(request.assetId, 32);
+      const unit2 = kind === "asset" ? c6AssetMetadata(request.manifest).unit : 1n;
+      if (kind === "asset" && money(request.fee, true) !== 0n) throw Error("Asset private fee must be zero");
+      const context = poseidonBytes(cat2(text3("NeuraiPoolCtx"), domain, asset, LE(unit2, 8), new Uint8Array(32)));
+      if (hex10(context) !== request.manifest.context) throw Error("C6 J2 domain/asset context mismatch");
+      api ??= createJoinWallet({ sha256, decodeNote, noteCommitment, noteNullifier, sealNote, encodeField, poseidonBytes, poseidonPermutation, unit: unit2 });
+      return api.prepare(request);
+    },
+    prove: (...args) => {
+      if (!api) throw Error("Prepare a pinned J2 first");
+      return api.prove(...args);
+    }
+  };
+}
+
+// src/c6-operations.js
+var OPS = ["D", "T1", "T2", "T3", "W"];
+var MAX_MONEY4 = 2100000000000000000n;
+var QUANTUM = 10000000000n;
+var EMPTY_W_DATA = "04bf938a28af8bc7ab2810e0adf3cbbb55aa4feb79827feed2722c5123baac15";
+var utf87 = (s) => new TextEncoder().encode(s);
+var hex11 = (b) => Array.from(b, (v) => v.toString(16).padStart(2, "0")).join("");
+var same3 = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+function require2(ok, reason) {
+  if (!ok) throw new Error("C6: " + reason);
+}
+function bytes6(value, length, label2) {
+  require2(value instanceof Uint8Array && value.length === length, label2 + " length");
+  return value;
+}
+function unhex6(value, length) {
+  require2(typeof value === "string" && /^[0-9a-f]*$/.test(value) && value.length === length * 2, "canonical hex");
+  return Uint8Array.from(value.match(/../g) ?? [], (v) => parseInt(v, 16));
+}
+function concat7(...parts) {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let offset = 0;
+  for (const p of parts) {
+    out.set(p, offset);
+    offset += p.length;
+  }
+  return out;
+}
+function le3(value, length) {
+  let n = BigInt(value);
+  require2(n >= 0n, "unsigned integer");
+  const out = new Uint8Array(length);
+  for (let i = 0; i < length; i++, n >>= 8n) out[i] = Number(n & 255n);
+  require2(n === 0n, "integer overflow");
+  return out;
+}
+function money2(value, zero = false) {
+  require2(typeof value === "bigint" || typeof value === "string" && /^(0|[1-9][0-9]*)$/.test(value), "exact atomic amount required");
+  const n = BigInt(value);
+  require2(n >= (zero ? 0n : 1n) && n <= MAX_MONEY4, "money range");
+  return n;
+}
+function decimal3(value) {
+  if (typeof value === "bigint") return String(value);
+  if (Array.isArray(value)) return value.map(decimal3);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, decimal3(v)]));
+  return value;
+}
+function destination(script) {
+  require2(script instanceof Uint8Array && (script.length === 25 && hex11(script.slice(0, 3)) === "76a914" && hex11(script.slice(-2)) === "88ac" || script.length === 34 && [82, 83].includes(script[0]) && script[1] === 32), "payout must be Legacy or strict PQ/ECDSA");
+  return script;
+}
+function member(cm, index, path) {
+  require2(Number.isInteger(index) && index >= 0 && index <= 4294967295 && Array.isArray(path) && path.length === 32, "Merkle shape");
+  let value = decodeField(cm), at = BigInt(index);
+  for (const sibling of path) {
+    const other = decodeField(bytes6(sibling, 32, "sibling"));
+    value = poseidonPermutation(at & 1n ? [0n, other, value] : [0n, value, other])[0];
+    at >>= 1n;
+  }
+  return encodeField(value);
+}
+function descriptor2(note) {
+  return { domain: hex11(note.domain), asset_id: hex11(note.assetId), owner: hex11(note.owner), view_pub: hex11(note.viewPub) };
+}
+function seal(recipient, amount, domain, assetId) {
+  require2(recipient && recipient.domain === hex11(domain) && recipient.asset_id === hex11(assetId), "recipient instance");
+  return sealNote({ descriptor: recipient, amountAtomic: amount });
+}
+function compress2(proof) {
+  const fp = 21888242871839275222246405745257275088696311157297823662689037894645226208583n;
+  const g12 = (p) => {
+    const x = BigInt(p[0]), y = BigInt(p[1]);
+    require2(x >= 0n && x < fp && y > 0n && y < fp && (y * y - x * x * x - 3n) % fp === 0n, "G1 encoding");
+    return le3(x | (y > fp - y ? 1n : 0n) << 255n, 32);
+  };
+  const g22 = (p) => {
+    const x = p[0].map(BigInt), y = p[1].map(BigInt), neg = y.map((v) => (fp - v) % fp);
+    require2(x.length === 2 && y.length === 2 && [...x, ...y].every((v) => v >= 0n && v < fp), "G2 encoding");
+    const sign = y[1] > neg[1] || y[1] === neg[1] && y[0] > neg[0];
+    return concat7(le3(x[0], 32), le3(x[1] | (sign ? 1n : 0n) << 255n, 32));
+  };
+  return concat7(g12(proof.pi_a), g22(proof.pi_b), g12(proof.pi_c));
+}
+function createC6OperationWallet({ expectedGenesis, expectedCommitment, kind = "xna" } = {}) {
+  if (!["xna", "asset"].includes(kind)) throw Error("Unsupported C6 custody kind");
+  const network = unhex6(expectedGenesis, 32), pool = unhex6(expectedCommitment, 32);
+  const intents = /* @__PURE__ */ new WeakMap();
+  const fingerprint = (p) => hex11(sha256(utf87(JSON.stringify(p))));
+  function context(request, op) {
+    const { manifest } = request;
+    require2(manifest?.profile === (kind === "asset" ? "C6-ORDINARY-ASSET-TEST-J2-v1" : "C6-XNA-TEST-J2-v2"), "unsupported manifest profile");
+    require2(manifest.network === expectedGenesis && manifest.commitment === expectedCommitment, "manifest differs from pinned instance");
+    const D = bytes6(request.domain, 32, "domain"), AID = bytes6(request.assetId, 32, "asset");
+    const unit2 = kind === "asset" ? c6AssetMetadata(manifest).unit : 1n;
+    const ctx = c4Context({ domain: D, assetId: AID, unit: unit2 });
+    require2(hex11(ctx) === manifest.context && decodeField(ctx) !== 0n, "domain/asset context mismatch");
+    const fee = money2(request.fee, true), levels = manifest.fees?.[op];
+    require2(Array.isArray(levels) && levels.length > 0, "missing operation fee levels");
+    const approved = levels.map((v) => {
+      if (typeof v === "number") require2(Number.isSafeInteger(v) && v >= 0, "unsafe manifest fee");
+      return money2(typeof v === "number" ? String(v) : v, true);
+    });
+    require2(approved.includes(fee) && (kind !== "asset" || fee === 0n), "unapproved fee");
+    return { D, AID, ctx, fee, unit: unit2, quantum: kind === "asset" ? unit2 : QUANTUM, asset: manifest.asset, input: { ctx: decodeField(ctx), D: Array.from(D), AID: Array.from(AID), unit: unit2, registryRoot: Array(32).fill(0), fee } };
+  }
+  function spent(request, state) {
+    const row = request.spent;
+    require2(row && row.note instanceof Uint8Array, "spent note required");
+    const note = bytes6(row.note, 169, "spent note"), sk = bytes6(row.spendSecret, 32, "spend secret");
+    const decoded = decodeNote(note), cm = noteCommitment(note), nf = noteNullifier(note, sk);
+    const root = bytes6(request.root, 32, "historical root");
+    require2(decodeField(root) !== 0n && same3(decoded.domain, state.D) && same3(decoded.assetId, state.AID), "spent note instance/root");
+    require2(same3(member(cm, row.index, row.path), root), "spent note membership");
+    money2(decoded.amountAtomic);
+    require2(kind !== "asset" || decoded.amountAtomic % state.unit === 0n, "spent asset precision");
+    Object.assign(state.input, {
+      R: decodeField(root),
+      nf: decodeField(nf),
+      sk: Array.from(sk),
+      spentNote: Array.from(note),
+      spentCm: decodeField(cm),
+      spentAmount: decoded.amountAtomic,
+      spentIndex: row.index,
+      spentPath: row.path.map(decodeField)
+    });
+    return { decoded, cm, nf, root, resource: { cm: hex11(cm), nf: hex11(nf) } };
+  }
+  function finish(op, state, created, blob, publics, resources2, payout = new Uint8Array(), funding = new Uint8Array()) {
+    const prepared = {
+      operation: op,
+      input: decimal3(state.input),
+      publics: publics.map(String),
+      created,
+      blob,
+      resources: resources2,
+      payout: payout.slice(),
+      funding: funding.slice(),
+      network: network.slice(),
+      pool: pool.slice()
+    };
+    intents.set(prepared, fingerprint(prepared));
+    return prepared;
+  }
+  function prepareDeposit(request) {
+    const state = context(request, "D"), amount = money2(request.amountAtomic);
+    require2(amount % state.quantum === 0n, "deposit must be a multiple of 100 XNA");
+    const funding = bytes6(request.funding, 36, "funding outpoint");
+    require2(money2(request.fundingValue) === money2(amount + state.fee), "funding must equal amount plus fee");
+    const created = seal(request.recipient, amount, state.D, state.AID);
+    const blob = encodeC4Publication("D0", { cms: [created.cm], records: [created.record] });
+    const data = c4PublicationHash("D0", blob), dep = poseidonBytes(concat7(utf87("NIP045/dep"), le3(amount, 8), created.cm));
+    Object.assign(state.input, { note: Array.from(created.note), cm: decodeField(created.cm), amount, dep: decodeField(dep), data_hash: decodeField(data) });
+    return finish("D", state, [created], blob, [decodeField(state.ctx), decodeField(dep), decodeField(data), amount, state.fee], [], void 0, funding);
+  }
+  function prepareTransfer(request) {
+    require2(["T1", "T2", "T3"].includes(request.operation), "transfer operation");
+    const state = context(request, request.operation), input = spent(request, state);
+    require2(Array.isArray(request.outputs) && request.outputs.length === Number(request.operation[1]), "transfer output count");
+    let total = state.fee, changes = 0;
+    const flags = [], created = request.outputs.map((output) => {
+      require2(output && (output.isChange === void 0 || typeof output.isChange === "boolean"), "change flag must be Boolean");
+      const amount = money2(output.amountAtomic), change = output.isChange === true;
+      if (change) changes++;
+      else require2(amount % state.quantum === 0n, "recipient amount must be a multiple of 100 XNA");
+      const own = descriptor2(input.decoded);
+      if (change && output.recipient) require2(Object.keys(own).every((k) => output.recipient[k] === own[k]), "change must preserve owner and viewing key");
+      total = money2(total + amount);
+      flags.push(change ? 1 : 0);
+      return seal(change ? own : output.recipient, amount, state.D, state.AID);
+    });
+    require2(changes <= 1 && total === input.decoded.amountAtomic, "transfer conservation or duplicate change");
+    require2(created.every((row) => !same3(row.cm, input.cm)) && new Set(created.map((row) => hex11(row.cm))).size === created.length, "fresh distinct outputs");
+    const blob = encodeC4Publication(request.operation, { cms: created.map((row) => row.cm), records: created.map((row) => row.record), nf: input.nf });
+    const data = c4PublicationHash(request.operation, blob);
+    Object.assign(state.input, {
+      data_hash: decodeField(data),
+      notes: created.map((row) => Array.from(row.note)),
+      amounts: created.map((row) => decodeNote(row.note).amountAtomic),
+      cms: created.map((row) => decodeField(row.cm)),
+      changeFlags: flags
+    });
+    return finish(request.operation, state, created, blob, [decodeField(state.ctx), decodeField(input.root), decodeField(input.nf), decodeField(data), state.fee, ...state.input.cms], [input.resource]);
+  }
+  function prepareWithdrawal(request) {
+    const state = context(request, "W"), input = spent(request, state), amount = money2(request.amountAtomic);
+    const native = destination(request.payoutScript);
+    const payout = kind === "asset" ? c6AssetTransferScript(native, state.asset, amount) : native;
+    const left = input.decoded.amountAtomic - amount - state.fee;
+    require2(left >= 0n, "withdrawal conservation");
+    if (kind === "asset" || amount >= QUANTUM) require2(amount % state.quantum === 0n, "withdrawal must be a multiple of 100 XNA");
+    else require2(left === 0n, "small recovery must consume the entire note");
+    const created = left ? [seal(descriptor2(input.decoded), money2(left), state.D, state.AID)] : [];
+    const dummy = encodeNote({
+      domain: state.D,
+      assetId: state.AID,
+      owner: encodeField(1n),
+      viewPub: Uint8Array.of(9, ...Array(31).fill(0)),
+      amountAtomic: state.unit,
+      rho: new Uint8Array(32)
+    });
+    const blob = left ? encodeC4Publication("T1", { cms: [created[0].cm], records: [created[0].record], nf: input.nf }) : new Uint8Array();
+    const data = left ? c4PublicationHash("T1", blob) : unhex6(EMPTY_W_DATA, 32);
+    const pay = poseidonBytes(concat7(utf87("NeuraiPoolC6/pay"), Uint8Array.of(payout.length), payout));
+    const cm = left ? decodeField(created[0].cm) : 0n;
+    Object.assign(state.input, {
+      amount,
+      pay: decodeField(pay),
+      cm_change: cm,
+      data_hash: decodeField(data),
+      has_change: left ? 1 : 0,
+      changeNote: Array.from(created[0]?.note ?? dummy),
+      changeAmount: left || state.unit
+    });
+    return finish("W", state, created, blob, [decodeField(state.ctx), decodeField(input.root), decodeField(input.nf), amount, state.fee, decodeField(pay), cm, decodeField(data)], [input.resource], payout);
+  }
+  async function prove(prepared, { api, wasm, zkey, vk, signal, stage = () => {
+  } }) {
+    const expected = intents.get(prepared);
+    const check = () => {
+      require2(!signal?.aborted, "aborted locally; an exposed packet remains valid on chain");
+      require2(expected !== void 0 && intents.get(prepared) === expected && fingerprint(prepared) === expected, "wallet intent changed after preparation");
+    };
+    check();
+    const stable = structuredClone(prepared);
+    require2(fingerprint(stable) === expected, "wallet intent changed after preparation");
+    stage("Compute witness");
+    check();
+    const witness = { type: "mem" };
+    await api.wtns.calculate(structuredClone(stable.input), wasm, witness);
+    check();
+    stage("Generate " + stable.operation + " proof");
+    check();
+    const result = structuredClone(await api.groth16.prove(zkey, witness, void 0, { singleThread: true }));
+    check();
+    require2(JSON.stringify(result.publicSignals.map(String)) === JSON.stringify(stable.publics), "public signals differ from wallet intent");
+    stage("Verify " + stable.operation + " proof");
+    check();
+    require2(await api.groth16.verify(vk, structuredClone(result.publicSignals), structuredClone(result.proof)), "invalid generated proof");
+    check();
+    const packet = concat7(
+      unhex6("4e4336504b540100", 8),
+      stable.network,
+      stable.pool,
+      Uint8Array.of(OPS.indexOf(stable.operation), stable.publics.length),
+      ...stable.publics.map((v) => encodeField(BigInt(v))),
+      compress2(result.proof),
+      le3(stable.blob.length, 2),
+      stable.blob,
+      Uint8Array.of(stable.payout.length),
+      stable.payout,
+      Uint8Array.of(stable.funding.length),
+      stable.funding
+    );
+    require2(packet.length <= 4800, "packet size");
+    return { packet, packetId: hex11(sha256(concat7(utf87("NeuraiC6Packet"), packet))), proof: result.proof, publicSignals: result.publicSignals };
+  }
+  return { prepareDeposit, prepareTransfer, prepareWithdrawal, prove };
+}
+
+// src/c6-scan-snapshot.js
+var hex12 = (b) => Array.from(b, (v) => v.toString(16).padStart(2, "0")).join("");
+var digest = (v) => hex12(sha256(new TextEncoder().encode(v)));
+var MAX_BYTES2 = 3 * 1024 * 1024;
+var C6ScanSnapshot = class {
+  constructor({ store, identity, deployment, assertLive }) {
+    Object.assign(this, { store, identity, deployment, assertLive });
+    this.scope = digest(JSON.stringify(deployment));
+    this.key = "c6-scan-state-v2:" + digest(identity.checkpointStoreId() + ":" + this.scope);
+    this.cipher = null;
+  }
+  async load() {
+    this.assertLive();
+    this.cipher = await this.store.read(this.key);
+    this.assertLive();
+    if (this.cipher === null) return null;
+    try {
+      if (typeof this.cipher !== "string" || this.cipher.length > MAX_BYTES2 * 2 + 200) throw Error("size");
+      const value = this.identity.openCheckpoint(this.cipher);
+      if (value.type !== "neurai-c6-scan-state-v2" || value.scope !== this.scope || typeof value.data !== "string" || value.data.length > MAX_BYTES2) throw Error("scope");
+      return JSON.parse(value.data, (_key, v) => {
+        if (v && typeof v === "object" && v.$bytes !== void 0) {
+          if (Object.keys(v).length !== 1 || typeof v.$bytes !== "string" || !/^(?:[0-9a-f]{2})*$/.test(v.$bytes)) throw Error("bytes");
+          return Uint8Array.from(v.$bytes.match(/../g) ?? [], (x) => parseInt(x, 16));
+        }
+        if (v && typeof v === "object" && v.$bigint !== void 0) {
+          if (Object.keys(v).length !== 1 || !/^\d+$/.test(v.$bigint)) throw Error("integer");
+          return BigInt(v.$bigint);
+        }
+        return v;
+      });
+    } catch {
+      return null;
+    }
+  }
+  async save(snapshot) {
+    this.assertLive();
+    const data = JSON.stringify(snapshot, (_key, v) => v instanceof Uint8Array ? { $bytes: hex12(v) } : typeof v === "bigint" ? { $bigint: String(v) } : v);
+    if (data.length > MAX_BYTES2) return false;
+    const replacement = this.identity.sealCheckpoint({ type: "neurai-c6-scan-state-v2", scope: this.scope, data });
+    if (replacement.length > MAX_BYTES2 * 2 + 200) return false;
+    const written = await this.store.compareAndSwap(this.key, this.cipher, replacement);
+    this.assertLive();
+    if (!written) throw Error("C6 scan: saved state changed in another tab; retry");
+    this.cipher = replacement;
+    return true;
+  }
+};
+
+// src/c6-scan-checkpoint.js
+var hex13 = (b) => Array.from(b, (v) => v.toString(16).padStart(2, "0")).join("");
+var TYPE = "neurai-c6-scan-prefix-v1";
+var MAX_BYTES3 = 2 * 1024 * 1024;
+var hash3 = (v) => typeof v === "string" && /^[0-9a-f]{64}$/.test(v);
+var C6ScanCheckpoint = class {
+  constructor({ store, identity, deployment, assertLive }) {
+    if (!store?.read || !store?.compareAndSwap || !identity?.sealCheckpoint || !identity?.openCheckpoint || !identity?.checkpointStoreId) throw Error("C6 scan: encrypted checkpoint store required");
+    Object.assign(this, { store, identity, deployment, assertLive });
+    this.key = "c6-scan-prefix-v1:" + hex13(sha256(new TextEncoder().encode(identity.checkpointStoreId() + ":" + deployment.genesis + ":" + deployment.commitment)));
+    this.cipher = null;
+    this.entries = [];
+  }
+  value(entries) {
+    const d = this.deployment;
+    return { type: TYPE, genesis: d.genesis, commitment: d.commitment, anchor: d.anchor.outpoint, anchorHash: d.anchor.hash, entries };
+  }
+  async load() {
+    this.assertLive();
+    this.cipher = await this.store.read(this.key);
+    this.assertLive();
+    if (this.cipher === null) return [];
+    try {
+      if (typeof this.cipher !== "string" || this.cipher.length > MAX_BYTES3 * 2 + 200) throw Error("size");
+      const value = this.identity.openCheckpoint(this.cipher), expected = this.value([]);
+      for (const k of ["type", "genesis", "commitment", "anchor", "anchorHash"]) if (value[k] !== expected[k]) throw Error("instance");
+      if (!Array.isArray(value.entries) || value.entries.length > 2048 || JSON.stringify(value).length > MAX_BYTES3) throw Error("bounds");
+      let h = this.deployment.anchor.height;
+      for (const row of value.entries) {
+        if (!Number.isSafeInteger(row.height) || row.height < h || !hash3(row.hash) || typeof row.raw !== "string" || row.raw.length > 1e6 || !/^(?:[0-9a-f]{2})+$/.test(row.raw)) throw Error("entry");
+        h = row.height;
+      }
+      this.entries = value.entries;
+    } catch {
+      this.entries = [];
+    }
+    return structuredClone(this.entries);
+  }
+  async save(entries) {
+    this.assertLive();
+    const value = this.value(entries);
+    if (entries.length > 2048 || JSON.stringify(value).length > MAX_BYTES3) return false;
+    const replacement = this.identity.sealCheckpoint(value);
+    const written = await this.store.compareAndSwap(this.key, this.cipher, replacement);
+    this.assertLive();
+    if (!written) throw Error("C6 scan: progress changed in another tab; retry");
+    this.cipher = replacement;
+    this.entries = structuredClone(entries);
+    return true;
+  }
+};
+
+// src/c6-scan.js
+var hex14 = (b) => Array.from(b, (v) => v.toString(16).padStart(2, "0")).join("");
+function demand4(ok, why) {
+  if (!ok) throw Error("C6 scan: " + why);
+}
+function unhex7(s) {
+  demand4(typeof s === "string" && /^(?:[0-9a-f]{2})*$/.test(s), "canonical hex");
+  return Uint8Array.from(s.match(/../g) ?? [], (v) => parseInt(v, 16));
+}
+function concat8(...parts) {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
+}
+var same4 = (a, b) => hex14(a) === hex14(b);
+function compact3(n) {
+  if (n < 253) return Uint8Array.of(n);
+  return Uint8Array.of(253, n & 255, n >> 8);
+}
+function tagged2(tag2, value) {
+  const t = sha256(new TextEncoder().encode(tag2));
+  return sha256(concat8(t, t, value));
+}
+function control(script, raw, C) {
+  const path = unhex7(raw);
+  demand4(path[0] === 1 && path.length >= 1 && (path.length - 1) % 32 === 0 && path.length <= 1 + 32 * 128, "MAST control shape");
+  const bytes7 = unhex7(script);
+  let root = tagged2("NeuraiAuthLeaf", concat8(Uint8Array.of(1), compact3(bytes7.length), bytes7));
+  for (let at = 1; at < path.length; at += 32) {
+    const other = path.slice(at, at + 32);
+    root = tagged2("NeuraiAuthBranch", hex14(root) < hex14(other) ? concat8(root, other) : concat8(other, root));
+  }
+  demand4(hex14(tagged2("NeuraiAuthScript", concat8(Uint8Array.of(4, 0), root))) === C, "MAST commitment");
+}
+function opening(value) {
+  const b = unhex7(value);
+  demand4(b.length === 145, "state opening length");
+  for (const at of [0, 32, 64, 109]) decodeField(b.slice(at, at + 32));
+  const view = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  demand4(b[108] === 0 || b[108] === 1, "state mode");
+  return { root: b.slice(0, 32), notes: view.getUint32(96, true), nfs: view.getUint32(100, true), seen: view.getUint32(104, true), mode: b[108], history: view.getUint32(141, true) };
+}
+var pair2 = (a, b) => encodeField(poseidonPermutation([0n, decodeField(a), decodeField(b)])[0]);
+var NoteTree = class _NoteTree {
+  constructor(source) {
+    if (source) {
+      this.zeros = source.zeros;
+      this.levels = source.levels.map((m) => new Map(m));
+      this.count = source.count;
+      return;
+    }
+    this.zeros = [encodeField(0n)];
+    for (let i = 0; i < 32; i++) this.zeros.push(pair2(this.zeros[i], this.zeros[i]));
+    this.levels = Array.from({ length: 33 }, () => /* @__PURE__ */ new Map());
+    this.count = 0;
+  }
+  snapshot() {
+    return { count: this.count, zeros: this.zeros, levels: this.levels.map((m) => [...m]) };
+  }
+  static restore(value) {
+    demand4(value && Number.isSafeInteger(value.count) && value.count >= 0 && value.count < 4294967295, "saved note count");
+    demand4(Array.isArray(value.zeros) && value.zeros.length === 33 && Array.isArray(value.levels) && value.levels.length === 33, "saved tree shape");
+    for (const v of value.zeros) demand4(v instanceof Uint8Array && v.length === 32 && decodeField(v) >= 0n, "saved zero field");
+    const result = Object.create(_NoteTree.prototype);
+    result.zeros = value.zeros;
+    result.count = value.count;
+    result.levels = value.levels.map((rows, level) => {
+      demand4(Array.isArray(rows) && rows.length === Math.ceil(value.count / 2 ** level), "saved tree width");
+      const map = /* @__PURE__ */ new Map();
+      for (const [i, v] of rows) {
+        demand4(Number.isSafeInteger(i) && i >= 0 && i < rows.length && !map.has(i) && v instanceof Uint8Array && v.length === 32 && decodeField(v) >= 0n, "saved node");
+        map.set(i, v);
+      }
+      return map;
+    });
+    return result;
+  }
+  get(level, index) {
+    return this.levels[level].get(index) ?? this.zeros[level];
+  }
+  get root() {
+    return this.get(32, 0);
+  }
+  append(cm) {
+    demand4(this.count < 4294967295 && decodeField(cm) !== 0n, "note allocation");
+    let i = this.count++;
+    this.levels[0].set(i, cm.slice());
+    for (let level = 0; level < 32; level++) {
+      const p = Math.floor(i / 2);
+      this.levels[level + 1].set(p, pair2(this.get(level, p * 2), this.get(level, p * 2 + 1)));
+      i = p;
+    }
+  }
+  path(index) {
+    demand4(Number.isInteger(index) && index >= 0 && index < this.count, "note position");
+    const out = [];
+    let at = index;
+    for (let i = 0; i < 32; i++) {
+      out.push(this.get(i, at % 2 ? at - 1 : at + 1).slice());
+      at = Math.floor(at / 2);
+    }
+    return out;
+  }
+};
+var forms2 = ["D0", "D1", "T1", "T2", "T3", "W_partial_no_change", "W_partial_change", "W_full_no_change", "J2"];
+function statement(tx, d) {
+  const w = tx.inputs[0]?.witness;
+  demand4(w?.[0] === "10", "NoAuth MAST witness");
+  const leaf = d.leaves.find((l) => l.script === w.at(-2));
+  demand4(leaf && w.length === leaf.args.length + 3, "leaf/witness layout");
+  control(leaf.script, w.at(-1), d.commitment);
+  const args = Object.fromEntries(leaf.args.map((name, i) => [name, w[i + 1]]));
+  const raw = unhex7([0, 1, 2, 3, 4].map((i) => args["tree" + i]).join(""));
+  const form = leaf.form, join5 = form === "J2", deposit = form.startsWith("D");
+  const count = deposit || join5 || form === "W_partial_change" ? 1 : /^T[1-3]$/.test(form) ? Number(form[1]) : 0;
+  const length = join5 ? 9824 : 324 + 32 * count + 3144 * count + 1024 * Number(count > 0) + (deposit ? 0 : 3148);
+  demand4(raw.length === length && raw[0] === (join5 ? 3 : 2) && raw[1] === forms2.indexOf(form), "transcript profile/form/length");
+  const old = hex14(raw.slice(2, 147)), next = hex14(raw.slice(147, 292));
+  const nfs = deposit ? [] : [raw.slice(292, 324), ...join5 ? [raw.slice(324, 356)] : []];
+  demand4(nfs.every((v) => decodeField(v) !== 0n) && new Set(nfs.map(hex14)).size === nfs.length, "distinct nonzero nullifiers");
+  let cms = [], records = [];
+  if (count) {
+    const blob = unhex7(args.chunk1 + args.chunk2);
+    if (join5) {
+      demand4(blob.length === 4096 && blob[0] === 3 && blob[1] === 1 && hex14(blob.slice(98, 101)) === "01d900" && blob.slice(318).every((v) => v === 0), "J2 publication");
+      demand4(nfs.every((nf, i) => same4(nf, blob.slice(2 + 32 * i, 34 + 32 * i))), "J2 publication nullifiers");
+      cms = [blob.slice(66, 98)];
+      const record = new Uint8Array(1024);
+      record.set(blob.slice(98, 318));
+      records = [record];
+    } else {
+      const parsed = decodeC4Publication(deposit ? "D0" : form === "W_partial_change" ? "T1" : form, blob);
+      cms = parsed.cms;
+      records = parsed.records;
+      demand4(deposit || same4(parsed.nf, nfs[0]), "publication nullifier");
+    }
+    const offset = join5 ? 356 : 324;
+    demand4(cms.every((cm, i) => decodeField(cm) !== 0n && same4(cm, raw.slice(offset + 32 * i, offset + 32 * (i + 1)))), "publication commitment");
+  }
+  const rootIndex = deposit ? null : new DataView(raw.buffer, raw.byteOffset, raw.byteLength).getUint32(join5 ? 388 : 324 + 32 * count, true);
+  return { form, old, next, cms, records, nfs, rootIndex, transcript: hex14(raw), root: deposit ? null : unhex7(args.R) };
+}
+async function scanC6PoolMode({ rpc, deployment, identity, reserved = [], signal, onProgress, strategy, checkpointStore }) {
+  const d = validateC6SponsorDeployment(deployment);
+  demand4(["xna", "asset"].includes(d.kind), "supported custody kind");
+  const check = () => {
+    demand4(!signal?.aborted, "cancelled");
+  };
+  check();
+  identity.recipient();
+  const capability = await rpc("getblockchaininfo");
+  demand4(capability?.zk_portable_tree?.active_for_next_block === true, "portable public-tree rules inactive");
+  demand4(await rpc("getblockhash", [0]) === d.genesis, "wrong genesis");
+  const height = await rpc("getblockcount"), tip = await rpc("getblockhash", [height]);
+  demand4(Number.isSafeInteger(height) && height >= d.anchor.height && /^[0-9a-f]{64}$/.test(tip), "tip");
+  demand4(await rpc("getblockhash", [d.anchor.height]) === d.anchor.hash, "birth reorganized");
+  const birth = await rpc("getblock", [d.anchor.hash, 2]);
+  demand4(birth.hash === d.anchor.hash && birth.height === d.anchor.height && birth.tx?.find((tx) => tx.txid === d.anchor.outpoint.split(":")[0])?.vout?.[0]?.scriptPubKey?.hex === d.anchor.script, "birth UTXO");
+  let state = d.anchor.opening, point4 = d.anchor.outpoint, previous = d.anchor.hash, stateScript = d.anchor.script;
+  const anchors = /* @__PURE__ */ new Map([[d.anchor.height, d.anchor.hash]]);
+  let tree = new NoteTree(), roots = [], records = [], nullifiers = /* @__PURE__ */ new Set(), seen = /* @__PURE__ */ new Set();
+  const initial = opening(state);
+  demand4(initial.notes === 0 && initial.history === 0 && same4(initial.root, tree.root), "zero-note birth required");
+  let eligible = null, reserveAtomic = "0", reserveScript = null, reservePoint = null, events = [], lastPublicationHeight = null;
+  let restored = null, startHeight = d.anchor.height, recoveryStart = 0;
+  const checkpoint = checkpointStore ? new C6ScanCheckpoint({ store: checkpointStore, identity, deployment: d, assertLive: check }) : null;
+  const snapshots = checkpointStore ? new C6ScanSnapshot({ store: checkpointStore, identity, deployment: d, assertLive: check }) : null;
+  const candidate = snapshots ? await snapshots.load() : null;
+  if (candidate && Number.isSafeInteger(candidate.tip?.height) && candidate.tip.height >= d.anchor.height && candidate.tip.height <= height && /^[0-9a-f]{64}$/.test(candidate.tip.hash) && await rpc("getblockhash", [candidate.tip.height]) === candidate.tip.hash) {
+    try {
+      const restoredTree = NoteTree.restore(candidate.tree), o = opening(candidate.state);
+      demand4(o.notes === restoredTree.count && same4(o.root, restoredTree.root) && Array.isArray(candidate.records) && candidate.records.length === o.notes && Array.isArray(candidate.roots) && candidate.roots.length === o.history, "saved state counts");
+      demand4(candidate.nullifiers.length === o.nfs - initial.nfs && candidate.seen.length === o.seen - initial.seen && new Set(candidate.nullifiers).size === candidate.nullifiers.length && new Set(candidate.seen).size === candidate.seen.length, "saved sets");
+      candidate.records.forEach((r, i) => demand4(r.index === i && r.cm instanceof Uint8Array && r.cm.length === 32 && r.record instanceof Uint8Array && r.record.length === 1024 && same4(restoredTree.get(0, i), r.cm) && Number.isSafeInteger(r.height) && r.height <= candidate.tip.height, "saved record"));
+      candidate.roots.forEach((r) => demand4(r instanceof Uint8Array && r.length === 32 && decodeField(r) >= 0n, "saved historical root"));
+      demand4(/^[0-9a-f]{64}:0$/.test(candidate.point) && typeof candidate.stateScript === "string" && candidate.stateScript.slice(0, -66) === d.anchor.script.slice(0, -66) && candidate.stateScript.slice(-66, -2) === hex14(poseidonBytes(unhex7(candidate.state))), "saved state script");
+      const mature = candidate.eligible ? { ...candidate.eligible, tree: NoteTree.restore(candidate.eligible.tree) } : null;
+      if (mature) demand4(mature.index < candidate.roots.length && same4(mature.root, candidate.roots[mature.index]) && same4(mature.root, mature.tree.root), "saved eligible root");
+      demand4(Array.isArray(candidate.events) && Array.isArray(candidate.recovered) && candidate.recovered.every((r) => Number.isSafeInteger(r.position) && r.position >= 0 && r.position < candidate.records.length && r.owned?.nf instanceof Uint8Array && r.owned.note instanceof Uint8Array && typeof r.owned.amountAtomic === "bigint"), "saved recovery");
+      restored = candidate;
+      tree = restoredTree;
+      state = candidate.state;
+      point4 = candidate.point;
+      stateScript = candidate.stateScript;
+      roots = candidate.roots;
+      records = candidate.records;
+      nullifiers = new Set(candidate.nullifiers);
+      seen = new Set(candidate.seen);
+      eligible = mature;
+      events = candidate.events;
+      reserveAtomic = candidate.reserveAtomic;
+      reserveScript = candidate.reserveScript;
+      reservePoint = candidate.reservePoint;
+      lastPublicationHeight = candidate.lastPublicationHeight;
+      startHeight = candidate.tip.height;
+      recoveryStart = records.length;
+      anchors.set(startHeight, candidate.tip.hash);
+      if (lastPublicationHeight !== null && height - lastPublicationHeight + 1 >= 2 && roots.length) eligible = { tree: new NoteTree(tree), root: tree.root.slice(), index: roots.length - 1 };
+      onProgress?.({ height: startHeight, target: height, strategy, phase: "checkpoint" });
+    } catch {
+      restored = null;
+    }
+  }
+  let prefix = checkpoint ? await checkpoint.load() : [], valid = 0;
+  for (const row of prefix) {
+    check();
+    if (row.height > height) break;
+    if (!restored || row.height > startHeight) {
+      if (await rpc("getblockhash", [row.height]) !== row.hash) break;
+      anchors.set(row.height, row.hash);
+    }
+    valid++;
+  }
+  if (valid < prefix.length) {
+    prefix = prefix.slice(0, valid);
+    await checkpoint.save(prefix);
+  }
+  const saved = restored ? prefix.filter((r) => r.height <= startHeight) : [];
+  let cacheWritable = true;
+  if (prefix.length && !restored) onProgress?.({ height: prefix.at(-1).height, target: height, strategy, phase: "resuming" });
+  async function* transitions() {
+    for (const row of prefix) {
+      if (restored && row.height <= startHeight) continue;
+      check();
+      const raw = readSponsorTransaction(row.raw);
+      yield { tx: { txid: raw.txid, vin: raw.inputs.map((i) => ({ txid: i.txid, vout: i.vout })) }, h: row.height, rawHex: row.raw, cached: true, blockHash: row.hash };
+    }
+    const start = Math.max(startHeight, prefix.at(-1)?.height ?? d.anchor.height);
+    if (strategy === "blocks") {
+      if (start > d.anchor.height) previous = await rpc("getblockhash", [start - 1]);
+      for (let h = start; h <= height; h++) {
+        check();
+        const hash5 = h === d.anchor.height ? d.anchor.hash : await rpc("getblockhash", [h]), block2 = h === d.anchor.height ? birth : await rpc("getblock", [hash5, 2]);
+        demand4(block2.hash === hash5 && block2.height === h && (h === d.anchor.height || block2.previousblockhash === previous) && Array.isArray(block2.tx), "active-chain continuity");
+        for (const tx of block2.tx) if (tx.vin?.some((i) => i.txid + ":" + i.vout === point4)) yield { tx, h, blockHash: hash5 };
+        previous = hash5;
+        onProgress?.({ height: h, target: height, strategy });
+      }
+      return;
+    }
+    let last = start;
+    const blocks = /* @__PURE__ */ new Map();
+    for (; ; ) {
+      check();
+      const [txid, index] = point4.split(":");
+      let spent = null, lookupFailed = false;
+      try {
+        spent = await rpc("getspentinfo", [{ txid, index: Number(index) }]);
+      } catch (e) {
+        check();
+        lookupFailed = true;
+      }
+      if (lookupFailed || spent === null || spent?.height === -1) {
+        let coin2;
+        try {
+          coin2 = await rpc("gettxout", [txid, Number(index), false]);
+        } catch (e) {
+          check();
+          throw Object.assign(Error("C6 scan: spent index unavailable; use block replay"), { code: "C6_INDEX_UNAVAILABLE" });
+        }
+        if (coin2) {
+          demand4(Number.isSafeInteger(coin2.confirmations) && coin2.confirmations >= 1 && coin2.scriptPubKey?.hex === stateScript, "indexed live state mismatch");
+          if (reservePoint) {
+            const [reserveId, reserveIndex] = reservePoint.split(":");
+            const reserve = await rpc("gettxout", [reserveId, Number(reserveIndex), false]);
+            demand4(reserve && reserve.confirmations >= 1 && reserve.scriptPubKey?.hex === reserveScript, "indexed live reserve mismatch");
+          }
+          break;
+        }
+        throw Object.assign(Error("C6 scan: spent index unavailable for consumed state; use block replay"), { code: "C6_INDEX_UNAVAILABLE" });
+      }
+      demand4(spent && Number.isSafeInteger(spent.height) && spent.height >= last && spent.index === 0 && /^[0-9a-f]{64}$/.test(spent.txid), "invalid spent index entry");
+      if (spent.height > height) demand4(spent.height <= await rpc("getblockcount"), "spent index height exceeds active tip");
+      const h = spent.height, hash5 = await rpc("getblockhash", [h]);
+      if (anchors.has(h)) demand4(anchors.get(h) === hash5, "chain changed during scan; retry");
+      if (h <= height) anchors.set(h, hash5);
+      let block2 = blocks.get(hash5);
+      if (!block2) {
+        block2 = await rpc("getblock", [hash5, 2]);
+        blocks.set(hash5, block2);
+      }
+      demand4(block2.hash === hash5 && block2.height === h && Array.isArray(block2.tx), "indexed block mismatch");
+      const tx = block2.tx.find((t) => t.txid === spent.txid);
+      demand4(tx && tx.vin?.[0]?.txid + ":" + tx.vin?.[0]?.vout === point4, "spent index disagrees with confirmed transaction");
+      if (h > height) break;
+      onProgress?.({ height: h, target: height, strategy });
+      yield { tx, h, blockHash: hash5 };
+      last = h;
+    }
+  }
+  for await (const { tx, h, rawHex, cached, blockHash } of transitions()) {
+    check();
+    demand4(tx.vin[0].txid + ":" + tx.vin[0].vout === point4, "state must be input zero");
+    const hexRaw = rawHex ?? await rpc("getrawtransaction", [tx.txid, false]), raw = readSponsorTransaction(hexRaw);
+    demand4(raw.txid === tx.txid && raw.inputs[0].txid + ":" + raw.inputs[0].vout === point4 && raw.version === 3 && raw.locktime === 0 && raw.refs.length === 0 && raw.inputs.every((i) => i.sequence === 4294967295), "transaction binding/fixed fields");
+    const parsed = statement(raw, d), before = opening(state), after = opening(parsed.next), out = raw.outputs[0]?.script;
+    demand4(parsed.old === state && out?.slice(0, -66) === d.anchor.script.slice(0, -66) && out.slice(-66, -2) === hex14(poseidonBytes(unhex7(parsed.next))), "state chain binding");
+    if (parsed.rootIndex !== null) demand4(parsed.rootIndex < roots.length && same4(parsed.root, roots[parsed.rootIndex]), "historical root binding");
+    for (const nf of parsed.nfs) {
+      const key = hex14(nf);
+      demand4(!nullifiers.has(key), "confirmed double nullifier");
+      nullifiers.add(key);
+    }
+    parsed.cms.forEach((cm, i) => {
+      const key = hex14(cm);
+      demand4(!seen.has(key), "duplicate commitment");
+      seen.add(key);
+      records.push({ cm: cm.slice(), record: parsed.records[i].slice(), index: tree.count, height: h, txid: tx.txid });
+      tree.append(cm);
+    });
+    demand4(after.notes === tree.count && same4(after.root, tree.root) && after.nfs === before.nfs + parsed.nfs.length && after.seen === before.seen + parsed.cms.length && after.history === before.history + Number(parsed.cms.length > 0), "public tree counters/root");
+    if (parsed.cms.length) {
+      lastPublicationHeight = h;
+      roots.push(tree.root.slice());
+      if (height - h + 1 >= 2) eligible = { tree: new NoteTree(tree), root: tree.root.slice(), index: roots.length - 1 };
+    }
+    events.push({ form: parsed.form, cms: parsed.cms.map(hex14), nfs: parsed.nfs.map(hex14), rootIndex: parsed.rootIndex, transcript: parsed.transcript, txid: tx.txid, intentId: c6SponsorIntent(hexRaw, d).operationId });
+    if (d.kind === "asset" && after.mode) {
+      demand4(raw.outputs[1].valueAtomic === "0", "asset reserve must contain no XNA");
+    }
+    reserveAtomic = after.mode ? d.kind === "asset" ? c6ReadAssetTransfer(unhex7(raw.outputs[1].script), { asset: d.asset, unit: d.unit, allowContract: true }).amountAtomic : raw.outputs[1].valueAtomic : "0";
+    reserveScript = after.mode ? raw.outputs[1].script : null;
+    reservePoint = after.mode ? tx.txid + ":1" : null;
+    state = parsed.next;
+    point4 = tx.txid + ":0";
+    stateScript = out;
+    if (checkpoint && cacheWritable) saved.push({ height: h, hash: blockHash, raw: hexRaw });
+    if (checkpoint && !cached && cacheWritable) cacheWritable = await checkpoint.save(saved);
+  }
+  const reservedCms = /* @__PURE__ */ new Set(), reservedNfs = /* @__PURE__ */ new Set();
+  demand4(Array.isArray(reserved), "reservations");
+  for (const row of reserved) {
+    demand4(/^[0-9a-f]{64}$/.test(row.cm) && /^[0-9a-f]{64}$/.test(row.nf), "reservation identifiers");
+    reservedCms.add(row.cm);
+    reservedNfs.add(row.nf);
+  }
+  onProgress?.({ height, target: height, strategy, phase: "recovering" });
+  let recovered;
+  const window = { gap: identity.gap ?? null, issued: identity.issued ?? null };
+  const reuse = restored && JSON.stringify(window) === JSON.stringify(restored.window);
+  const offset = reuse ? recoveryStart : 0, remaining = records.slice(offset);
+  if (typeof identity.scanRecords === "function") recovered = identity.scanRecords(remaining, reuse ? restored.recovered.map((r) => r.address).filter(Boolean) : []);
+  else recovered = remaining.flatMap((entry, position) => {
+    try {
+      const owned = identity.openRecord(entry.record, entry.cm);
+      return owned ? [{ position, owned }] : [];
+    } catch {
+      return [];
+    }
+  });
+  recovered = recovered.map((r) => ({ ...r, position: r.position + offset }));
+  if (reuse) recovered = [...restored.recovered, ...recovered];
+  const coverage = () => typeof identity.scanRecords === "function" ? Math.max(identity.gap - 1, identity.issued, identity.maxUsed + identity.gap) : null;
+  if (reuse && typeof identity.scanRecords === "function" && coverage() > restored.coverage) recovered = identity.scanRecords(records, recovered.map((r) => r.address).filter(Boolean));
+  const notes = recovered.filter((row) => !nullifiers.has(hex14(row.owned.nf))).map((row) => {
+    const entry = records[row.position], reserved2 = reservedCms.has(hex14(entry.cm)) || reservedNfs.has(hex14(row.owned.nf));
+    const mature = !!eligible && entry.index < eligible.tree.count;
+    return {
+      ...entry,
+      ...row.owned,
+      address: row.address,
+      amountAtomic: String(row.owned.amountAtomic),
+      reserved: reserved2,
+      spendable: mature && !reserved2,
+      root: mature ? eligible.root.slice() : null,
+      path: mature ? eligible.tree.path(entry.index) : null
+    };
+  });
+  check();
+  onProgress?.({ height, target: height, strategy, phase: "verifying" });
+  for (const [h, hash5] of anchors) demand4(await rpc("getblockhash", [h]) === hash5, "chain changed during scan; retry");
+  demand4(await rpc("getblockhash", [height]) === tip, "chain changed during scan; retry");
+  check();
+  if (snapshots) await snapshots.save({ tip: { height, hash: tip }, state, point: point4, stateScript, tree: tree.snapshot(), roots, records, nullifiers: [...nullifiers], seen: [...seen], eligible: eligible ? { ...eligible, tree: eligible.tree.snapshot() } : null, events, reserveAtomic, reserveScript, reservePoint, lastPublicationHeight, recovered, window, coverage: coverage() });
+  check();
+  onProgress?.({ height, target: height, strategy, phase: "complete" });
+  return {
+    profile: d.kind === "asset" ? "C6-ORDINARY-ASSET-TEST-J2-v1" : "C6-XNA-TEST-J2-v2",
+    genesis: d.genesis,
+    commitment: d.commitment,
+    tip: { height, hash: tip },
+    statePoint: point4,
+    opening: state,
+    events,
+    reserveAtomic,
+    reserveScript,
+    reservePoint,
+    notes,
+    records,
+    nullifiers: [...nullifiers],
+    root: eligible?.root ?? null,
+    balanceAtomic: String(notes.reduce((n, row) => n + BigInt(row.amountAtomic), 0n)),
+    spendableAtomic: String(notes.filter((row) => row.spendable).reduce((n, row) => n + BigInt(row.amountAtomic), 0n)),
+    ignoredRecords: records.length - recovered.length
+  };
+}
+async function scanC6Pool(options) {
+  const strategy = options.strategy ?? "auto";
+  demand4(["auto", "blocks", "spent-index"].includes(strategy), "unknown scan strategy");
+  if (strategy !== "auto") return scanC6PoolMode({ ...options, strategy });
+  try {
+    return await scanC6PoolMode({ ...options, strategy: "spent-index" });
+  } catch (e) {
+    if (e.code !== "C6_INDEX_UNAVAILABLE" || options.signal?.aborted) throw e;
+    return scanC6PoolMode({ ...options, strategy: "blocks" });
+  }
+}
+
+// src/c6-transaction.js
+var C6_FORMS = ["D0", "D1", "T1", "T2", "T3", "W_partial_no_change", "W_partial_change", "W_full_no_change", "J2"];
+var ZERO3 = new Uint8Array(32);
+var MAX2 = 2100000000000000000n;
+var c6Hex = (b) => Array.from(b, (v) => v.toString(16).padStart(2, "0")).join("");
+function c6Unhex(s) {
+  need3(typeof s === "string" && /^(?:[0-9a-f]{2})*$/.test(s), "canonical hex");
+  return Uint8Array.from(s.match(/../g) ?? [], (v) => parseInt(v, 16));
+}
+var eq = (a, b) => c6Hex(a) === c6Hex(b);
+var text4 = (s) => new TextEncoder().encode(s);
+function c6Cat(...parts) {
+  const b = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let i = 0;
+  for (const p of parts) {
+    b.set(p, i);
+    i += p.length;
+  }
+  return b;
+}
+function need3(ok, msg) {
+  if (!ok) throw Error("C6 transaction: " + msg);
+}
+function c6LE(n, size) {
+  n = BigInt(n);
+  need3(n >= 0n, "unsigned");
+  const b = new Uint8Array(size);
+  for (let i = 0; i < size; i++, n >>= 8n) b[i] = Number(n & 255n);
+  need3(n === 0n, "overflow");
+  return b;
+}
+var compact4 = (n) => n < 253 ? c6LE(n, 1) : n <= 65535 ? c6Cat(Uint8Array.of(253), c6LE(n, 2)) : c6Cat(Uint8Array.of(254), c6LE(n, 4));
+var tagged3 = (s, b) => {
+  const h = sha256(text4(s));
+  return sha256(c6Cat(h, h, b));
+};
+function c6Outpoint(point4) {
+  need3(/^[0-9a-f]{64}:[0-9]+$/.test(point4), "outpoint");
+  const [id, v] = point4.split(":");
+  need3(Number(v) <= 4294967295 && String(Number(v)) === v, "vout");
+  return c6Cat(c6Unhex(id).reverse(), c6LE(v, 4));
+}
+var point3 = (b) => c6Hex(b.slice(0, 32).reverse()) + ":" + new DataView(b.buffer, b.byteOffset + 32, 4).getUint32(0, true);
+function scriptNum(n) {
+  n = BigInt(n);
+  if (!n) return new Uint8Array();
+  const b = [];
+  for (; n; n >>= 8n) b.push(Number(n & 255n));
+  if (b.at(-1) & 128) b.push(0);
+  return Uint8Array.from(b);
+}
+function push2(b) {
+  need3(b.length <= 75, "guard constant");
+  return c6Cat(Uint8Array.of(b.length), b);
+}
+function c6ReserveGuard(manifest) {
+  need3(typeof manifest.identity === "string" && /^[A-Z0-9_#./!~-]{1,64}$/.test(manifest.identity), "state identity");
+  return c6Cat(c6Unhex("0052c420"), c6Unhex(manifest.commitment), c6Unhex("880051cf"), push2(text4(manifest.identity)), c6Unhex("880051ce"), push2(text4(manifest.identity)), c6Unhex("8800d50052c48851"));
+}
+function c6ReserveScript(manifest) {
+  return c6Cat(c6Unhex("5120"), tagged3("NeuraiAuthScript", c6Cat(Uint8Array.of(1, 0), sha256(c6ReserveGuard(manifest)))));
+}
+var Sparse = class {
+  constructor() {
+    this.empty = [ZERO3];
+    for (let i = 0; i < 32; i++) this.empty.push(poolTreeNode(this.empty[i], this.empty[i]));
+    this.layers = Array.from({ length: 33 }, () => /* @__PURE__ */ new Map());
+  }
+  get(i, n) {
+    return this.layers[i].get(n) ?? this.empty[i];
+  }
+  get root() {
+    return this.get(32, 0);
+  }
+  path(n) {
+    const p = [];
+    for (let i = 0; i < 32; i++) {
+      p.push(this.get(i, n % 2 ? n - 1 : n + 1));
+      n = Math.floor(n / 2);
+    }
+    return p;
+  }
+  set(n, value) {
+    need3(Number.isInteger(n) && n >= 0 && n <= 4294967295, "tree slot");
+    decodeField(value);
+    this.layers[0].set(n, value);
+    for (let i = 0; i < 32; i++) {
+      n = Math.floor(n / 2);
+      this.layers[i + 1].set(n, poolTreeNode(this.get(i, n * 2), this.get(i, n * 2 + 1)));
+    }
+  }
+};
+var Indexed = class {
+  constructor(kind) {
+    this.kind = kind;
+    this.entries = [[0n, 0n, 0]];
+    this.tree = new Sparse();
+    this.tree.set(0, poolIndexedLeaf(kind, 0n, 0n, 0));
+  }
+  insert(value) {
+    need3(value > 0n && this.entries.length < 4294967295 && !this.entries.some((r) => r[0] === value), "indexed duplicate/range");
+    encodeField(value);
+    let index = 0;
+    for (let i = 0; i < this.entries.length; i++) if (this.entries[i][0] < value && this.entries[i][0] > this.entries[index][0]) index = i;
+    const [pv, nv, ni] = this.entries[index], next = this.entries.length;
+    need3(nv === 0n || value < nv, "indexed ordering");
+    const predPath = this.tree.path(index);
+    this.entries[index] = [pv, value, next];
+    this.tree.set(index, poolIndexedLeaf(this.kind, pv, value, next));
+    const emptyPath = this.tree.path(next);
+    this.entries.push([value, nv, ni]);
+    this.tree.set(next, poolIndexedLeaf(this.kind, value, nv, ni));
+    return c6Cat(c6LE(index, 4), encodeField(pv), encodeField(nv), c6LE(ni, 4), ...predPath, ...emptyPath);
+  }
+};
+var C6PublicWorld = class {
+  constructor() {
+    this.notes = new Sparse();
+    this.history = new Sparse();
+    this.nfs = new Indexed("nf");
+    this.seen = new Indexed("cm");
+    this.noteCount = 0;
+    this.roots = [];
+    this.mode = 0;
+  }
+  opening() {
+    return c6Cat(this.notes.root, this.nfs.tree.root, this.seen.tree.root, c6LE(this.noteCount, 4), c6LE(this.nfs.entries.length, 4), c6LE(this.seen.entries.length, 4), Uint8Array.of(this.mode), this.history.root, c6LE(this.roots.length, 4));
+  }
+  transition({ form, cms, nfs, rootIndex }) {
+    need3(C6_FORMS.includes(form), "form");
+    const dep = form[0] === "D", join5 = form === "J2", old = this.opening(), parts = [];
+    const count = dep || join5 || form === "W_partial_change" ? 1 : form[0] === "T" ? Number(form[1]) : 0;
+    need3(cms.length === count && nfs.length === (dep ? 0 : join5 ? 2 : 1), "transition shape");
+    need3(this.mode === Number(form !== "D0"), "mode");
+    if (!dep) {
+      need3(Number.isInteger(rootIndex) && rootIndex >= 0 && rootIndex < this.roots.length, "historical root");
+      parts.push(c6LE(rootIndex, 4), ...this.history.path(rootIndex));
+    }
+    need3(new Set(nfs.map(c6Hex)).size === nfs.length, "duplicate nullifiers");
+    for (const nf of nfs) parts.push(this.nfs.insert(decodeField(nf)));
+    for (const cm of cms) {
+      need3(this.noteCount <= 4294967293 && decodeField(cm) > 0n, "note capacity/value");
+      parts.push(...this.notes.path(this.noteCount));
+      this.notes.set(this.noteCount++, cm);
+      parts.push(this.seen.insert(decodeField(cm)));
+    }
+    if (cms.length) {
+      need3(this.roots.length < 4294967295, "historical capacity");
+      parts.push(...this.history.path(this.roots.length));
+      this.history.set(this.roots.length, this.notes.root);
+      this.roots.push(this.notes.root);
+    }
+    this.mode = Number(form !== "W_full_no_change");
+    const raw = c6Cat(Uint8Array.of(join5 ? 3 : 2, C6_FORMS.indexOf(form)), old, this.opening(), ...dep ? [ZERO3] : nfs, ...cms, ...parts);
+    need3(raw.length <= 15360, "transcript capacity");
+    return raw;
+  }
+};
+function readC6Packet(raw, { kind = "xna", manifest } = {}) {
+  need3(["xna", "asset"].includes(kind), "custody kind");
+  const metadata = kind === "asset" ? c6AssetMetadata(manifest) : null, quantum = metadata?.unit ?? 10000000000n;
+  need3(raw instanceof Uint8Array && raw.length <= 4800, "packet size");
+  let at = 0;
+  const take = (n) => {
+    need3(at + n <= raw.length, "truncated packet");
+    const b = raw.slice(at, at + n);
+    at += n;
+    return b;
+  };
+  const magic = c6Hex(take(8)), join5 = magic === "4e4336504b540200";
+  need3(join5 || magic === "4e4336504b540100", "packet version");
+  const network = take(32), pool = take(32), op = take(1)[0], count = take(1)[0], operations = ["D", "T1", "T2", "T3", "W", "J2"];
+  need3(join5 ? op === 5 && count === 7 : op < 5 && count === [5, 6, 7, 8, 8][op], "packet op/count");
+  const operation = operations[op];
+  const publics = Array.from({ length: count }, () => {
+    const b = take(32);
+    decodeField(b);
+    return b;
+  }), proof = take(128), len = take(2), publication = take(len[0] + len[1] * 256), payout = take(take(1)[0]), funding = take(take(1)[0]);
+  need3(at === raw.length, "trailing packet");
+  need3(funding.length === (op === 0 ? 36 : 0), "funding");
+  const fee = decodeField(publics[op === 5 ? 5 : 4]);
+  need3(fee <= MAX2 && (kind !== "asset" || fee === 0n), "fee range");
+  const dep = op === 0, withdraw = op === 4, change = withdraw && decodeField(publics[6]) !== 0n;
+  let cms = [], nfs = dep ? [] : join5 ? publics.slice(2, 4) : [publics[2]];
+  need3(nfs.every((n) => decodeField(n) > 0n) && new Set(nfs.map(c6Hex)).size === nfs.length, "nullifiers");
+  if (!withdraw || change) {
+    need3(publication.length === 4096, "publication size");
+    let digest2;
+    if (join5) {
+      need3(c6Hex(publication.slice(0, 2)) === "0301" && c6Hex(publication.slice(98, 101)) === "01d900" && publication.slice(318).every((b) => b === 0), "J2 publication");
+      cms = [publication.slice(66, 98)];
+      need3(nfs.every((n, i) => eq(n, publication.slice(2 + i * 32, 34 + i * 32))) && eq(cms[0], publics[6]), "J2 fields");
+      digest2 = poseidonBytes(c6Cat(poseidonBytes(c6Cat(poseidonBytes(text4("NeuraiPoolC6/J2/data")), publication.slice(0, 2048))), publication.slice(2048)));
+    } else {
+      const p = decodeC4Publication(dep ? "D0" : withdraw ? "T1" : operation, publication);
+      cms = p.cms;
+      need3(dep || eq(p.nf, nfs[0]), "publication nf");
+      digest2 = c4PublicationHash(dep ? "D0" : withdraw ? "T1" : operation, publication);
+      if (!dep) need3(cms.every((cm, i) => eq(cm, publics[withdraw ? 6 : 5 + i])), "publication cm");
+    }
+    need3(eq(digest2, publics[dep ? 2 : withdraw ? 7 : join5 ? 4 : 3]), "publication digest");
+  } else need3(publication.length === 0 && c6Hex(publics[7]) === "04bf938a28af8bc7ab2810e0adf3cbbb55aa4feb79827feed2722c5123baac15", "no-publication domain");
+  if (dep) {
+    const amount = decodeField(publics[3]);
+    need3(amount > 0n && amount <= MAX2 && amount % quantum === 0n && eq(publics[1], poseidonBytes(c6Cat(text4("NIP045/dep"), c6LE(amount, 8), cms[0]))), "deposit binding");
+  }
+  need3(withdraw ? kind === "asset" ? (() => {
+    const v = c6ReadAssetTransfer(payout, { asset: metadata.name, unit: metadata.unit });
+    return BigInt(v.amountAtomic) === decodeField(publics[3]);
+  })() : payout.length === 25 && c6Hex(payout.slice(0, 3)) === "76a914" && c6Hex(payout.slice(-2)) === "88ac" || payout.length === 34 && [82, 83].includes(payout[0]) && payout[1] === 32 : payout.length === 0, "payout shape");
+  if (withdraw) {
+    const amount = decodeField(publics[3]);
+    need3(amount > 0n && amount <= MAX2 && (kind === "xna" && amount < quantum && !change || amount % quantum === 0n), "withdrawal quantum");
+    need3(eq(publics[5], poseidonBytes(c6Cat(text4("NeuraiPoolC6/pay"), compact4(payout.length), payout))), "payout binding");
+  }
+  return { network, pool, operation, publics, proof, publication, payout, funding, cms, nfs, fee, packetId: c6Hex(sha256(c6Cat(c6Cat(text4("NeuraiC6Packet"), Uint8Array.of(join5 ? 2 : 1)), raw))) };
+}
+function controls(leaves, C) {
+  const names = leaves.map((l) => l.form).sort(), map = Object.fromEntries(leaves.map((l) => [l.form, l]));
+  need3(new Set(names).size === names.length, "duplicate forms");
+  function tree(ns) {
+    if (ns.length === 1) {
+      const s = c6Unhex(map[ns[0]].script);
+      return [tagged3("NeuraiAuthLeaf", c6Cat(Uint8Array.of(1), compact4(s.length), s)), { [ns[0]]: [] }];
+    }
+    let cut = 1;
+    while (cut * 2 < ns.length) cut *= 2;
+    const [a, pa] = tree(ns.slice(0, cut)), [b, pb] = tree(ns.slice(cut));
+    return [tagged3("NeuraiAuthBranch", c6Hex(a) < c6Hex(b) ? c6Cat(a, b) : c6Cat(b, a)), Object.fromEntries([...Object.entries(pa).map(([n, p]) => [n, [...p, b]]), ...Object.entries(pb).map(([n, p]) => [n, [...p, a]])])];
+  }
+  const [root, paths] = tree(names);
+  need3(c6Hex(tagged3("NeuraiAuthScript", c6Cat(Uint8Array.of(4, 0), root))) === C, "MAST pin");
+  return paths;
+}
+function buildC6Transaction({ packet, scan, manifest, deployment, funding, sponsor }) {
+  if (deployment?.kind === "asset") return buildAssetTransaction({ packet, scan, manifest, deployment, funding, sponsor });
+  const d = validateC6SponsorDeployment(deployment), p = readC6Packet(packet);
+  need3(manifest.profile === "C6-XNA-TEST-J2-v2" && c6Hex(p.network) === manifest.network && c6Hex(p.pool) === manifest.commitment && manifest.commitment === d.commitment && c6Hex(p.publics[0]) === manifest.context, "instance pins");
+  need3(manifest.fees?.[p.operation]?.some((f) => String(f) === String(p.fee)), "fee level");
+  const vk = c6Unhex(manifest.vks?.[p.operation] ?? "");
+  need3(vk.length > 0 && c6Hex(sha256(vk)) === manifest.vk_sha256?.[p.operation], "VK integrity");
+  const world = new C6PublicWorld();
+  need3(c6Hex(world.opening()) === d.anchor.opening, "empty birth");
+  for (const e of scan.events ?? []) {
+    const raw2 = world.transition({ form: e.form, cms: e.cms.map(c6Unhex), nfs: e.nfs.map(c6Unhex), rootIndex: e.rootIndex });
+    need3(c6Hex(raw2) === e.transcript, "confirmed transcript replay");
+  }
+  need3(c6Hex(world.opening()) === scan.opening, "state opening");
+  const reserve = BigInt(scan.reserveAtomic);
+  need3(reserve >= 0n && reserve <= MAX2 && !!reserve === !!world.mode, "reserve/mode");
+  const paths = controls(d.leaves, d.commitment), guard = c6ReserveGuard(manifest), guardScript = c6ReserveScript(manifest), dep = p.operation === "D", withdraw = p.operation === "W";
+  const points = [c6Outpoint(scan.statePoint)];
+  if (reserve) {
+    need3(scan.reservePoint === scan.statePoint.split(":")[0] + ":1" && scan.reserveScript === c6Hex(guardScript), "reserve UTXO");
+    points.push(c6Outpoint(scan.reservePoint));
+  }
+  let amount = 0n, left = reserve - p.fee, form = p.operation, rootIndex = null;
+  if (dep) {
+    amount = decodeField(p.publics[3]);
+    left = reserve + amount;
+    form = reserve ? "D1" : "D0";
+    need3(funding && funding.point === point3(p.funding) && BigInt(funding.valueAtomic) === amount + p.fee, "funding binding");
+    const s = c6Unhex(funding.script);
+    need3(s.length === 25 && c6Hex(s.slice(0, 3)) === "76a914" && c6Hex(s.slice(-2)) === "88ac" || s.length === 34 && [82, 83].includes(s[0]) && s[1] === 32, "funding destination");
+    points.push(p.funding);
+  } else {
+    rootIndex = world.roots.findIndex((r) => eq(r, p.publics[1]));
+    need3(rootIndex >= 0, "historical root absent");
+    if (withdraw) {
+      amount = decodeField(p.publics[3]);
+      left = reserve - amount - p.fee;
+      need3(left > 0n || decodeField(p.publics[6]) === 0n, "full withdrawal change");
+      form = left === 0n ? "W_full_no_change" : decodeField(p.publics[6]) !== 0n ? "W_partial_change" : "W_partial_no_change";
+    } else need3(left > 0n, "transfer reserve");
+  }
+  need3(left >= 0n && left <= MAX2 && new Set(points.map(c6Hex)).size === points.length, "reserve/prevouts");
+  const transcript = world.transition({ form, cms: p.cms, nfs: p.nfs, rootIndex }), stateScript = c6Cat(c6Unhex(d.anchor.script.slice(0, -66)), poseidonBytes(world.opening()), Uint8Array.of(117));
+  const outputs2 = [{ valueAtomic: "0", script: c6Hex(stateScript) }];
+  if (left) outputs2.push({ valueAtomic: String(left), script: c6Hex(guardScript) });
+  if (withdraw) outputs2.push({ valueAtomic: String(amount), script: c6Hex(p.payout) });
+  const values = { proof: p.proof, vk, prevouts: c6Cat(...points), nf: p.nfs[0] ?? ZERO3, R: p.publics[1], amount: scriptNum(amount), chunk1: p.publication.slice(0, 2048), chunk2: p.publication.slice(2048) };
+  for (let i = 0; i < 5; i++) values["tree" + i] = transcript.slice(i * 3072, (i + 1) * 3072);
+  const leaf = d.leaves.find((l) => l.form === form);
+  need3(leaf, "missing leaf");
+  const stack = [Uint8Array.of(16), ...leaf.args.map((n) => {
+    need3(values[n] instanceof Uint8Array, "missing witness argument");
+    return values[n];
+  }), c6Unhex(leaf.script), c6Cat(Uint8Array.of(1), ...paths[form])];
+  const stacks = [stack, ...reserve ? [[Uint8Array.of(0), guard]] : [], ...dep ? [[]] : []], blob = (b) => c6Cat(compact4(b.length), b);
+  const body = c6Cat(compact4(points.length), ...points.map((p2) => c6Cat(p2, Uint8Array.of(0), c6Unhex("ffffffff"))), compact4(outputs2.length), ...outputs2.map((o) => c6Cat(c6LE(o.valueAtomic, 8), blob(c6Unhex(o.script)))), Uint8Array.of(0));
+  const raw = c6Hex(c6Cat(c6LE(3, 4), Uint8Array.of(0, 1), body, ...stacks.map((w) => c6Cat(compact4(w.length), ...w.map(blob))), new Uint8Array(4))), tx = readSponsorTransaction(raw);
+  return { raw, txid: tx.txid, packetId: p.packetId, form, feeAtomic: String(p.fee), amountAtomic: String(amount), reserveAtomic: String(left), inputPoints: tx.inputs.map((i) => ({ txid: i.txid, vout: i.vout })), funding: dep ? { index: points.length - 1, ...funding } : null, intent: c6SponsorIntent(raw, d), transcript: c6Hex(transcript) };
+}
+function buildAssetTransaction({ packet, scan, manifest, deployment, funding, sponsor }) {
+  const d = validateC6SponsorDeployment(deployment), meta = c6AssetMetadata(manifest), p = readC6Packet(packet, { kind: "asset", manifest });
+  need3(d.asset === meta.name && String(d.unit) === String(meta.unit) && c6Hex(p.network) === manifest.network && c6Hex(p.pool) === manifest.commitment && manifest.commitment === d.commitment && c6Hex(p.publics[0]) === manifest.context, "asset instance pins");
+  need3(manifest.fees?.[p.operation]?.some((f) => String(f) === String(p.fee)), "private fee level");
+  const vk = c6Unhex(manifest.vks?.[p.operation] ?? "");
+  need3(vk.length > 0 && c6Hex(sha256(vk)) === manifest.vk_sha256?.[p.operation], "VK integrity");
+  need3(sponsor && manifest.sponsor_fees?.includes(String(sponsor.feeAtomic)), "external fee level");
+  const sponsorValue = BigInt(sponsor.valueAtomic), externalFee = BigInt(sponsor.feeAtomic), changeValue = sponsorValue - externalFee;
+  need3(sponsorValue > 0n && sponsorValue <= MAX2 && externalFee > 0n && changeValue >= 1000000n, "sponsor value/change range");
+  c6NativeDestination(c6Unhex(sponsor.script));
+  c6NativeDestination(c6Unhex(sponsor.changeScript));
+  need3(sponsor.script === sponsor.changeScript, "sponsor change must return to its owner");
+  const world = new C6PublicWorld();
+  need3(c6Hex(world.opening()) === d.anchor.opening, "empty birth");
+  for (const e of scan.events ?? []) {
+    const raw2 = world.transition({ form: e.form, cms: e.cms.map(c6Unhex), nfs: e.nfs.map(c6Unhex), rootIndex: e.rootIndex });
+    need3(c6Hex(raw2) === e.transcript, "confirmed transcript replay");
+  }
+  need3(c6Hex(world.opening()) === scan.opening, "state opening");
+  const reserve = BigInt(scan.reserveAtomic);
+  need3(reserve >= 0n && reserve <= MAX2 && reserve % meta.unit === 0n && !!reserve === !!world.mode, "asset reserve/mode");
+  const guard = c6ReserveGuard(manifest), guardScript = c6ReserveScript(manifest), reserveOutput = (value) => c6AssetTransferScript(guardScript, meta.name, value, { allowContract: true });
+  const points = [c6Outpoint(scan.statePoint)], stacks = [];
+  if (reserve) {
+    need3(scan.reservePoint === scan.statePoint.split(":")[0] + ":1" && scan.reserveScript === c6Hex(reserveOutput(reserve)), "asset reserve UTXO");
+    points.push(c6Outpoint(scan.reservePoint));
+  }
+  const dep = p.operation === "D", withdraw = p.operation === "W";
+  let amount = 0n, left = reserve, form = p.operation, rootIndex = null, fundingIndex;
+  if (dep) {
+    amount = decodeField(p.publics[3]);
+    left = reserve + amount;
+    form = reserve ? "D1" : "D0";
+    fundingIndex = reserve ? 3 : 1;
+    need3(funding && funding.point === point3(p.funding) && funding.valueAtomic === "0", "asset funding outpoint/XNA binding");
+    const transfer = c6ReadAssetTransfer(c6Unhex(funding.script), { asset: meta.name, unit: meta.unit });
+    need3(BigInt(transfer.amountAtomic) === amount, "asset funding quantity binding");
+    if (!reserve) points.push(p.funding);
+  } else {
+    rootIndex = world.roots.findIndex((r) => eq(r, p.publics[1]));
+    need3(rootIndex >= 0, "historical root absent");
+    if (withdraw) {
+      amount = decodeField(p.publics[3]);
+      left = reserve - amount;
+      need3(left > 0n || decodeField(p.publics[6]) === 0n, "full withdrawal change");
+      form = left === 0n ? "W_full_no_change" : decodeField(p.publics[6]) !== 0n ? "W_partial_change" : "W_partial_no_change";
+    } else need3(reserve > 0n, "transfer reserve");
+  }
+  need3(points.length === 2, "asset pre-sponsor layout");
+  points.push(c6Outpoint(sponsor.point));
+  if (dep && reserve) points.push(p.funding);
+  need3(left >= 0n && left <= MAX2 && left % meta.unit === 0n && new Set(points.map(c6Hex)).size === points.length, "asset conservation/prevouts");
+  const transcript = world.transition({ form, cms: p.cms, nfs: p.nfs, rootIndex }), stateScript = c6Cat(c6Unhex(d.anchor.script.slice(0, -66)), poseidonBytes(world.opening()), Uint8Array.of(117));
+  const outputs2 = [{ valueAtomic: "0", script: c6Hex(stateScript) }, { valueAtomic: "0", script: c6Hex(left ? reserveOutput(left) : p.payout) }, { valueAtomic: String(changeValue), script: sponsor.changeScript }];
+  if (withdraw && left) outputs2.push({ valueAtomic: "0", script: c6Hex(p.payout) });
+  const values = { proof: p.proof, vk, prevouts: c6Cat(...points), nf: p.nfs[0] ?? ZERO3, R: p.publics[1], amount: scriptNum(amount), chunk1: p.publication.slice(0, 2048), chunk2: p.publication.slice(2048) };
+  for (let i = 0; i < 5; i++) values["tree" + i] = transcript.slice(i * 3072, (i + 1) * 3072);
+  const leaf = d.leaves.find((l) => l.form === form), paths = controls(d.leaves, d.commitment);
+  need3(leaf, "missing asset leaf");
+  stacks.push([Uint8Array.of(16), ...leaf.args.map((n) => {
+    need3(values[n] instanceof Uint8Array, "missing witness argument");
+    return values[n];
+  }), c6Unhex(leaf.script), c6Cat(Uint8Array.of(1), ...paths[form])]);
+  stacks.push(reserve ? [Uint8Array.of(0), guard] : []);
+  stacks.push([]);
+  if (dep && reserve) stacks.push([]);
+  const blob = (b) => c6Cat(compact4(b.length), b), body = c6Cat(compact4(points.length), ...points.map((p2) => c6Cat(p2, Uint8Array.of(0), c6Unhex("ffffffff"))), compact4(outputs2.length), ...outputs2.map((o) => c6Cat(c6LE(o.valueAtomic, 8), blob(c6Unhex(o.script)))), Uint8Array.of(0));
+  const raw = c6Hex(c6Cat(c6LE(3, 4), Uint8Array.of(0, 1), body, ...stacks.map((w) => c6Cat(compact4(w.length), ...w.map(blob))), new Uint8Array(4))), tx = readSponsorTransaction(raw);
+  const offer = { outpoint: sponsor.point, inputAtomic: String(sponsorValue), changeAtomic: String(changeValue), inputScript: sponsor.script, changeScript: sponsor.changeScript, index: 2, sighash: 131 };
+  return { raw, txid: tx.txid, packetId: p.packetId, form, feeAtomic: String(externalFee), privateFeeAtomic: "0", amountAtomic: String(amount), reserveAtomic: String(left), inputPoints: tx.inputs.map((i) => ({ txid: i.txid, vout: i.vout })), funding: dep ? { index: fundingIndex, ...funding } : null, sponsor: offer, intent: c6SponsorIntent(raw, d), transcript: c6Hex(transcript) };
+}
+
+// src/c6-private-journal.js
+var TYPE2 = "neurai-c6-private-journal-v1";
+var hash4 = (v) => typeof v === "string" && /^[0-9a-f]{64}$/.test(v);
+var fail2 = () => {
+  throw Error("C6 private journal: invalid or mismatched history");
+};
+var C6PrivateJournal = class {
+  constructor({ identity, genesis, commitment, read, compareAndSwap, assertLive = () => {
+  }, packetOptions = {} }) {
+    if (!hash4(genesis) || !hash4(commitment) || !identity || !read || !compareAndSwap) fail2();
+    Object.assign(this, { identity, genesis, commitment, read, compareAndSwap, assertLive, packetOptions: structuredClone(packetOptions) });
+    this.key = identity.checkpointStoreId() + ":" + genesis + ":" + commitment;
+    this.cipher = null;
+    this.value = null;
+  }
+  validate(value) {
+    if (value?.type !== TYPE2 || value.genesis !== this.genesis || value.commitment !== this.commitment || !Number.isSafeInteger(value.revision) || value.revision < 0 || !Array.isArray(value.operations) || value.operations.length > 256 || JSON.stringify(value).length > 4e6) fail2();
+    const ids = /* @__PURE__ */ new Set();
+    for (const op of value.operations) {
+      if (!hash4(op.id) || ids.has(op.id) || !["deposit", "transfer", "withdraw", "join"].includes(op.action) || !["draft", "prepared"].includes(op.phase) || !Array.isArray(op.resources) || op.resources.length > 2) fail2();
+      ids.add(op.id);
+      for (const r of op.resources) if (!hash4(r.cm) || !hash4(r.nf)) fail2();
+      if (op.funding && !/^[0-9a-f]{64}:[0-9]+$/.test(op.funding)) fail2();
+      if (op.phase === "prepared") {
+        if (!hash4(op.packetId) || !op.proof || !Array.isArray(op.publicSignals) || !op.transaction) fail2();
+        const p = readC6Packet(c6Unhex(op.packet), this.packetOptions);
+        if (p.packetId !== op.packetId || c6Hex(p.network) !== this.genesis || c6Hex(p.pool) !== this.commitment) fail2();
+      }
+    }
+    return value;
+  }
+  async open({ create = false, backup } = {}) {
+    this.assertLive();
+    const cipher = await this.read(this.key);
+    this.assertLive();
+    if (cipher !== null) {
+      if (backup) throw Error("C6 private journal: refusing to replace existing history");
+      this.value = this.validate(this.identity.openCheckpoint(cipher));
+      this.cipher = cipher;
+      return;
+    }
+    if (backup) {
+      this.value = this.validate(this.identity.openCheckpoint(backup));
+      this.cipher = null;
+      await this.write(this.value);
+      return;
+    }
+    if (!create) throw Error("C6 private journal missing: restore the encrypted backup or explicitly create a new history");
+    this.cipher = null;
+    await this.write({ type: TYPE2, genesis: this.genesis, commitment: this.commitment, revision: 0, issued: 0, operations: [] });
+  }
+  async reload() {
+    this.assertLive();
+    const cipher = await this.read(this.key);
+    this.assertLive();
+    if (cipher === null) throw Error("C6 private journal disappeared; restore history before operating");
+    this.value = this.validate(this.identity.openCheckpoint(cipher));
+    this.cipher = cipher;
+    return this.value;
+  }
+  async write(value) {
+    this.assertLive();
+    this.validate(value);
+    const replacement = this.identity.sealCheckpoint(value), expected = this.cipher;
+    const changed = await this.compareAndSwap(this.key, expected, replacement);
+    this.assertLive();
+    if (!changed) throw Error("C6 private journal changed in another tab; rescan before retrying");
+    this.cipher = replacement;
+    this.value = structuredClone(value);
+  }
+  async edit(fn) {
+    await this.reload();
+    const value = structuredClone(this.value);
+    fn(value);
+    value.revision++;
+    await this.write(value);
+  }
+  reservations() {
+    if (!this.value) throw Error("C6 private journal must be opened");
+    return this.value.operations.filter((o) => !o.outcome).flatMap((o) => o.resources);
+  }
+  async reserve({ action, resources: resources2, funding }) {
+    const id = c6Hex(sha256(crypto.getRandomValues(new Uint8Array(32))));
+    await this.edit((v) => {
+      const live = v.operations.filter((o) => !o.outcome);
+      if (live.some((o) => resources2.some((r) => o.resources.some((s) => s.cm === r.cm || s.nf === r.nf)) || funding && o.funding === funding)) throw Error("C6 private journal: note or funding coin already reserved");
+      v.operations.push({ id, action, phase: "draft", resources: structuredClone(resources2), ...funding ? { funding } : {}, attempts: [] });
+    });
+    return id;
+  }
+  async prepared(id, result) {
+    await this.edit((v) => {
+      const op = v.operations.find((o) => o.id === id);
+      if (!op || op.phase !== "draft") fail2();
+      Object.assign(op, { phase: "prepared", packet: c6Hex(result.packet), packetId: result.packetId, proof: result.proof, publicSignals: result.publicSignals, transaction: result.transaction });
+    });
+  }
+  async releaseDraft(id) {
+    await this.edit((v) => {
+      const i = v.operations.findIndex((o) => o.id === id);
+      if (i < 0 || v.operations[i].phase !== "draft") throw Error("An exposed C6 packet cannot be cancelled locally");
+      v.operations.splice(i, 1);
+    });
+  }
+  async reconcile(scan) {
+    const spent = new Set(scan.events.flatMap((e) => e.nfs));
+    await this.edit((v) => {
+      for (const op of v.operations) {
+        const event = op.transaction && scan.events.find((e) => e.intentId === op.transaction.intent.operationId);
+        op.outcome = event ? "confirmed" : op.resources.some((r) => spent.has(r.nf)) ? "conflicted" : null;
+        op.confirmedBy = event?.txid ?? null;
+      }
+    });
+  }
+  operation(id) {
+    const op = this.value?.operations.find((o) => o.id === id);
+    if (!op || op.phase !== "prepared" || op.outcome) throw Error("C6 operation is unavailable or already confirmed");
+    return structuredClone(op);
+  }
+  summaries() {
+    return this.value.operations.map((o) => ({ id: o.id, action: o.action, phase: o.phase, outcome: o.outcome ?? null, confirmedBy: o.confirmedBy ?? null, txid: o.signed?.txid ?? o.transaction?.txid ?? null }));
+  }
+  backup() {
+    if (!this.cipher) throw Error("C6 journal not open");
+    return { type: TYPE2, genesis: this.genesis, commitment: this.commitment, cipher: this.cipher };
+  }
+};
+
+// src/c6-worker.js
+var hex15 = (b) => Array.from(b, (v) => v.toString(16).padStart(2, "0")).join("");
+function unhex8(value, length) {
+  if (typeof value !== "string" || !/^(?:[0-9a-f]{2})+$/.test(value) || length !== void 0 && value.length !== length * 2) throw Error("C6 worker: canonical hex required");
+  return Uint8Array.from(value.match(/../g), (v) => parseInt(v, 16));
+}
+var READ_RPC = /* @__PURE__ */ new Set(["getblockchaininfo", "getblockhash", "getblockcount", "getbestblockhash", "getblock", "getrawtransaction", "gettxout", "getspentinfo"]);
+var money3 = (value) => {
+  if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/.test(value)) throw Error("C6 worker: exact atomic amount required");
+  return BigInt(value);
+};
+function startC6PoolWorker({
+  scope = globalThis,
+  snarkjs,
+  manifest,
+  deployment,
+  domain,
+  assetId,
+  network = "testnet",
+  expectedGenesis,
+  expectedCommitment,
+  artifacts,
+  fetchArtifact,
+  artifactBaseUrl,
+  reservations,
+  maxArtifactBytes = MAX_ARTIFACT_BYTES,
+  singleThread = true,
+  buildTransactions = false,
+  durableJournal = false
+} = {}) {
+  const pinned = validateC6SponsorDeployment(structuredClone(deployment));
+  manifest = structuredClone(manifest);
+  artifacts = structuredClone(artifacts);
+  if (!["xna", "asset"].includes(pinned.kind) || hex15(unhex8(pinned.genesis, 32).reverse()) !== expectedGenesis || pinned.commitment !== expectedCommitment || manifest?.network !== expectedGenesis || manifest?.commitment !== expectedCommitment || manifest?.profile !== (pinned.kind === "asset" ? "C6-ORDINARY-ASSET-TEST-J2-v1" : "C6-XNA-TEST-J2-v2")) throw Error("C6 worker: pinned instance mismatch");
+  const kind = pinned.kind;
+  if (kind === "asset") {
+    const meta = c6AssetMetadata(manifest);
+    if (pinned.asset !== meta.name || String(pinned.unit) !== String(meta.unit)) throw Error("C6 asset deployment metadata mismatch");
+    if (!durableJournal || !buildTransactions) throw Error("Assets require durable private and sponsor journals");
+  }
+  unhex8(domain, 32);
+  unhex8(assetId, 32);
+  if (network !== "testnet" && network !== "regtest") throw Error("C6 worker: TEST networks only");
+  if (!Array.isArray(reservations)) throw Error("C6 worker: durable journal reservations required");
+  reservations = structuredClone(reservations);
+  for (const r of reservations) {
+    unhex8(r.cm, 32);
+    unhex8(r.nf, 32);
+  }
+  if (!artifacts?.files || !artifacts?.forms || !fetchArtifact && !artifactBaseUrl) throw Error("C6 worker: pinned artifacts required");
+  if (!Number.isSafeInteger(maxArtifactBytes) || maxArtifactBytes <= 0 || maxArtifactBytes > 256 * 1048576) throw Error("C6 worker: artifact limit");
+  for (const op of ["D", "T1", "T2", "T3", "W", ...durableJournal ? ["J2"] : []]) {
+    const form = artifacts.forms[op];
+    if (!form) throw Error("C6 worker: missing artifacts for " + op);
+    for (const path of [form.wasm, form.zkey, form.vk]) {
+      const meta = artifacts.files[path];
+      if (typeof path !== "string" || !meta || !Number.isSafeInteger(meta.bytes) || meta.bytes <= 0 || meta.bytes > maxArtifactBytes || !/^[0-9a-f]{64}$/.test(meta.sha256)) throw Error("C6 worker: invalid artifact pin");
+    }
+  }
+  if (durableJournal && !buildTransactions) throw Error("C6 durable worker requires transaction construction");
+  const joinWallet = createC6JoinWallet({ expectedGenesis, expectedCommitment, kind });
+  const wallet = createC6OperationWallet({ expectedGenesis, expectedCommitment, kind });
+  const pool = { network, domain, assetId }, fetcher = fetchArtifact ?? ((path) => fetch(new URL(path, artifactBaseUrl)));
+  let journal = null, scanIssued = null;
+  let identity = null, scan = null, busy = false, stopped = false, epoch = 0, rpcId = 0, controller = null;
+  const calls = /* @__PURE__ */ new Map(), post = (m) => {
+    if (!stopped) scope.postMessage(m);
+  };
+  function live(token) {
+    if (stopped || token !== epoch || controller?.signal.aborted) throw Error("C6 worker: cancelled/locked");
+  }
+  function rpc(method, params = [], token = epoch) {
+    live(token);
+    if (!READ_RPC.has(method)) throw Error("C6 worker: read-only RPC required");
+    return new Promise((resolve2, reject) => {
+      const id = ++rpcId;
+      calls.set(id, { resolve: resolve2, reject, token });
+      post({ type: "rpc", id, method, params });
+    });
+  }
+  function storage(type, key, extra = {}, token = epoch) {
+    live(token);
+    return new Promise((resolve2, reject) => {
+      const id = ++rpcId;
+      calls.set(id, { resolve: resolve2, reject, token });
+      post({ type, id, key, ...extra });
+    });
+  }
+  function journalSummary() {
+    if (journal?.value) post({ type: "journal", operations: journal.summaries() });
+  }
+  async function openJournal(data, token) {
+    if (!identity || !durableJournal) throw Error("C6 durable identity required");
+    const next = new C6PrivateJournal({
+      identity,
+      genesis: expectedGenesis,
+      commitment: expectedCommitment,
+      packetOptions: { kind, manifest },
+      read: (key) => storage("journal-read", key, {}, token),
+      compareAndSwap: (key, expected, replacement) => storage("journal-write", key, { expected, replacement }, token),
+      assertLive: () => live(token)
+    });
+    await next.open({ create: !!data.create, backup: data.backup?.cipher });
+    live(token);
+    journal = next;
+    if (identity instanceof ZkWalletIdentity && journal.value.issued > 1) identity.setIssued(journal.value.issued);
+    reservations = journal.reservations();
+    journalSummary();
+  }
+  const receiving = () => describeReceiving(identity, scan, { network });
+  function cancel() {
+    epoch++;
+    controller?.abort();
+    identity?.lock();
+    identity = null;
+    scan = null;
+    journal = null;
+    for (const c of calls.values()) c.reject(Error("C6 worker: cancelled/locked"));
+    calls.clear();
+  }
+  async function unchangedScan(token) {
+    if (!scan || scanIssued !== (identity.issued ?? null)) return null;
+    if (scan.records.some((r) => scan.tip.height - r.height + 1 < 2)) return null;
+    const info = await rpc("getblockchaininfo", [], token);
+    if (info?.zk_portable_tree?.active_for_next_block !== true) return null;
+    const height = await rpc("getblockcount", [], token);
+    if (!Number.isSafeInteger(height) || height < scan.tip.height) return null;
+    if (await rpc("getblockhash", [scan.tip.height], token) !== scan.tip.hash) return null;
+    const hash5 = await rpc("getblockhash", [height], token);
+    if (typeof hash5 !== "string" || !/^[0-9a-f]{64}$/.test(hash5)) return null;
+    for (const point4 of [scan.statePoint, scan.reservePoint].filter(Boolean)) {
+      const [txid, index] = point4.split(":");
+      const coin2 = await rpc("gettxout", [txid, Number(index), false], token);
+      const expected = point4 === scan.statePoint ? pinned.anchor.script.slice(0, -66) + hex15(poseidonBytes(unhex8(scan.opening))) + "75" : scan.reserveScript;
+      if (!coin2 || coin2.confirmations < 1 || coin2.scriptPubKey?.hex !== expected) return null;
+      if (point4 === scan.reservePoint && kind === "xna" && String(rpcAmountToSatoshis(coin2.value)) !== scan.reserveAtomic) return null;
+    }
+    if (await rpc("getblockhash", [height], token) !== hash5) return null;
+    live(token);
+    return { ...scan, tip: { height, hash: hash5 } };
+  }
+  async function refresh(token) {
+    if (durableJournal && journal) {
+      await journal.reload();
+      reservations = journal.reservations();
+    }
+    post({ type: "stage", message: "Reading confirmed C6 pool history" });
+    let reused = null;
+    try {
+      reused = await unchangedScan(token);
+    } catch {
+      live(token);
+    }
+    const recovered = reused ?? await scanC6Pool({
+      rpc: (m, p) => rpc(m, p, token),
+      deployment: pinned,
+      identity,
+      reserved: reservations,
+      checkpointStore: durableJournal ? { read: (key) => storage("journal-read", key, {}, token), compareAndSwap: (key, expected, replacement) => storage("journal-write", key, { expected, replacement }, token) } : void 0,
+      signal: controller.signal,
+      onProgress: (p) => {
+        live(token);
+        post({ type: "stage", message: p.phase === "checkpoint" ? `Resumed saved C6 state through block ${p.height}; checking snapshot ${p.target}` : p.phase === "resuming" ? `Replaying saved pool operations through block ${p.height}` : p.phase === "recovering" ? "Recovering private notes on this device" : p.phase === "verifying" ? "Checking the scanned chain" : p.phase === "complete" ? `C6 synchronized through block ${p.height}` : p.strategy === "spent-index" ? `Checking pool operation at block ${p.height} (chain snapshot ${p.target})` : `Reading C6 block ${p.height} / ${p.target}` });
+      }
+    });
+    live(token);
+    scan = recovered;
+    scanIssued = identity.issued ?? null;
+    post({ type: "stage", message: "Updating encrypted operation history" });
+    if (durableJournal && journal) {
+      await journal.reconcile(scan);
+      reservations = journal.reservations();
+      const reserved = new Set(reservations.map((r) => r.cm));
+      for (const n of scan.notes) {
+        n.reserved = reserved.has(hex15(n.cm));
+        n.spendable = !n.reserved && !!n.root;
+      }
+      scan.spendableAtomic = String(scan.notes.filter((n) => n.spendable).reduce((v, n) => v + BigInt(n.amountAtomic), 0n));
+      journalSummary();
+    }
+    const heldCms = new Set(reservations.map((r) => r.cm)), heldNfs = new Set(reservations.map((r) => r.nf));
+    for (const n of scan.notes) {
+      n.reserved = heldCms.has(hex15(n.cm)) || heldNfs.has(hex15(n.nf));
+      n.spendable = !n.reserved && !!n.root;
+    }
+    scan.spendableAtomic = String(scan.notes.filter((n) => n.spendable).reduce((v, n) => v + BigInt(n.amountAtomic), 0n));
+    if (durableJournal && !journal) {
+      for (const n of scan.notes) {
+        n.reserved = true;
+        n.spendable = false;
+      }
+      scan.spendableAtomic = "0";
+    }
+    post({ type: "scan", result: {
+      historyReady: !durableJournal || !!journal,
+      tip: scan.tip,
+      statePoint: scan.statePoint,
+      reserveAtomic: scan.reserveAtomic,
+      balanceAtomic: scan.balanceAtomic,
+      spendableAtomic: scan.spendableAtomic,
+      notes: scan.notes.map((n) => ({ cm: hex15(n.cm), amountAtomic: n.amountAtomic, spendable: n.spendable, reserved: n.reserved }))
+    }, addresses: receiving() });
+  }
+  async function load(path, token) {
+    const result = await loadVerifiedArtifact({
+      path,
+      artifacts,
+      fetchArtifact: fetcher,
+      maxBytes: maxArtifactBytes,
+      onProgress: (percent) => {
+        live(token);
+        post({ type: "stage", message: `Loading ${path} \xB7 ${percent}%` });
+      }
+    });
+    live(token);
+    return result;
+  }
+  async function prepare(data, token) {
+    if (!identity) throw Error("C6 worker: unlock first");
+    if (durableJournal && !journal) throw Error("C6 operation history required before preparing; restore or explicitly create it");
+    if (!snarkjs) throw Error("C6 worker: snarkjs required");
+    await refresh(token);
+    const options = { manifest, fee: kind === "asset" ? "0" : data.fee };
+    let plan;
+    if (data.action === "join") {
+      if (!Array.isArray(data.notes) || data.notes.length !== 2 || data.notes[0] === data.notes[1]) throw Error("Two distinct notes required");
+      const consumed = data.notes.map((cm) => scan.notes.find((n) => hex15(n.cm) === cm && n.spendable));
+      if (consumed.some((n) => !n) || hex15(consumed[0].root) !== hex15(consumed[1].root)) throw Error("Two mature owned notes under one root required");
+      plan = identity.prepareC6Join(joinWallet, { ...options, consumed });
+      plan.operation = "J2";
+    } else if (data.action === "deposit") {
+      plan = identity.prepareC6Deposit(wallet, {
+        ...options,
+        amountAtomic: data.amountAtomic,
+        funding: unhex8(data.funding, 36),
+        fundingValue: data.fundingValue,
+        ...data.recipient === void 0 ? {} : { recipient: parseRecipient(data.recipient, pool) }
+      });
+    } else {
+      const consumed = scan.notes.find((n) => hex15(n.cm) === data.note && n.spendable);
+      if (!consumed) throw Error("C6 worker: selected note is unavailable, immature or reserved");
+      if (data.action === "withdraw") plan = identity.prepareC6Withdrawal(wallet, { ...options, consumed, amountAtomic: data.amountAtomic, payoutScript: unhex8(data.payoutScript) });
+      else if (data.action === "transfer") {
+        if (!Array.isArray(data.recipients) || data.recipients.length < 1 || data.recipients.length > 3) throw Error("C6 worker: one to three recipients required");
+        const outputs2 = data.recipients.map((r) => ({ amountAtomic: r.amountAtomic, recipient: parseRecipient(r.recipient, pool) }));
+        const remainder = money3(consumed.amountAtomic) - money3(options.fee) - outputs2.reduce((n, o) => n + money3(o.amountAtomic), 0n);
+        if (remainder < 0n) throw Error("C6 worker: insufficient selected note");
+        if (remainder > 0n) outputs2.push({ amountAtomic: String(remainder), isChange: true });
+        if (outputs2.length > 3) throw Error("C6 worker: maximum three outputs including change");
+        plan = identity.prepareC6Transfer(wallet, { ...options, consumed, operation: "T" + outputs2.length, outputs: outputs2 });
+      } else throw Error("C6 worker: unsupported action");
+    }
+    live(token);
+    if (!artifacts.forms[plan.operation]) throw Error("C6 missing operation parameters");
+    let operationId;
+    if (durableJournal) operationId = await journal.reserve({ action: data.action, resources: plan.resources, funding: data.action === "deposit" ? data.fundingPoint : void 0 });
+    live(token);
+    const form = artifacts.forms[plan.operation];
+    const wasm = await load(form.wasm, token), zkey = await load(form.zkey, token), vk = JSON.parse(new TextDecoder().decode(await load(form.vk, token)));
+    const result = await (data.action === "join" ? joinWallet : wallet).prove(plan, { api: snarkjs, wasm, zkey, vk, signal: controller.signal, stage: (message2) => {
+      live(token);
+      post({ type: "stage", message: message2 });
+    } });
+    live(token);
+    if (buildTransactions) {
+      await refresh(token);
+      result.transaction = buildC6Transaction({ packet: result.packet, scan, manifest, deployment: pinned, funding: await fundingCoin(data.fundingPoint, result.packet, token), sponsor: await sponsorCoin(data, token) });
+    }
+    if (durableJournal) {
+      await journal.prepared(operationId, result);
+      journalSummary();
+    } else reservations.push(...plan.resources);
+    post({ type: "prepared", result: { ...result, operationId, ...!durableJournal ? { resources: structuredClone(plan.resources) } : {}, ...kind === "asset" ? { sponsorNotes: sponsorNotes(result.packet) } : {}, requiresDurableJournal: true } });
+  }
+  async function fundingCoin(point4, packet, token) {
+    const p = readC6Packet(packet, { kind, manifest });
+    if (p.operation !== "D") return void 0;
+    const chosen = point4 ?? hex15(p.funding.slice(0, 32).reverse()) + ":" + new DataView(p.funding.buffer, p.funding.byteOffset + 32, 4).getUint32(0, true);
+    const [txid, index] = chosen.split(":");
+    if (hex15(c6Outpoint(chosen)) !== hex15(p.funding)) throw Error("C6 funding point mismatch");
+    const coin2 = await rpc("gettxout", [txid, Number(index), true], token);
+    live(token);
+    if (!coin2 || coin2.confirmations < 1) throw Error("C6 confirmed funding coin unavailable");
+    return { point: chosen, valueAtomic: String(rpcAmountToSatoshis(coin2.value)), script: coin2.scriptPubKey.hex };
+  }
+  async function rebuild(id, token, data = {}) {
+    if (!journal) throw Error("C6 journal must be open");
+    await refresh(token);
+    const op = journal.operation(id), packet = unhex8(op.packet), p = readC6Packet(packet, { kind, manifest }), form = artifacts.forms[p.operation];
+    const vk = JSON.parse(new TextDecoder().decode(await load(form.vk, token)));
+    if (JSON.stringify(op.publicSignals) !== JSON.stringify(p.publics.map((b) => String(BigInt("0x" + hex15(b))))) || !await snarkjs.groth16.verify(vk, op.publicSignals, op.proof) || hex15(c4ProofBytes(op.proof)) !== hex15(p.proof)) throw Error("C6 stored proof mismatch");
+    live(token);
+    const transaction = buildC6Transaction({ packet, scan, manifest, deployment: pinned, funding: await fundingCoin(op.funding, packet, token), sponsor: await sponsorCoin(data, token) });
+    await journal.edit((v) => {
+      const o = v.operations.find((o2) => o2.id === id);
+      o.transaction = transaction;
+      delete o.signed;
+    });
+    live(token);
+    journalSummary();
+    post({ type: "prepared", result: { operationId: id, packet, packetId: op.packetId, transaction, ...kind === "asset" ? { sponsorNotes: sponsorNotes(packet) } : {}, requiresDurableJournal: true } });
+  }
+  function sponsorNotes(packet) {
+    return readC6Packet(packet, { kind, manifest }).nfs.map((nf) => ({ nf: hex15(nf), cm: hex15(sha256(new Uint8Array([...new TextEncoder().encode("NeuraiC6SponsorResource"), ...nf]))) }));
+  }
+  async function sponsorCoin(data, token) {
+    if (kind !== "asset") return void 0;
+    const point4 = data.sponsorPoint;
+    c6Outpoint(point4);
+    const [txid, index] = point4.split(":");
+    const coin2 = await rpc("gettxout", [txid, Number(index), true], token);
+    live(token);
+    if (!coin2 || coin2.confirmations < 1) throw Error("C6 confirmed sponsor coin unavailable");
+    return { point: point4, valueAtomic: String(rpcAmountToSatoshis(coin2.value)), script: coin2.scriptPubKey.hex, changeScript: coin2.scriptPubKey.hex, feeAtomic: data.sponsorFee };
+  }
+  async function recordSigned(data, token) {
+    if (!journal) throw Error("C6 journal must be open");
+    await journal.reload();
+    const op = journal.operation(data.id);
+    const original = readSponsorTransaction(op.transaction.raw), signed = readSponsorTransaction(data.raw), i = op.transaction.funding?.index;
+    const shape = (t) => JSON.stringify({ version: t.version, locktime: t.locktime, outputs: t.outputs, refs: t.refs, inputs: t.inputs.map((n, index) => ({ ...n, ...index === i ? { scriptSig: "", witness: [] } : {} })) });
+    if (shape(original) !== shape(signed) || c6SponsorIntent(data.raw, pinned).operationId !== op.transaction.intent.operationId) throw Error("C6 signed transaction changed private intent");
+    if (i !== void 0) {
+      const input = signed.inputs[i], script = op.transaction.funding.script;
+      if (script.startsWith("76a914")) {
+        const b = unhex8(input.scriptSig), n = b[0];
+        if (n < 9 || n > 73 || b.length < n + 2 || b[n] !== 1 || input.witness.length) throw Error("C6 funding must use SIGHASH_ALL");
+      } else {
+        const signature = input.witness[1];
+        if (!signature || !signature.endsWith("01") || !["01", "02"].includes(input.witness[0])) throw Error("C6 funding must use SIGHASH_ALL");
+      }
+    } else if (data.raw !== op.transaction.raw) throw Error("C6 spend needs no transparent signature");
+    await journal.edit((v) => {
+      v.operations.find((o) => o.id === data.id).signed = { raw: data.raw, txid: signed.txid };
+    });
+    live(token);
+    post({ type: "signed", result: { operationId: data.id, raw: data.raw, txid: signed.txid, inputPoints: op.transaction.inputPoints } });
+    journalSummary();
+  }
+  scope.onmessage = async ({ data }) => {
+    if (stopped) return;
+    if (data?.type === "rpc-result" || data?.type === "journal-result") {
+      const c = calls.get(data.id);
+      if (!c) return;
+      calls.delete(data.id);
+      if (c.token !== epoch) c.reject(Error("C6 worker: stale RPC"));
+      else data.error !== void 0 && data.error !== null ? c.reject(Error(String(data.error) || "C6 host request failed")) : c.resolve(data.result);
+      return;
+    }
+    if (data?.type === "lock") {
+      cancel();
+      post({ type: "done" });
+      return;
+    }
+    if (busy) {
+      post({ type: "error", message: "C6 worker: another operation is running" });
+      return;
+    }
+    busy = true;
+    controller = new AbortController();
+    const token = epoch;
+    try {
+      data = structuredClone(data);
+      if (singleThread) {
+        Object.defineProperty(scope.navigator ?? {}, "hardwareConcurrency", { value: 1, configurable: true });
+        scope.Worker = void 0;
+      }
+      if (data.type === "create" || data.type === "restore" || data.type === "derive") {
+        identity?.lock();
+        identity = null;
+        scan = null;
+        journal = null;
+        let next;
+        if (data.type === "derive") next = await ZkWalletIdentity.fromMnemonic({
+          ...pool,
+          mnemonic: data.mnemonic,
+          passphrase: data.passphrase ?? "",
+          family: data.family,
+          zkPassphrase: data.zkPassphrase ?? "",
+          account: data.account,
+          gap: data.gap,
+          issued: data.issued
+        });
+        else next = data.type === "create" ? await BrowserTestIdentity.create({ ...pool, password: data.password }) : await BrowserTestIdentity.fromBackup({ ...pool, password: data.password, backup: data.backup });
+        try {
+          live(token);
+        } catch (e) {
+          next.lock();
+          throw e;
+        }
+        identity = next;
+        post({ type: "identity", recipient: identity.recipient(), backup: identity.backupJson(), addresses: receiving() });
+      } else if (data.type === "journal-open") {
+        await openJournal(data, token);
+      } else if (data.type === "journal-backup") {
+        if (!journal) throw Error("C6 journal required");
+        post({ type: "backup", result: { ...journal.backup(), identityBackup: identity.backupJson() } });
+      } else if (data.type === "rebuild") {
+        await rebuild(data.id, token, data);
+      } else if (data.type === "record-signed") {
+        await recordSigned(data, token);
+      } else if (data.type === "record-broadcast") {
+        if (!journal) throw Error("C6 journal required");
+        await journal.edit((v) => {
+          const o = v.operations.find((o2) => o2.id === data.id);
+          if (!o?.signed || o.outcome) throw Error("C6 signed operation required");
+          o.attempts.push({ txid: o.signed.txid, raw: o.signed.raw });
+        });
+        journalSummary();
+      } else if (data.type === "release-draft") {
+        if (!journal) throw Error("C6 journal required");
+        await journal.releaseDraft(data.id);
+        journalSummary();
+      } else if (data.type === "scan") {
+        if (!identity) throw Error("C6 worker: unlock first");
+        await refresh(token);
+      } else if (data.type === "prepare") await prepare(data, token);
+      else if (data.type === "new-address") {
+        if (!(identity instanceof ZkWalletIdentity)) throw Error("C6 worker: derived wallet required");
+        if (durableJournal && !journal) throw Error("C6 journal required");
+        identity.issueNext({ force: !!data.force });
+        if (durableJournal) {
+          if (!journal) throw Error("C6 journal required");
+          await journal.edit((v) => {
+            v.issued = identity.issued;
+          });
+        }
+        post({ type: "addresses", recipient: identity.recipient(), addresses: receiving() });
+      } else throw Error("C6 worker: unknown request");
+      live(token);
+      post({ type: "done" });
+    } catch (e) {
+      if (!stopped && token === epoch) post({ type: "error", message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      busy = false;
+      controller = null;
+    }
+  };
+  return { stop() {
+    cancel();
+    stopped = true;
+    scope.onmessage = null;
+  } };
+}
+
+// src/c6-sponsor-wallet-id.js
+var hex16 = (b) => Array.from(b, (n) => n.toString(16).padStart(2, "0")).join("");
+async function c6SponsorWalletId(mnemonic, passphrase = "") {
+  const seed = await walletSeedFromMnemonic(mnemonic, passphrase);
+  try {
+    return hex16(hmac(sha256, seed, new TextEncoder().encode("NeuraiC6SponsorWallet/v1")));
+  } finally {
+    seed.fill(0);
+  }
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   ATOMIC_PER_XNA,
@@ -10620,7 +13896,13 @@ function startPoolWorker({
   C4_TESTNET_COMMITMENT,
   C4_TESTNET_MANIFEST,
   C4_TESTNET_NETWORK,
+  C5_CHUNKS,
+  C5_CHUNK_BYTES,
+  C5_FORMS,
+  C6SponsorFlow,
+  C6WorkerClient,
   CliTestBackend,
+  IndexedDbSponsorStore,
   LEGACY_P2PKH,
   MAX_ARTIFACT_BYTES,
   MAX_ATOMIC,
@@ -10636,15 +13918,26 @@ function startPoolWorker({
   PoolWorkerClient,
   RESET_TESTNET_GENESIS,
   ROTATION_MAX_GAP,
+  SponsorJournal,
   ZkWalletIdentity,
   admitTransaction,
   assertPoolChain,
   bech32mDecode,
   bech32mEncode,
   buildC4Transaction,
+  buildC5Transaction,
+  buildC6Transaction,
   c4DustAtomic,
+  c5TransitionBinding,
+  c6AssetMetadata,
+  c6AssetTransferScript,
+  c6ReadAssetTransfer,
+  c6SponsorIntent,
+  c6SponsorWalletId,
   checkPoolCoin,
   confirmedPoolCoins,
+  createC6JoinWallet,
+  createC6OperationWallet,
   decodeField,
   decodeNote,
   decodeNzkAddress,
@@ -10654,13 +13947,16 @@ function startPoolWorker({
   deriveZkAddressKeys,
   deriveZkRoot,
   describeReceiving,
+  encodeC5Transition,
   encodeField,
   encodeNote,
   encodeNzkAddress,
   finishC4,
+  finishC5,
   formatXna,
   inspectFundingTransaction,
   isPoolReadRpc,
+  joinC5Transition,
   loadRotation,
   loadVerifiedArtifact,
   noteCommitment,
@@ -10668,25 +13964,37 @@ function startPoolWorker({
   nzkInstanceTag,
   openNoteRecord,
   openVault,
+  parseAssetAmount,
   parseRecipient,
   parseXna,
   planC4Operation,
   poseidonBytes,
   poseidonPermutation,
   prepareC4,
+  prepareC5,
+  prepareSponsorSweep,
   proveC4,
   publicationStatus,
   publishTransaction,
+  readC6Packet,
   recheckInputs,
   rotationStorageKey,
   rpcAmountToSatoshis,
   saveRotation,
+  scanC6Pool,
+  scanC6SponsorChain,
   sealNote,
   sealVault,
   selectPoolCoins,
+  splitC5Transition,
+  startC6PoolWorker,
   startPoolWorker,
   summarizeScan,
   validateC4Manifest,
+  validateC5Manifest,
+  validateC6SponsorDeployment,
+  validateSponsorSignature,
+  verifyC5Transition,
   walletSeedFromMnemonic,
   withdrawalScript,
   zkFingerprint

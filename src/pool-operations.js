@@ -4,6 +4,7 @@
  */
 import { sha256 } from '@noble/hashes/sha2.js';
 import { finishC4 } from './c4.js';
+import { finishC5 } from './c5.js';
 import { ZkWalletIdentity, encodeNzkAddress, parseRecipient } from './zk-wallet.js';
 import { MAX_ATOMIC, formatXna } from './amounts.js';
 
@@ -147,11 +148,18 @@ export async function buildC4Transaction({ identity, scan, manifest, artifacts, 
     amountAtomic: request.amountAtomic, note: request.note, recipient: request.recipient, recipients: request.recipients,
     ...(depositLimitAtomic === undefined ? {} : { depositLimitAtomic }) });
   onStage('Building note paths and transaction witness');
-  const prepared = identity.prepareC4({ manifest, scan, form: plan.form, created: plan.created, consumed: plan.consumed,
+  const c5 = manifest.schema === 'neurai-c5-xna-test-v1';
+  const prepared = identity[c5 ? 'prepareC5' : 'prepareC4']({ manifest, scan, form: plan.form, created: plan.created, consumed: plan.consumed,
     funding: request.funding, sponsor: request.sponsor, payout: request.payout, feeAtomic: request.feeAtomic,
     expectedGenesis, expectedCommitment });
   const { proof, publicSignals } = await proveC4({ form: plan.form, prepared, artifacts, loadArtifact, snarkjs, onStage });
-  return { raw: finishC4(prepared, proof, publicSignals), form: plan.form, feeAtomic: request.feeAtomic,
+  return { raw: (c5 ? finishC5 : finishC4)(prepared, proof, publicSignals), form: plan.form, feeAtomic: request.feeAtomic,
     stateOutpoint: scan.state.stateOutpoint, inputPoints: prepared.inputs.map(x => ({ txid: x.txid, vout: x.vout })),
     amountAtomic: plan.amountAtomic };
+}
+
+/** Explicit C5 entry for callers that must never fall back to C4. */
+export async function buildC5Transaction(options) {
+  if (options.manifest?.schema !== 'neurai-c5-xna-test-v1') throw new Error('Explicit C5 manifest required');
+  return buildC4Transaction(options);
 }

@@ -1,4 +1,5 @@
 import { prepareC4 } from './c4.js';
+import { prepareC5 } from './c5.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { sealScanCheckpoint, openScanCheckpoint } from './checkpoint-crypto.js';
 import { sealVault, openVault } from './vault.js';
@@ -112,6 +113,44 @@ export class BrowserTestIdentity {
     return prepareC4({ ...options, secret: this.#spendSecret });
   }
 
+  /** Experimental C5 preparation; secrets remain in the dedicated worker. */
+  prepareC5(options) {
+    this.#assertOpen();
+    if (options.manifest.domain !== hex(this.#domain) || options.manifest.assetId !== hex(this.#assetId)) {
+      throw new Error('wallet belongs to another pool instance');
+    }
+    return prepareC5({ ...options, secret: this.#spendSecret });
+  }
+
+  /** C6 secrets stay in the proving worker; no spending-key getter is added. */
+  prepareC6Deposit(wallet, options) {
+    this.#assertOpen();
+    return wallet.prepareDeposit({ ...options, domain: this.#domain, assetId: this.#assetId,
+      recipient: options.recipient ?? this.recipient() });
+  }
+
+  prepareC6Transfer(wallet, { consumed, ...options }) {
+    this.#assertOpen();
+    return wallet.prepareTransfer({ ...options, domain: this.#domain, assetId: this.#assetId,
+      root: consumed.root, spent: { note: consumed.note, index: consumed.index,
+        path: consumed.path, spendSecret: this.#spendSecret } });
+  }
+
+  prepareC6Withdrawal(wallet, { consumed, ...options }) {
+    this.#assertOpen();
+    return wallet.prepareWithdrawal({ ...options, domain: this.#domain, assetId: this.#assetId,
+      root: consumed.root, spent: { note: consumed.note, index: consumed.index,
+        path: consumed.path, spendSecret: this.#spendSecret } });
+  }
+
+  prepareC6Join(wallet, {consumed, identities = [this, this], ...options}) {
+    this.#assertOpen();
+    if(consumed.length !== 2 || identities.length !== 2) throw Error('Two owned notes required');
+    for(const identity of identities) identity.#assertOpen();
+    return wallet.prepare({ ...options, domain:this.#domain, assetId:this.#assetId, root:consumed[0].root,
+      notes:consumed.map((n,i)=>({note:n.note,index:n.index,path:n.path,spendSecret:identities[i].#spendSecret})) });
+  }
+
   #checkpointKey() {
     this.#assertOpen();
     const label = new TextEncoder().encode('Neurai/privacy/checkpoint/file/v1');
@@ -122,6 +161,12 @@ export class BrowserTestIdentity {
     material.set(this.#spendSecret, label.length + 64);
     material.set(this.#viewSeed, label.length + 96);
     try { return sha256(material); } finally { material.fill(0); }
+  }
+
+  /** Stable opaque journal namespace, never a spending or encryption key. */
+  checkpointStoreId() {
+    const key = this.#checkpointKey();
+    try { return hex(sha256(new Uint8Array([...new TextEncoder().encode("Neurai/C6/journal-id/v1"), ...key]))); } finally { key.fill(0); }
   }
 
   sealCheckpoint(checkpoint) {

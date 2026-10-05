@@ -1,5 +1,5 @@
 import type { BrowserTestIdentity, ZkWalletIdentity, NzkNetwork, RecipientDescriptor } from './index.js';
-import type { BrowserPoolScan, C4Manifest, C4Form, C4Prepared } from './browser.js';
+import type { BrowserPoolScan, C4Manifest, C5Manifest, C4Form, C4Prepared } from './browser.js';
 import type { C4ArtifactList, PoolAction, ReceivingInfo, ScanSummary, PoolPrepareRequest, PreparedPoolTransaction } from './client.js';
 
 export interface Groth16Proof { pi_a: string[]; pi_b: string[][]; pi_c: string[] }
@@ -22,7 +22,7 @@ export declare function startPoolWorker(options: {
   scope?: PoolWorkerScope; snarkjs?: SnarkjsLike; artifactBaseUrl?: string | URL;
   fetchArtifact?: (path: string) => Promise<Response>;
   /** Defaults to the bundled C4 TEST instance. A supplied manifest also needs `expectedCommitment`. */
-  manifest?: C4Manifest; artifacts?: C4ArtifactList;
+  manifest?: C4Manifest | C5Manifest; artifacts?: C4ArtifactList;
   network?: NzkNetwork; singleThread?: boolean; missingArtifactMessage?: string;
   /** Largest deposit this application builds, in satoshis. Defaults to the money range. */
   depositLimitAtomic?: bigint;
@@ -48,9 +48,24 @@ export declare function proveC4(options: {
   snarkjs: SnarkjsLike; onStage?: (message: string) => void;
 }): Promise<{ proof: Groth16Proof; publicSignals: string[] }>;
 export declare function buildC4Transaction(options: {
-  identity: BrowserTestIdentity | ZkWalletIdentity; scan: BrowserPoolScan; manifest: C4Manifest; artifacts: C4ArtifactList;
+  identity: BrowserTestIdentity | ZkWalletIdentity; scan: BrowserPoolScan; manifest: C4Manifest | C5Manifest; artifacts: C4ArtifactList;
   loadArtifact: (path: string) => Promise<Uint8Array>; snarkjs: SnarkjsLike;
   pool: { network: NzkNetwork; domain: string; assetId: string }; request: PoolPrepareRequest;
   expectedGenesis?: string; expectedCommitment: string; depositLimitAtomic?: bigint; onStage?: (message: string) => void;
 }): Promise<PreparedPoolTransaction>;
 export type { RecipientDescriptor };
+
+export declare function buildC5Transaction(options: Omit<Parameters<typeof buildC4Transaction>[0], 'manifest'> & {manifest:C5Manifest}): ReturnType<typeof buildC4Transaction>;
+
+export {createC6JoinWallet} from './index.js';
+export type {C6JoinManifest,C6JoinNote,C6JoinRequest,C6JoinPrepared,C6JoinResult,C6JoinWallet} from './index.js';
+
+export {createC6OperationWallet} from './index.js';
+export type {C6OperationManifest,C6OperationContext,C6DepositRequest,C6TransferRequest,C6WithdrawalRequest,C6OperationPrepared,C6OperationWallet} from './index.js';
+
+export {scanC6Pool} from './index.js';
+export type {C6RecoveredNote,C6PoolScan} from './index.js';
+
+export {startC6PoolWorker} from './index.js';
+
+export {readC6Packet,buildC6Transaction} from './index.js';

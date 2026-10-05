@@ -231,6 +231,10 @@ export declare class BrowserTestIdentity {
   openRecord(record: Uint8Array, commitment: Uint8Array): { note: Uint8Array; cm: Uint8Array; amountAtomic: bigint; nf: Uint8Array };
   /** Local worker only: returned witness contains private circuit inputs. */
   prepareC4(options: import('./browser.js').C4PrepareOptions): import('./browser.js').C4Prepared;
+  prepareC5(options: import('./browser.js').C5PrepareOptions): import('./browser.js').C5Prepared;
+  prepareC6Deposit(wallet:C6OperationWallet,options:Omit<C6DepositRequest,'domain'|'assetId'|'recipient'> & {recipient?:RecipientDescriptor}):C6OperationPrepared;
+  prepareC6Transfer(wallet:C6OperationWallet,options:Omit<C6TransferRequest,'domain'|'assetId'|'spent'|'root'> & {consumed:C6RecoveredNote}):C6OperationPrepared;
+  prepareC6Withdrawal(wallet:C6OperationWallet,options:Omit<C6WithdrawalRequest,'domain'|'assetId'|'spent'|'root'> & {consumed:C6RecoveredNote}):C6OperationPrepared;
   sealCheckpoint(checkpoint: import('./browser.js').PoolScanCheckpoint): string;
   openCheckpoint(encoded: string): import('./browser.js').PoolScanCheckpoint;
   lock(): void;
@@ -287,6 +291,10 @@ export declare class ZkWalletIdentity {
   spendingIdentity(consumed?: { address?: NzkAddressRef }): BrowserTestIdentity;
   /** Local worker only: returned witness contains private circuit inputs. */
   prepareC4(options: import('./browser.js').C4PrepareOptions): import('./browser.js').C4Prepared;
+  prepareC5(options: import('./browser.js').C5PrepareOptions): import('./browser.js').C5Prepared;
+  prepareC6Deposit(wallet:C6OperationWallet,options:Omit<C6DepositRequest,'domain'|'assetId'|'recipient'> & {recipient?:RecipientDescriptor}):C6OperationPrepared;
+  prepareC6Transfer(wallet:C6OperationWallet,options:Omit<C6TransferRequest,'domain'|'assetId'|'spent'|'root'> & {consumed:C6RecoveredNote}):C6OperationPrepared;
+  prepareC6Withdrawal(wallet:C6OperationWallet,options:Omit<C6WithdrawalRequest,'domain'|'assetId'|'spent'|'root'> & {consumed:C6RecoveredNote}):C6OperationPrepared;
   backupJson(): null;
   sealCheckpoint(checkpoint: import('./browser.js').PoolScanCheckpoint): string;
   openCheckpoint(encoded: string): import('./browser.js').PoolScanCheckpoint;
@@ -298,3 +306,121 @@ export * from './worker.js';
 
 export { C4_FORMS, validateC4Manifest, prepareC4, finishC4, c4DustAtomic } from './browser.js';
 export type { C4Form, C4Manifest, C4Coin, C4PrepareOptions, C4Prepared } from './browser.js';
+
+export { C5_FORMS, validateC5Manifest, prepareC5, finishC5, C5_CHUNK_BYTES, C5_CHUNKS, c5TransitionBinding, encodeC5Transition, verifyC5Transition, splitC5Transition, joinC5Transition } from './browser.js';
+export type { C5Manifest, C5Prepared, C5PrepareOptions } from './browser.js';
+
+export declare function c6SponsorWalletId(mnemonic:string,passphrase?:string):Promise<string>;
+
+/** Experimental profile-3 XNA J2 only. Amounts use exact atomic units. */
+export interface C6JoinManifest {
+  profile:'C6-XNA-TEST-J2-v2'|'C6-ORDINARY-ASSET-TEST-J2-v1';network:string;commitment:string;context:string;
+  fees:{J2:Array<string|number>};asset?:string;units?:number;unit?:string|number;private_fee?:number;sponsor_index?:number;sponsor_fees?:string[];
+}
+export interface C6JoinNote {
+  note:Uint8Array;spendSecret:Uint8Array;index:number;path:Uint8Array[];
+}
+export interface C6JoinRequest {
+  manifest:C6JoinManifest;domain:Uint8Array;assetId:Uint8Array;root:Uint8Array;
+  notes:[C6JoinNote,C6JoinNote];fee:string|bigint;
+}
+/** Contains private note witnesses: keep it in a dedicated proving worker. */
+export interface C6JoinPrepared {
+  input:Record<string,unknown>;publics:string[];blob:Uint8Array;
+  created:{note:Uint8Array;cm:Uint8Array;record:Uint8Array};
+  resources:Array<{cm:string;nf:string}>;network:Uint8Array;pool:Uint8Array;
+}
+export interface C6JoinResult {
+  packet:Uint8Array;packetId:string;
+  proof:import('./worker.js').Groth16Proof;publicSignals:string[];
+}
+export interface C6JoinWallet {
+  prepare(request:C6JoinRequest):C6JoinPrepared;
+  /** Application must pin the proving artifacts and VK for this instance.
+   * Abort stops local work at checkpoints, not an already published packet. */
+  prove(prepared:C6JoinPrepared,options:{api:import('./worker.js').SnarkjsLike;
+    wasm:Uint8Array;zkey:Uint8Array;vk:unknown;stage?:(message:string)=>void;
+    signal?:AbortSignal}):Promise<C6JoinResult>;
+}
+export declare function createC6JoinWallet(options:{expectedGenesis:string;expectedCommitment:string;kind?:'xna'|'asset'}):C6JoinWallet;
+
+/** Experimental profile-3 XNA TEST D/T1-T3/W, with independent instance pins. */
+export interface C6OperationManifest extends Omit<C6JoinManifest,'fees'> {
+  fees:Record<'D'|'T1'|'T2'|'T3'|'W',Array<string|number>> & {J2?:Array<string|number>};
+}
+export interface C6OperationContext {
+  manifest:C6OperationManifest;domain:Uint8Array;assetId:Uint8Array;fee:string|bigint;
+}
+export interface C6DepositRequest extends C6OperationContext {
+  amountAtomic:string|bigint;recipient:RecipientDescriptor;
+  funding:Uint8Array;fundingValue:string|bigint;
+}
+export interface C6TransferRequest extends C6OperationContext {
+  operation:'T1'|'T2'|'T3';spent:C6JoinNote;root:Uint8Array;
+  outputs:Array<{amountAtomic:string|bigint;recipient?:RecipientDescriptor;isChange?:boolean}>;
+}
+export interface C6WithdrawalRequest extends C6OperationContext {
+  spent:C6JoinNote;root:Uint8Array;amountAtomic:string|bigint;payoutScript:Uint8Array;
+}
+/** Private witness and output plaintexts. Do not send this object to a service. */
+export interface C6OperationPrepared {
+  operation:'D'|'T1'|'T2'|'T3'|'W';input:Record<string,unknown>;publics:string[];
+  created:Array<{note:Uint8Array;cm:Uint8Array;record:Uint8Array}>;
+  blob:Uint8Array;resources:Array<{cm:string;nf:string}>;payout:Uint8Array;funding:Uint8Array;
+  network:Uint8Array;pool:Uint8Array;
+}
+export interface C6OperationWallet {
+  prepareDeposit(request:C6DepositRequest):C6OperationPrepared;
+  prepareTransfer(request:C6TransferRequest):C6OperationPrepared;
+  prepareWithdrawal(request:C6WithdrawalRequest):C6OperationPrepared;
+  prove(prepared:C6OperationPrepared,options:Parameters<C6JoinWallet['prove']>[1]):Promise<C6JoinResult>;
+}
+export declare function createC6OperationWallet(options:{expectedGenesis:string;expectedCommitment:string;kind?:'xna'|'asset'}):C6OperationWallet;
+
+/** Private result: note plaintext and balances belong in the wallet worker. */
+export interface C6RecoveredNote {
+  note:Uint8Array;cm:Uint8Array;record:Uint8Array;nf:Uint8Array;amountAtomic:string;
+  index:number;height:number;txid:string;address?:NzkAddressRef;
+  reserved:boolean;spendable:boolean;root:Uint8Array|null;path:Uint8Array[]|null;
+}
+export interface C6PoolScan {
+  profile:'C6-XNA-TEST-J2-v2'|'C6-ORDINARY-ASSET-TEST-J2-v1';genesis:string;commitment:string;tip:{height:number;hash:string};
+  statePoint:string;opening:string;notes:C6RecoveredNote[];
+  records:Array<{cm:Uint8Array;record:Uint8Array;index:number;height:number;txid:string}>;
+  events:Array<{form:string;cms:string[];nfs:string[];rootIndex:number|null;transcript:string;txid:string;intentId:string}>;
+  reserveAtomic:string;reserveScript:string|null;reservePoint:string|null;
+  nullifiers:string[];root:Uint8Array|null;balanceAtomic:string;spendableAtomic:string;ignoredRecords:number;
+}
+/** Fully validating trusted RPC is required; this scanner does not implement SPV. */
+export declare function scanC6Pool(options:{strategy?:'auto'|'blocks'|'spent-index';rpc:(method:string,params?:unknown[])=>Promise<any>;
+  deployment:import('./client.js').C6SponsorDeployment;identity:BrowserTestIdentity|ZkWalletIdentity;
+  reserved?:Array<{cm:string;nf:string}>;signal?:AbortSignal;
+  /** Disposable encrypted scan prefix; separate from the operation journal. */
+  checkpointStore?:{read:(key:string)=>Promise<string|null>;compareAndSwap:(key:string,expected:string|null,replacement:string)=>Promise<boolean>};
+  onProgress?:(progress:{height:number;target:number;strategy?:'blocks'|'spent-index';phase?:'recovering'|'verifying'|'resuming'})=>void}):Promise<C6PoolScan>;
+
+/** C6 TEST portable proof worker. Persistent reservations are supplied by the application. */
+export function startC6PoolWorker(options: {
+  scope?: any; snarkjs?: any; manifest: C6OperationManifest;
+  deployment: import('./client.js').C6SponsorDeployment;
+  domain: string; assetId: string; network?: 'testnet'|'regtest';
+  expectedGenesis: string; expectedCommitment: string;
+  artifacts: {files: Record<string,{bytes:number;sha256:string}>;
+    forms: Record<'D'|'T1'|'T2'|'T3'|'W',{wasm:string;zkey:string;vk:string}> & {J2?:{wasm:string;zkey:string;vk:string}}};
+  fetchArtifact?: (path:string)=>Promise<Response>; artifactBaseUrl?: string;
+  reservations: Array<{cm:string;nf:string}>; maxArtifactBytes?: number; singleThread?: boolean; buildTransactions?:boolean; durableJournal?:boolean;
+}): {stop():void};
+
+/** Public-only relocation; callers must verify the proof and immutable intent first. */
+export interface C6Packet {
+ network:Uint8Array;pool:Uint8Array;operation:'D'|'T1'|'T2'|'T3'|'W'|'J2';publics:Uint8Array[];proof:Uint8Array;
+ publication:Uint8Array;payout:Uint8Array;funding:Uint8Array;cms:Uint8Array[];nfs:Uint8Array[];fee:bigint;packetId:string;
+}
+export interface C6BuiltTransaction {
+ raw:string;txid:string;packetId:string;form:string;feeAtomic:string;amountAtomic:string;reserveAtomic:string;
+ inputPoints:Array<{txid:string;vout:number}>;funding:{index:number;point:string;valueAtomic:string;script:string}|null;sponsor?:import('./client.js').SponsorOffer;privateFeeAtomic?:string;
+ intent:ReturnType<typeof import('./client.js').c6SponsorIntent>;transcript:string;
+}
+export declare function readC6Packet(packet:Uint8Array,options?:{kind:'xna'|'asset';manifest?:C6OperationManifest}):C6Packet;
+export declare function buildC6Transaction(options:{packet:Uint8Array;scan:C6PoolScan;manifest:C6OperationManifest & {identity:string;vks:Record<string,string>;vk_sha256:Record<string,string>};deployment:import('./client.js').C6SponsorDeployment;funding?:{point:string;valueAtomic:string;script:string};sponsor?:{point:string;valueAtomic:string;script:string;changeScript:string;feeAtomic:string}}):C6BuiltTransaction;
+export {C6WorkerClient} from './client.js';

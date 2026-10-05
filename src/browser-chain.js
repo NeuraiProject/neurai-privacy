@@ -1,4 +1,6 @@
 import { validateC4Manifest, c4StateScript, C4_FORMS } from './c4.js';
+import { validateC5Manifest } from './c5.js';
+import { c5TransitionBinding, joinC5Transition, verifyC5Transition } from './c5-transition.js';
 import { decodeC4Publication } from './c4-publication.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { decodeField } from './poseidon.js';
@@ -115,7 +117,8 @@ function restoreCheckpoint(saved, manifest, limit) {
  */
 export async function scanBrowserPool({ rpc, manifest, identity, stopHeight, onProgress = () => {},
   strategy = 'spent-index', checkpoint, expectedGenesis, expectedCommitment }) {
-  validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  const c5 = manifest?.schema === 'neurai-c5-xna-test-v1';
+  (c5 ? validateC5Manifest : validateC4Manifest)(manifest, { expectedGenesis, expectedCommitment });
   const forms = C4_FORMS;
   const vkHashes = Object.fromEntries(forms.map(f => [f, manifest.forms[f].vkHash]));
   const mode = strategy;
@@ -168,7 +171,15 @@ export async function scanBrowserPool({ rpc, manifest, identity, stopHeight, onP
   }
   async function applyTransition(tx, blockHeight) {
     const vin = tx.vin ?? [];
-    const witness = vin[0].txinwitness;
+    let witness = vin[0].txinwitness;
+    let transcript = null;
+    const oldDigest = digest;
+    if (c5) {
+      demand(Array.isArray(witness) && (witness.length === 12 || witness.length === 13) && witness[0] === '10', 'invalid C5 witness');
+      transcript = joinC5Transition(witness.slice(1, 6).map(x => unhex(x, 'public transition')));
+      witness = [witness[0], ...witness.slice(6)];
+    }
+    let publicNf = new Uint8Array(32), publicCms = [];
     demand(Array.isArray(witness) && witness.length >= 5 && witness[0] === '10',
       'state spend is not MAST');
     const vkHash = hex(sha256(unhex(witness[2], 'VK')));
@@ -189,6 +200,7 @@ export async function scanBrowserPool({ rpc, manifest, identity, stopHeight, onP
         unhex(witness[4], 'blob second half'));
       demand(blob.length === 4096, 'bad publication size');
       const publication = decodeC4Publication(form, blob);
+      publicNf = publication.nf ?? publicNf; publicCms = publication.cms;
       if (publication.nf) {
         const nf = decodeField(publication.nf);
         state.nfs = poolIndexedInsert('nf', state.nfs, nf);
@@ -204,12 +216,14 @@ export async function scanBrowserPool({ rpc, manifest, identity, stopHeight, onP
       }
       state.mode = 1;
     } else {
-      const nf = decodeField(unhex(witness[3], 'nullifier'));
+      publicNf = unhex(witness[3], 'nullifier');
+      const nf = decodeField(publicNf);
       state.nfs = poolIndexedInsert('nf', state.nfs, nf);
       spentBy.set(nf, { txid: tx.txid, height: blockHeight });
       state.mode = form === 'W_full' ? 0 : 1;
     }
     digest = poolStateDigest(state);
+    if (c5) verifyC5Transition(transcript, c5TransitionBinding(form, oldDigest, digest, publicNf, publicCms));
     demand(tx.vout?.[0]?.scriptPubKey?.hex === makeStateScript(digest),
       'pool state root disagrees with block');
     let newReserve = 0n;

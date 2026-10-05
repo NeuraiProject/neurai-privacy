@@ -135,3 +135,18 @@ test('rotation state is small, validated and tolerant of unavailable storage', (
   assert.equal(saveRotation(broken, key, { gap: 20, issued: 1 }), false);
   assert.equal(saveRotation(null, key, { gap: 20, issued: 1 }), false);
 });
+
+
+test('C5 refuses old and pre-activation RPC nodes before funding/publication', async () => {
+  const manifest = {...C4_TESTNET_MANIFEST, schema:'neurai-c5-xna-test-v1', zkProfile:2};
+  for (const info of [{}, {zk_public_tree:{}}, {zk_public_tree:{active_for_next_block:false}},
+                      {zk_public_tree:{active_for_next_block:'true'}}]) {
+    const stub=stubRpc({getblockhash:GENESIS,getblockchaininfo:info});
+    await assert.rejects(assertPoolChain(stub.rpc,manifest), /C5 public-tree/);
+    assert.deepEqual(stub.calls.map(x=>x[0]),['getblockhash','getblockchaininfo']);
+  }
+  await assertPoolChain(stubRpc({getblockhash:GENESIS,getblockchaininfo:{zk_public_tree:{active_for_next_block:true}}}).rpc,manifest);
+  await assert.rejects(assertPoolChain(stubRpc({getblockhash:'00'.repeat(32)}).rpc,manifest),/network/);
+  // Existing C4 clients do not acquire a dependency on the new capability RPC.
+  await assertPoolChain(stubRpc({getblockhash:GENESIS}).rpc,C4_TESTNET_MANIFEST);
+});

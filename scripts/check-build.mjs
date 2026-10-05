@@ -18,6 +18,11 @@ assert.equal(typeof esm.CliTestBackend, 'function');
 assert.equal(typeof cjs.CliTestBackend, 'function');
 assert.equal(browser.CliTestBackend, undefined);
 assert.equal(typeof client.PoolWorkerClient, 'function');
+for (const entry of [esm, cjs, browser, client]) {
+  assert.equal(typeof entry.SponsorJournal, 'function');
+  assert.equal(typeof entry.IndexedDbSponsorStore, 'function');
+  assert.equal(typeof entry.prepareSponsorSweep, 'function');
+}
 assert.equal(client.ZkWalletIdentity, undefined);
 assert.equal(typeof worker.startPoolWorker, 'function');
 
@@ -51,4 +56,10 @@ const clientCode = [...closure('client.js')].map(file => sources.get(file)).join
 for (const primitive of ['chacha20poly1305', 'argon2', 'x25519']) {
   assert.ok(!clientCode.includes(primitive), `client entry loads ${primitive}`);
 }
+for (const api of [esm, cjs]) {
+  assert.equal(typeof api.C6SponsorFlow, 'function');
+  assert.equal(typeof api.c6SponsorWalletId, 'function');
+}
 console.log('Built Node, browser, client and worker entries are usable.');
+
+for(const entry of [esm,cjs,browser,worker])assert.equal(typeof entry.createC6JoinWallet,'function');

@@ -97,3 +97,5 @@ function rejectedV2Calls(client: PoolWorkerClient) {
   // @ts-expect-error Missing explicit family.
   ZkWalletIdentity.fromRoot({ root: new Uint8Array(64), account: 0, domain: '', assetId: '', network: 'testnet' });
 }
+
+import './sponsor-types.test.js';

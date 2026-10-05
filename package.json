@@ -1,6 +1,6 @@
 {
   "name": "@neuraiproject/neurai-privacy",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Private XNA payments on Neurai: private wallets from the wallet words, nzk addresses and zero-knowledge proofs built on the device",
   "repository": {
     "type": "git",

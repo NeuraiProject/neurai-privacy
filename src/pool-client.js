@@ -26,6 +26,14 @@ function message(error) {
 /** Refuse RPC nodes of another chain before trusting any answer. */
 export async function assertPoolChain(rpc, manifest) {
   if (await rpc('getblockhash', [0]) !== manifest.genesis) throw new Error('RPC node is not on the network of this pool');
+  if (manifest.schema === 'neurai-c5-xna-test-v1') {
+    // Fail closed on older or pre-activation nodes. A matching genesis does
+    // not prove that the RPC node validates the public transition predicate.
+    const info = await rpc('getblockchaininfo', []);
+    if (info?.zk_public_tree?.active_for_next_block !== true) {
+      throw new Error('This RPC node does not have C5 public-tree validation active for the next block');
+    }
+  }
 }
 
 /**

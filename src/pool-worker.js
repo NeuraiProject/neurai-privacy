@@ -13,6 +13,7 @@
  * which must forward read-only methods only (see isPoolReadRpc).
  */
 import { validateC4Manifest } from './c4.js';
+import { validateC5Manifest } from './c5.js';
 import { BrowserTestIdentity } from './browser-wallet.js';
 import { ZkWalletIdentity } from './zk-wallet.js';
 import { scanBrowserPool } from './browser-chain.js';
@@ -36,7 +37,11 @@ export function startPoolWorker({ scope = globalThis, snarkjs, artifactBaseUrl, 
     manifest = C4_TESTNET_MANIFEST;
     expectedCommitment ??= C4_TESTNET_COMMITMENT;
   }
-  validateC4Manifest(manifest, { expectedGenesis, expectedCommitment });
+  const c5 = manifest.schema === 'neurai-c5-xna-test-v1';
+  if (c5 && (expectedGenesis === undefined || expectedCommitment === undefined || artifacts === C4_TESTNET_ARTIFACTS)) {
+    throw new Error('C5 requires explicit genesis, commitment and TEST artifacts');
+  }
+  (c5 ? validateC5Manifest : validateC4Manifest)(manifest, { expectedGenesis, expectedCommitment });
   if (!Number.isSafeInteger(maxArtifactBytes) || maxArtifactBytes <= 0 || maxArtifactBytes > 256 * 1048576) {
     throw new Error('Artifact limit must be a positive integer of at most 256 MiB');
   }

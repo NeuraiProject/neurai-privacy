@@ -39,7 +39,7 @@ export interface PoolScanCheckpoint {
 
 export declare function scanBrowserPool(options: {
   rpc: import('./index.cjs').NeuraiRpc;
-  manifest: C4Manifest;
+  manifest: C4Manifest | C5Manifest;
   /** Independently pinned contract commitment that the manifest must match. */
   expectedCommitment: string;
   expectedGenesis?: string;
@@ -89,3 +89,38 @@ export declare function validateC4Manifest(manifest:C4Manifest, options:{expecte
 export declare function c4DustAtomic(scriptHex:string, feePerKb?:string):bigint;
 export declare function prepareC4(options:C4PrepareOptions & {secret?:Uint8Array}):C4Prepared;
 export declare function finishC4(prepared:C4Prepared, proof:import('./worker.cjs').Groth16Proof, publicSignals:string[]):string;
+
+/** Experimental native-XNA profile 2; no public deployment is bundled. */
+export interface C5Manifest extends Omit<C4Manifest, 'schema'> {
+  schema: 'neurai-c5-xna-test-v1'; zkProfile: 2;
+}
+export interface C5PrepareOptions extends Omit<C4PrepareOptions, 'manifest'> { manifest: C5Manifest }
+export interface C5Prepared extends Omit<C4Prepared, 'manifest'> {
+  manifest: C5Manifest; zkProfile: 2; transition: Uint8Array; chunks: Uint8Array[];
+}
+export declare const C5_FORMS: readonly C4Form[];
+export declare const C5_CHUNK_BYTES: 3072;
+export declare const C5_CHUNKS: 5;
+export declare function validateC5Manifest(manifest: C5Manifest, options: {expectedGenesis?:string; expectedCommitment:string}): C5Manifest;
+export declare function prepareC5(options: C5PrepareOptions & {secret?:Uint8Array}): C5Prepared;
+export declare function finishC5(prepared: C5Prepared, proof: import('./worker.cjs').Groth16Proof, publicSignals:string[]): string;
+export declare function c5TransitionBinding(form:C4Form, oldHash:Uint8Array, newHash:Uint8Array, nf:Uint8Array, cms:Uint8Array[]):Uint8Array;
+export declare function encodeC5Transition(form:C4Form, data:Record<string,any>):Uint8Array;
+export declare function verifyC5Transition(raw:Uint8Array, expectedBinding:Uint8Array):true;
+export declare function splitC5Transition(raw:Uint8Array):Uint8Array[];
+export declare function joinC5Transition(chunks:Uint8Array[]):Uint8Array;
+
+export declare function c6SponsorWalletId(mnemonic:string,passphrase?:string):Promise<string>;
+
+export {createC6JoinWallet} from './index.cjs';
+export type {C6JoinManifest,C6JoinNote,C6JoinRequest,C6JoinPrepared,C6JoinResult,C6JoinWallet} from './index.cjs';
+
+export {createC6OperationWallet} from './index.cjs';
+export type {C6OperationManifest,C6OperationContext,C6DepositRequest,C6TransferRequest,C6WithdrawalRequest,C6OperationPrepared,C6OperationWallet} from './index.cjs';
+
+export {scanC6Pool} from './index.cjs';
+export type {C6RecoveredNote,C6PoolScan} from './index.cjs';
+
+export {startC6PoolWorker} from './index.cjs';
+
+export {readC6Packet,buildC6Transaction,C6WorkerClient} from './index.cjs';

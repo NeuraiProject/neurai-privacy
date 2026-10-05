@@ -298,3 +298,114 @@ because their import maps point to `node_modules/@noble`.
 ## License
 
 MIT. See [LICENSE](./LICENSE).
+
+## Experimental C5 profile (isolated tests)
+
+C4 remains the bundled public TEST deployment. C5 is an explicit alternative
+for native XNA only; it requires the node's profile-2 public-transition rules.
+Do not send C5 transactions to a node where those rules are inactive.
+
+Configure `startPoolWorker` with a reviewed C5 manifest (schema
+`neurai-c5-xna-test-v1`, `zkProfile: 2`), its own artifacts, and independently
+pinned `expectedGenesis` and `expectedCommitment`. The library never substitutes
+C4 parameters or accepts a relabeled C4 leaf: each C5 leaf must explicitly
+select profile 2. The commitment pin authenticates the reviewed scripts;
+structural manifest validation does not audit arbitrary contracts.
+
+The worker supports D0/D1, T1/T2/T3/T4, and partial/full reserve withdrawals.
+`prepareC5`, `finishC5` and `buildC5Transaction` are available for explicit
+integration. Private ownership, note membership, hidden amounts and
+conservation remain in the ZK circuit. The public transition carries append
+and indexed insertion paths. Its five canonical chunks precede the proof and
+verification key in the MAST witness. The scanner checks these paths against
+the state and commitments reconstructed from the confirmed transaction.
+
+`verifyC5Transition` only validates public paths and their supplied binding;
+it does not verify Groth16, authorize spending, validate a block, or replace
+the node. Never accept a binding chosen by an untrusted transcript producer.
+Deposit amount/digest binding and the complete conjunction of proof, paths
+and contract rules are additionally enforced by profile 2 in the node.
+
+C4 and C5 share private-wallet derivation, note encryption, address rotation
+and local signing, but have distinct manifests, commitments, proving keys
+and scanner checkpoints. The browser does not invoke Python or Node for C5
+operations. The current JS adapter does not implement asset pools.
+
+The checked-in public vectors exercise all eight transitions and malformed
+paths. The isolated browser review generated and confirmed all eight forms
+with local Legacy, PQ and ECDSA signatures, recovery, parameter integrity and
+cancellation checks. The parameters used for those tests are PUBLIC TEST keys,
+not keys for valuable funds. They are not shipped inside the npm package.
+
+C5 clients additionally require
+`getblockchaininfo.zk_public_tree.active_for_next_block === true` before
+funding/publication. An old RPC node with a matching genesis is rejected;
+C4 retains its existing RPC behavior. This response is a capability check,
+not a proof that an untrusted server validates consensus.
+
+### C6 TEST sponsor authorization management
+
+The opt-in `SponsorJournal` and `IndexedDbSponsorStore` APIs persist authorization
+exposure, enforce cumulative wallet/operation budgets and prepare `SIGHASH_ALL`
+sponsor sweeps. A private payment confirmed with a different sponsor does not
+revoke older 0x83 signatures. Pending sweeps do not cancel them.
+See [C6-SPONSOR-JOURNAL.md](docs/C6-SPONSOR-JOURNAL.md) for storage, chain
+authentication, recovery and integration requirements. C4/C5 signing defaults
+remain unchanged; this does not switch the webwallet to C6.
+
+The opt-in C6 TEST lifecycle is documented in
+[docs/C6-SPONSOR-FLOW.md](docs/C6-SPONSOR-FLOW.md). It adds active-chain observation,
+persisted reviewed publication and ALL recovery to `SponsorJournal`. It is not
+an implementation/activation of the public C6 pool or its proving worker.
+
+### C6 TEST local J2 preparation and proving
+
+`createC6JoinWallet` is an opt-in XNA J2 2-to-1 builder/prover for Node, browser
+and worker entries. It requires independently pinned genesis/commitment and
+local note secrets and paths. It preserves the first note's owner and viewing
+key, validates exact conservation and instance context, and checks a private
+intent snapshot across asynchronous proving. See [C6-JOIN.md](docs/C6-JOIN.md).
+
+Real TEST proofs from the compiled API have been verified with C++ and confirmed
+in isolated regtest; Chromium covers cancellation and mixed J2/T1 workers.
+This is not the complete C6 deposit/transfer/withdraw worker, a chain scanner,
+public deployment or a production-security claim. Application-pinned TEST
+parameters and a separate public relocator are still required.
+
+### C6 XNA TEST portable-operation API
+
+`createC6OperationWallet` now constructs D/T1/T2/T3/W witnesses locally;
+`scanC6Pool` recovers confirmed private notes from an independently pinned
+birth using a trusted validating RPC. It follows confirmed state spends by
+index when available, falls back to checked block replay, and tolerates ordinary
+chain growth while rejecting reorganizations of the captured prefix. C6 has no
+persistent incremental scan checkpoint yet. `startC6PoolWorker` keeps identity,
+note paths and proving inputs in a dedicated browser worker and emits public
+portable packets. Explicit deployment/artifact pins and restored reservation
+journals are required. This is separate from the asset sponsor-flow API;
+XNA D funding must not be treated as an exposed asset `0x83` sponsorship.
+See [C6 operation, recovery and worker protocol](docs/C6-OPERATIONS.md) for
+byte order, TEST scope, cancellation and outstanding integration.
+
+### C6 ordinary assets (TEST)
+
+The browser worker now supports an independently pinned pool per ordinary asset,
+with exact units, D/T/J2/W, encrypted recovery and external XNA sponsorship.
+See [C6-ASSETS.md](docs/C6-ASSETS.md) for the API and authorization sequence.
+
+#### C6 completed scan checkpoints
+
+The C6 worker automatically saves completed scans in an authenticated encrypted
+checkpoint, in addition to its bounded transaction prefix. This stores tree
+nodes and recovered records privately inside the worker. Reopening verifies the
+captured block and pinned deployment, follows only new confirmed state spends,
+and rechecks current reservations. A receiving-window change repeats note
+recovery. A reorganization or corrupt checkpoint falls back to validated replay.
+The completed snapshot is bounded to 3 MiB serialized plaintext and is disposable;
+it never replaces the durable pending-operation journal. Storage read/write or
+CAS failures remain errors, rather than returning an unchecked balance.
+
+The webwallet saves its encrypted operation journal automatically. Exporting a
+backup is optional; mnemonic scanning recovers confirmed notes, not necessarily
+unpublished portable packets or exposed sponsor authorizations. Keep a current
+backup when transferring pending operations between browsers or devices.
