@@ -1,4 +1,5 @@
 import {
+  C6SponsorScanCheckpoint,
   SponsorJournal,
   admitTransaction,
   assertPoolChain,
@@ -9,7 +10,105 @@ import {
   scanC6SponsorChain,
   validateC6SponsorDeployment,
   validateSponsorSignature
-} from "./chunk-ZLQ2YTES.js";
+} from "./chunk-YYD6OW57.js";
+
+// src/wallet-service-rpc.js
+var HASH = /^[0-9a-f]{64}$/;
+var own = (object2, key) => Object.prototype.hasOwnProperty.call(object2, key);
+var object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+var READ_METHODS = /* @__PURE__ */ new Set([
+  "getblockchaininfo",
+  "getblockcount",
+  "getblockhash",
+  "getblockheader",
+  "getbestblockhash",
+  "getblock",
+  "getspentinfo",
+  "getrawmempool",
+  "decoderawtransaction",
+  "getaddressbalance",
+  "getaddressdeltas",
+  "getaddressutxos",
+  "getaddressmempool",
+  "getrawtransaction",
+  "gettxout",
+  "estimatesmartfee",
+  "getassetdata",
+  "listassets",
+  "listassetbalancesbyaddress",
+  "listaddressesbyasset",
+  "checkaddresstag",
+  "listtagsforaddress",
+  "listaddressesfortag",
+  "checkaddressrestriction",
+  "checkglobalrestriction",
+  "getverifierstring",
+  "isvalidverifierstring",
+  "listdepinaddresses",
+  "listdepinholders",
+  "checkdepinvalidity",
+  "validateaddress",
+  "getpubkey",
+  "testmempoolaccept"
+]);
+function createWalletServiceRpc({ request, hello, expectedGenesis, expectedServiceId } = {}) {
+  if (typeof request !== "function") throw new TypeError("A correlated WSS request function is required");
+  if (typeof expectedGenesis !== "string" || !HASH.test(expectedGenesis)) throw new Error("Pin the expected wallet-service genesis");
+  if (!object(hello) || hello.protocol !== "wss/2" || hello.exact_amounts !== true || hello.wallet_rpc?.amounts !== "rpc-native-units" || hello.wallet_rpc?.numeric_encoding !== "safe-number-or-string" || !Array.isArray(hello.wallet_rpc?.methods) || hello.wallet_rpc.methods.some((m) => typeof m !== "string")) {
+    throw new Error("The wallet service must negotiate wss/2 with native exact wallet RPC");
+  }
+  if (hello.genesis_hash !== expectedGenesis) throw new Error("Wallet-service genesis mismatch");
+  if (expectedServiceId !== void 0 && (typeof expectedServiceId !== "string" || !expectedServiceId || hello.service_id !== expectedServiceId)) {
+    throw new Error("Wallet-service identity mismatch");
+  }
+  const advertised = new Set(hello.wallet_rpc.methods);
+  return async (method, params = []) => {
+    if (!Array.isArray(params)) throw new TypeError("RPC params must be an array");
+    const broadcast = method === "sendrawtransaction";
+    if (broadcast) {
+      if (params.length !== 1 || typeof params[0] !== "string" || params[0].length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(params[0])) {
+        throw new TypeError("WSS broadcast requires exactly one raw transaction hex argument");
+      }
+    } else if (!READ_METHODS.has(method) || !advertised.has(method)) {
+      throw new Error("Wallet-service RPC method unavailable: " + String(method));
+    }
+    let reply;
+    try {
+      reply = await request(
+        broadcast ? "tx.broadcast" : "rpc.call",
+        broadcast ? { rawtx: params[0] } : { method, params }
+      );
+    } catch (cause) {
+      const error = new Error("Wallet-service transport failed", { cause });
+      if (broadcast) error.uncertain = true;
+      throw error;
+    }
+    if (!object(reply) || own(reply, "error") && reply.error !== null && (!object(reply.error) || own(reply, "result")) || !own(reply, "result") && !object(reply.error) || own(reply, "result") && reply.result === void 0) {
+      const error = new Error("Invalid wallet-service RPC response");
+      if (broadcast) error.uncertain = true;
+      throw error;
+    }
+    if (object(reply.error)) {
+      const error = new Error(typeof reply.error.message === "string" ? reply.error.message : "Wallet-service RPC failed");
+      const nodeCode = reply.error.node_code;
+      if (Number.isInteger(nodeCode) && nodeCode < 0) error.code = nodeCode;
+      else if (Number.isInteger(reply.error.code) && reply.error.code >= 1e3) error.code = reply.error.code;
+      if (Number.isInteger(reply.error.code)) error.serviceCode = reply.error.code;
+      if (Number.isInteger(reply.error.retry_after_seconds) && reply.error.retry_after_seconds > 0) {
+        error.retryAfterSeconds = reply.error.retry_after_seconds;
+      }
+      if (broadcast && !(Number.isInteger(nodeCode) && nodeCode < 0)) error.uncertain = true;
+      throw error;
+    }
+    if (broadcast) {
+      if (!object(reply.result) || typeof reply.result.txid !== "string" || !HASH.test(reply.result.txid)) {
+        throw Object.assign(new Error("Invalid wallet-service broadcast result"), { uncertain: true });
+      }
+      return reply.result.txid;
+    }
+    return reply.result;
+  };
+}
 
 // src/rotation-store.js
 var ROTATION_MAX_GAP = 1e3;
@@ -196,7 +295,7 @@ var IndexedDbSponsorStore = class {
 
 // src/c6-sponsor-flow.js
 var clone = (s) => JSON.parse(JSON.stringify(s));
-var HASH = /^[0-9a-f]{64}$/;
+var HASH2 = /^[0-9a-f]{64}$/;
 var C6SponsorFlow = class {
   #store;
   #key;
@@ -206,6 +305,7 @@ var C6SponsorFlow = class {
   #locks;
   #fee;
   #sign;
+  #checkpoint;
   #checkedRevision = null;
   constructor({ store, genesis, walletId, budgetAtomic, rpc, deployments, locks = globalThis.navigator?.locks, sweepFeeAtomic, sign }) {
     if (!locks || typeof locks.request !== "function") throw Error("Cross-tab Web Locks are required for C6 sponsorship");
@@ -213,6 +313,11 @@ var C6SponsorFlow = class {
     this.#store = store;
     this.#key = `neurai:c6:flow:${genesis}:${walletId}`;
     this.#journal = new SponsorJournal({ store, genesis, walletId, budgetAtomic });
+    try {
+      this.#checkpoint = new C6SponsorScanCheckpoint({ store, genesis, walletId });
+    } catch {
+      this.#checkpoint = null;
+    }
     this.#rpc = rpc;
     this.#deployments = clone(deployments).map(validateC6SponsorDeployment);
     this.#locks = locks;
@@ -228,11 +333,11 @@ var C6SponsorFlow = class {
     if (s.schema !== "neurai-c6-flow-test-v1" || !Array.isArray(s.intents) || !Array.isArray(s.sweeps) || !Array.isArray(s.prepared)) throw Error("Invalid C6 flow metadata");
     const ids = /* @__PURE__ */ new Set(), points = /* @__PURE__ */ new Set();
     for (const i of s.intents) {
-      if (!HASH.test(i.operationId) || !this.#deployments.some((d) => d.commitment === i.pool) || ids.has(i.operationId) || !Array.isArray(i.nullifiers) || i.nullifiers.some((n) => !HASH.test(n))) throw Error("Invalid C6 intent metadata");
+      if (!HASH2.test(i.operationId) || !this.#deployments.some((d) => d.commitment === i.pool) || ids.has(i.operationId) || !Array.isArray(i.nullifiers) || i.nullifiers.some((n) => !HASH2.test(n))) throw Error("Invalid C6 intent metadata");
       ids.add(i.operationId);
     }
     for (const t of [...s.sweeps, ...s.prepared]) {
-      if (!HASH.test(t.txid) || readSponsorTransaction(t.raw).txid !== t.txid) throw Error("Corrupt persisted signed transaction");
+      if (!HASH2.test(t.txid) || readSponsorTransaction(t.raw).txid !== t.txid) throw Error("Corrupt persisted signed transaction");
       if (s.sweeps.includes(t)) {
         const decoded = readSponsorTransaction(t.raw);
         if (points.has(t.outpoint) || decoded.inputs.length !== 1 || decoded.outputs.length !== 1 || `${decoded.inputs[0].txid}:${decoded.inputs[0].vout}` !== t.outpoint) throw Error("Invalid persisted sweep");
@@ -277,7 +382,7 @@ var C6SponsorFlow = class {
       await assertPoolChain(this.#rpc, { genesis: snapshot.genesis });
       return snapshot;
     }
-    const observation = await scanC6SponsorChain({ rpc: this.#rpc, snapshot, deployments: this.#deployments, intents: meta.intents, ...options });
+    const observation = await scanC6SponsorChain({ rpc: this.#rpc, snapshot, deployments: this.#deployments, intents: meta.intents, checkpoint: this.#checkpoint ?? void 0, ...options });
     const result = await this.#journal.reconcile(observation);
     this.#checkedRevision = result.revision;
     return result;
@@ -343,7 +448,7 @@ var C6SponsorFlow = class {
       if (known.txid !== tx.txid) throw Error("RPC transaction mismatch");
       if (known.confirmations > 0) return { txid: tx.txid, status: "confirmed" };
       const pending = await this.#rpc("getrawmempool");
-      if (!Array.isArray(pending) || pending.some((id) => !HASH.test(id))) throw Error("Invalid mempool observation");
+      if (!Array.isArray(pending) || pending.some((id) => !HASH2.test(id))) throw Error("Invalid mempool observation");
       if (pending.includes(tx.txid)) return { txid: tx.txid, status: "mempool" };
     }
     const accepted = await admitTransaction(this.#rpc, tx.raw);
@@ -534,6 +639,7 @@ var C6WorkerClient = class {
 };
 
 export {
+  createWalletServiceRpc,
   ROTATION_MAX_GAP,
   rotationStorageKey,
   loadRotation,
@@ -543,4 +649,4 @@ export {
   C6SponsorFlow,
   C6WorkerClient
 };
-//# sourceMappingURL=chunk-YFKKRVWT.js.map
+//# sourceMappingURL=chunk-JEFMDGXJ.js.map

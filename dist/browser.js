@@ -4,10 +4,11 @@ import {
   IndexedDbSponsorStore,
   PoolWorkerClient,
   ROTATION_MAX_GAP,
+  createWalletServiceRpc,
   loadRotation,
   rotationStorageKey,
   saveRotation
-} from "./chunks/chunk-YFKKRVWT.js";
+} from "./chunks/chunk-JEFMDGXJ.js";
 import {
   BrowserTestIdentity,
   C4_FORMS,
@@ -76,7 +77,7 @@ import {
   verifyC5Transition,
   walletSeedFromMnemonic,
   zkFingerprint
-} from "./chunks/chunk-RSKNY33E.js";
+} from "./chunks/chunk-XFMFT6IL.js";
 import {
   ATOMIC_PER_XNA,
   BN254_SCALAR_FIELD,
@@ -117,7 +118,7 @@ import {
   validateC6SponsorDeployment,
   validateSponsorSignature,
   withdrawalScript
-} from "./chunks/chunk-ZLQ2YTES.js";
+} from "./chunks/chunk-YYD6OW57.js";
 
 // src/core.js
 var NeuraiPrivacy = class {
@@ -405,6 +406,7 @@ export {
   confirmedPoolCoins,
   createC6JoinWallet,
   createC6OperationWallet,
+  createWalletServiceRpc,
   decodeField,
   decodeNote,
   decodeNzkAddress,

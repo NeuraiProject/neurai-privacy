@@ -3,6 +3,24 @@ import type { C4Manifest, C5Manifest, C4Coin, C4Form } from './browser.js';
 
 /** Same shape as @neuraiproject/neurai-rpc getRPC(...). */
 export type PoolRpc = (method: string, params: unknown[]) => Promise<any>;
+export interface WalletServiceHello {
+  protocol: string; exact_amounts: boolean; genesis_hash: string; service_id?: string | null;
+  wallet_rpc: { methods: readonly string[]; amounts: string; numeric_encoding: string };
+}
+export interface WalletServiceReply {
+  id?: string | number | null;
+  result?: unknown;
+  error?: null | { code?: number; node_code?: number | null; message?: string; retry_after_seconds?: number };
+}
+/** Adapt a negotiated wss/2 connection to native pool RPC.
+ * request resolves correlated wire envelopes and rejects only transport failures.
+ * Recreate the adapter after every connection/hello; it never retries or falls back.
+ * Broadcast supports the one-argument sendrawtransaction form only.
+ */
+export declare function createWalletServiceRpc(options: {
+  request: (method: 'rpc.call' | 'tx.broadcast', params: { method: string; params: unknown[] } | { rawtx: string }) => Promise<WalletServiceReply>;
+  hello: WalletServiceHello; expectedGenesis: string; expectedServiceId?: string;
+}): PoolRpc;
 export type PoolAction = 'deposit' | 'transfer' | 'withdraw';
 export interface OutPoint { txid: string; vout: number }
 
@@ -167,8 +185,19 @@ export interface C6SponsorDeployment {
 export interface C6SponsorIntent {operationId:string;pool:string;nullifiers:string[]}
 export declare function validateC6SponsorDeployment(deployment:C6SponsorDeployment):C6SponsorDeployment;
 export declare function c6SponsorIntent(raw:string,deployment:C6SponsorDeployment):C6SponsorIntent;
+/** `auto` uses the node's spent index and falls back to block replay; the others force one strategy. */
+export type C6SponsorScanStrategy='auto'|'spent-index'|'blocks';
+/** One saved pool walk prefix of the sponsor scanner (public chain data only). */
+export interface C6SponsorScanPrefix {commitment:string;anchor:string;height:number;hash:string;point:string;opening:string;
+  events:Array<{txid:string;operationId:string;nfs:string[];height:number}>}
+/** Disposable scan progress; C6SponsorFlow keeps one in its own store. */
+export interface C6SponsorScanCheckpointStore {
+  load(deployments:C6SponsorDeployment[]):Promise<Map<string,C6SponsorScanPrefix>>;
+  save(pools:C6SponsorScanPrefix[]):Promise<boolean>;
+}
 export declare function scanC6SponsorChain(options:{rpc:PoolRpc;snapshot:SponsorSnapshot;deployments:C6SponsorDeployment[];intents:C6SponsorIntent[];
-  signal?:AbortSignal;onProgress?:(progress:{height:number;target:number})=>void}):Promise<Parameters<SponsorJournal['reconcile']>[0]>;
+  signal?:AbortSignal;onProgress?:(progress:{height:number;target:number})=>void;
+  strategy?:C6SponsorScanStrategy;checkpoint?:C6SponsorScanCheckpointStore}):Promise<Parameters<SponsorJournal['reconcile']>[0]>;
 export interface C6PreparedAuthorization {raw:string;pool:string;notes:SponsorNoteReservation[];budgetAtomic:string;offer:SponsorOffer}
 export interface C6SponsorBackup {schema:'neurai-c6-backup-test-v1';journal:string;flow:string}
 export declare class C6SponsorFlow {
@@ -176,7 +205,7 @@ export declare class C6SponsorFlow {
     locks?:Pick<LockManager,'request'>;sweepFeeAtomic:(offer:SponsorOffer)=>Promise<string>;
     sign:(request:{raw:string;offer:SponsorOffer;hashType:1|131;index:0|2})=>Promise<string>});
   initialize(options?:{create?:boolean}):Promise<SponsorSnapshot>;
-  scan(options?:{signal?:AbortSignal;onProgress?:(progress:{height:number;target:number})=>void}):Promise<SponsorSnapshot>;
+  scan(options?:{signal?:AbortSignal;onProgress?:(progress:{height:number;target:number})=>void;strategy?:C6SponsorScanStrategy}):Promise<SponsorSnapshot>;
   snapshot():Promise<SponsorSnapshot>;
   pending():Promise<Array<{operationId:string;txid:string}>>;
   backup():Promise<C6SponsorBackup>;
@@ -184,7 +213,7 @@ export declare class C6SponsorFlow {
   authorize(prepared:C6PreparedAuthorization):Promise<{operationId:string;raw:string;txid:string}>;
   publish(operationId:string):Promise<{txid:string;status:string}>;
   sweep(outpoint:string):Promise<{txid:string;status:string}|null>;
-  tick(options?:{autoSweep?:boolean;signal?:AbortSignal;onProgress?:(progress:{height:number;target:number})=>void}):Promise<{snapshot:SponsorSnapshot;sweeps:Array<{txid:string;status:string}|null>}>;
+  tick(options?:{autoSweep?:boolean;signal?:AbortSignal;onProgress?:(progress:{height:number;target:number})=>void;strategy?:C6SponsorScanStrategy}):Promise<{snapshot:SponsorSnapshot;sweeps:Array<{txid:string;status:string}|null>}>;
 }
 
 /** Dedicated C6 worker: durable encrypted CAS, public relocation and ALL funding. */

@@ -182,3 +182,11 @@ Storage advice:
   worker cannot seal it and returns `null`. The open worker still continues
   from its last scan in memory, but after a restart scans start from the
   pool birth.
+
+### Sponsor scanner checkpoint
+
+The C6 sponsor scanner (`scanC6SponsorChain`, used by `C6SponsorFlow`) follows
+the same spent-index walk and keeps its own, separate checkpoint: the confirmed
+prefix of each pool's state chain, stored next to the sponsor journal. It holds
+no private data and is verified against the active chain before reuse. See
+[C6 sponsor lifecycle](C6-SPONSOR-FLOW.md#scan-cost-and-checkpoint).

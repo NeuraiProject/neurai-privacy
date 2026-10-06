@@ -19,6 +19,7 @@ assert.equal(typeof cjs.CliTestBackend, 'function');
 assert.equal(browser.CliTestBackend, undefined);
 assert.equal(typeof client.PoolWorkerClient, 'function');
 for (const entry of [esm, cjs, browser, client]) {
+  assert.equal(typeof entry.createWalletServiceRpc, 'function');
   assert.equal(typeof entry.SponsorJournal, 'function');
   assert.equal(typeof entry.IndexedDbSponsorStore, 'function');
   assert.equal(typeof entry.prepareSponsorSweep, 'function');

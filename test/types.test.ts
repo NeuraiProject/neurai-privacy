@@ -42,6 +42,15 @@ async function compileOnly(): Promise<void> {
 }
 void compileOnly;
 
+import { createWalletServiceRpc, type WalletServiceHello, type WalletServiceReply } from '../src/client.js';
+const serviceHello: WalletServiceHello = {protocol: 'wss/2', exact_amounts: true, genesis_hash: 'a'.repeat(64),
+  wallet_rpc: {methods: ['getblock'], amounts: 'rpc-native-units', numeric_encoding: 'safe-number-or-string'}};
+const serviceRpc: import('../src/client.js').PoolRpc = createWalletServiceRpc({hello: serviceHello, expectedGenesis: 'a'.repeat(64),
+  request: async (_method, _params): Promise<WalletServiceReply> => ({result: null})});
+// @ts-expect-error The expected chain must be independently pinned.
+createWalletServiceRpc({hello: serviceHello, request: async () => ({result: null})});
+void serviceRpc;
+
 import { ZkWalletIdentity, decodeNzkAddress, parseRecipient, type NzkPoolScope, type NzkAddressRef } from '../src/browser.js';
 async function zkCompileOnly() {
   const scope: NzkPoolScope = { network: 'testnet', domain: '00'.repeat(32), assetId: '11'.repeat(32) };

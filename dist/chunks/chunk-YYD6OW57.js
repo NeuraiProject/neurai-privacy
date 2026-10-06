@@ -1791,16 +1791,78 @@ function validateSponsorSignature(raw, value, sweep = null) {
   return true;
 }
 
+// src/c6-sponsor-checkpoint.js
+var TYPE = "neurai-c6-sponsor-scan-v1";
+var HASH2 = /^[0-9a-f]{64}$/;
+var OPENING = /^[0-9a-f]{290}$/;
+var MAX_EVENTS = 4096;
+var MAX_BYTES = 2 * 1024 * 1024;
+var CHECKPOINT_DEPTH = 6;
+var validEvent = (e) => e && HASH2.test(e.txid) && HASH2.test(e.operationId) && Number.isSafeInteger(e.height) && Array.isArray(e.nfs) && e.nfs.length <= 2 && e.nfs.every((n) => HASH2.test(n));
+var C6SponsorScanCheckpoint = class {
+  #store;
+  #key;
+  constructor({ store, genesis, walletId }) {
+    if (!store?.read || !store?.compareAndSwap) throw Error("C6 sponsor scan checkpoint store required");
+    if (!HASH2.test(genesis) || !HASH2.test(walletId)) throw Error("C6 sponsor scan checkpoint identity required");
+    this.#store = store;
+    this.#key = `neurai:c6:sponsor-scan:v1:${genesis}:${walletId}`;
+  }
+  /**
+   * Saved prefixes keyed by pool commitment, keeping only those that match a
+   * pinned deployment. A damaged or foreign cache is ignored; storage errors
+   * propagate like any other journal read.
+   */
+  async load(deployments) {
+    const raw = await this.#store.read(this.#key);
+    if (raw === null) return /* @__PURE__ */ new Map();
+    try {
+      if (typeof raw !== "string" || raw.length > MAX_BYTES) throw Error("size");
+      const value = JSON.parse(raw);
+      if (value?.type !== TYPE || !Array.isArray(value.pools)) throw Error("type");
+      const out = /* @__PURE__ */ new Map();
+      for (const p of value.pools) {
+        const d = deployments.find((x) => x.commitment === p?.commitment);
+        if (!d || p.anchor !== d.anchor.outpoint || !Number.isSafeInteger(p.height) || p.height <= d.anchor.height || !HASH2.test(p.hash) || !/^[0-9a-f]{64}:0$/.test(p.point) || !OPENING.test(p.opening) || !Array.isArray(p.events) || !p.events.length || p.events.length > MAX_EVENTS || !p.events.every(validEvent)) continue;
+        let last = d.anchor.height;
+        if (p.events.some((e) => {
+          const bad = e.height < last;
+          last = e.height;
+          return bad;
+        }) || last !== p.height || `${p.events.at(-1).txid}:0` !== p.point) continue;
+        out.set(d.commitment, p);
+      }
+      return out;
+    } catch {
+      return /* @__PURE__ */ new Map();
+    }
+  }
+  /** Replace the saved prefixes; a concurrent writer simply wins. */
+  async save(pools) {
+    const value = JSON.stringify({ type: TYPE, pools });
+    if (value.length > MAX_BYTES || pools.some((p) => p.events.length > MAX_EVENTS)) return false;
+    const current = await this.#store.read(this.#key);
+    if (current === value) return true;
+    return this.#store.compareAndSwap(this.#key, current, value);
+  }
+  /** Forget the saved progress (for example after it failed verification). */
+  async clear() {
+    const current = await this.#store.read(this.#key);
+    if (current === null) return true;
+    return this.#store.compareAndSwap(this.#key, current, JSON.stringify({ type: TYPE, pools: [] }));
+  }
+};
+
 // src/c6-sponsor-chain.js
 var hex2 = (b) => Array.from(b, (n) => n.toString(16).padStart(2, "0")).join("");
 var unhex = (s) => Uint8Array.from(s.match(/../g) ?? [], (n) => parseInt(n, 16));
 var hash2 = (s) => hex2(sha256(new TextEncoder().encode(s)));
 var point2 = (i) => `${i.txid}:${i.vout}`;
-var HASH2 = /^[0-9a-f]{64}$/;
+var HASH3 = /^[0-9a-f]{64}$/;
 var FR = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
 var forms = ["D0", "D1", "T1", "T2", "T3", "W_partial_no_change", "W_partial_change", "W_full_no_change", "J2"];
 function field(s) {
-  if (!HASH2.test(s) || BigInt("0x" + s) >= FR) throw Error("Noncanonical C6 field");
+  if (!HASH3.test(s) || BigInt("0x" + s) >= FR) throw Error("Noncanonical C6 field");
   return s;
 }
 function stateTemplate(s) {
@@ -1808,7 +1870,7 @@ function stateTemplate(s) {
   return s.slice(0, -66);
 }
 function validateC6SponsorDeployment(d) {
-  if (!d || !HASH2.test(d.genesis) || !HASH2.test(d.commitment) || !["xna", "asset"].includes(d.kind) || !Number.isSafeInteger(d.anchor?.height) || d.anchor.height < 0 || !HASH2.test(d.anchor.hash) || !/^[0-9a-f]{64}:0$/.test(d.anchor.outpoint) || !/^[0-9a-f]{290}$/.test(d.anchor.opening) || !Array.isArray(d.leaves) || !d.leaves.length || d.leaves.length > 64) throw Error("Pinned C6 deployment required");
+  if (!d || !HASH3.test(d.genesis) || !HASH3.test(d.commitment) || !["xna", "asset"].includes(d.kind) || !Number.isSafeInteger(d.anchor?.height) || d.anchor.height < 0 || !HASH3.test(d.anchor.hash) || !/^[0-9a-f]{64}:0$/.test(d.anchor.outpoint) || !/^[0-9a-f]{290}$/.test(d.anchor.opening) || !Array.isArray(d.leaves) || !d.leaves.length || d.leaves.length > 64) throw Error("Pinned C6 deployment required");
   if (!d.anchor.script.startsWith("5120" + d.commitment) || hex2(poseidonBytes(unhex(d.anchor.opening))) !== d.anchor.script.slice(-66, -2)) throw Error("Pinned state opening mismatch");
   stateTemplate(d.anchor.script);
   const scripts = /* @__PURE__ */ new Set();
@@ -1848,45 +1910,17 @@ function c6SponsorIntent(raw, deployment) {
   if (tx.locktime || tx.refs.length || tx.inputs.some((i) => i.sequence !== 4294967295)) throw Error("C6 transaction fixed fields changed");
   return { operationId: parsed.operationId, pool: d.commitment, nullifiers: parsed.nfs };
 }
-async function scanC6SponsorChain({ rpc, snapshot, deployments, intents, signal, onProgress }) {
-  const check = () => {
-    if (signal?.aborted) throw Error("C6 scan cancelled");
-  };
-  check();
-  const activation = await rpc("getblockchaininfo");
-  if (activation?.zk_portable_tree?.active_for_next_block !== true) throw Error("C6 portable public-tree verification is not active");
-  if (await rpc("getblockhash", [0]) !== snapshot.genesis) throw Error("Sponsor scanner chain mismatch");
-  const height = await rpc("getblockcount"), tipHash = await rpc("getblockhash", [height]);
-  if (!Number.isSafeInteger(height) || height < 0 || !HASH2.test(tipHash)) throw Error("Invalid chain tip");
-  const contexts = deployments.map((d) => ({ d: validateC6SponsorDeployment(d), point: d.anchor.outpoint, opening: d.anchor.opening, events: [] }));
-  if (new Set(contexts.map((c) => c.d.commitment)).size !== contexts.length || contexts.some((c) => c.d.genesis !== snapshot.genesis)) throw Error("Ambiguous C6 pool deployments");
-  let first = height;
-  for (const c of contexts) {
-    check();
-    if (c.d.anchor.height > height || await rpc("getblockhash", [c.d.anchor.height]) !== c.d.anchor.hash) throw Error("Pinned pool anchor reorganized; restore an earlier deployment");
-    const block = await rpc("getblock", [c.d.anchor.hash, 2]);
-    const tx = block.tx?.find((t) => t.txid === c.d.anchor.outpoint.split(":")[0]);
-    if (!tx || tx.vout?.[0]?.scriptPubKey?.hex !== c.d.anchor.script) throw Error("Pinned pool UTXO absent");
-    first = Math.min(first, c.d.anchor.height + 1);
-  }
-  const offers = snapshot.operations.flatMap((o) => o.sponsors.map((s) => s.offer));
-  const created = /* @__PURE__ */ new Set(), spent = {}, pools = new Map(contexts.map((c) => [c.d.commitment, c]));
-  for (const op of snapshot.operations) {
-    const intent = intents.find((i) => i.operationId === op.operationId);
-    if (!intent || !pools.has(intent.pool) || JSON.stringify([...intent.nullifiers].sort()) !== JSON.stringify(op.notes.map((n) => n.nf).sort())) throw Error("Missing or inconsistent C6 intent metadata");
-  }
-  for (const offer of offers) {
-    check();
-    const [id, vout] = offer.outpoint.split(":"), tx = await rpc("getrawtransaction", [id, true]);
-    if (tx.txid !== id || !(tx.confirmations > 0) || !tx.blockhash) throw Error("Sponsor funding missing or reorganized");
-    const header = await rpc("getblockheader", [tx.blockhash]);
-    if (await rpc("getblockhash", [header.height]) !== tx.blockhash) throw Error("Sponsor funding not in active chain");
-    const block = await rpc("getblock", [tx.blockhash, 2]), actual = block.tx?.find((t) => t.txid === id)?.vout?.[Number(vout)];
-    if (!actual || actual.scriptPubKey?.hex !== offer.inputScript || String(rpcAmountToSatoshis(actual.value)) !== offer.inputAtomic) throw Error("Sponsor funding binding mismatch");
-    created.add(offer.outpoint);
-    first = Math.min(first, header.height);
-  }
-  const tracked = new Set(offers.map((o) => o.outpoint));
+var unavailable = (what) => Object.assign(Error(`C6 sponsor scan: spent index unavailable for ${what}; use block replay`), { code: "C6_INDEX_UNAVAILABLE" });
+var liveStateScript = (c) => c.d.anchor.script.slice(0, -66) + hex2(poseidonBytes(unhex(c.opening))) + "75";
+var freshContexts = (deployments) => deployments.map((d) => ({ d, point: d.anchor.outpoint, opening: d.anchor.opening, events: [] }));
+function applyTransition(c, txid, raw, height, blockHash) {
+  const parsedTx = readSponsorTransaction(raw), parsed = describe(parsedTx, c.d);
+  if (parsedTx.txid !== txid || point2(parsedTx.inputs[0]) !== c.point || parsed.old !== c.opening || stateTemplate(parsedTx.outputs[0]?.script) !== stateTemplate(c.d.anchor.script) || hex2(poseidonBytes(unhex(parsed.next))) !== parsedTx.outputs[0].script.slice(-66, -2)) throw Error("C6 state chain discontinuity");
+  c.events.push({ txid, operationId: parsed.operationId, nfs: parsed.nfs, height, blockHash, next: parsed.next });
+  c.point = txid + ":0";
+  c.opening = parsed.next;
+}
+async function replayBlocks({ rpc, contexts, tracked, spent, first, height, check, onProgress }) {
   let previous = first > 0 ? await rpc("getblockhash", [first - 1]) : null;
   for (let h = first; h <= height; h++) {
     check();
@@ -1900,24 +1934,167 @@ async function scanC6SponsorChain({ rpc, snapshot, deployments, intents, signal,
       for (const c of contexts) {
         if (h <= c.d.anchor.height || !tx.vin?.some((i) => point2(i) === c.point)) continue;
         if (point2(tx.vin[0]) !== c.point) throw Error("Pool state spent outside input zero");
-        const raw = await rpc("getrawtransaction", [tx.txid, false]);
-        const parsedTx = readSponsorTransaction(raw), parsed = describe(parsedTx, c.d);
-        if (parsedTx.txid !== tx.txid || point2(parsedTx.inputs[0]) !== c.point || parsed.old !== c.opening || stateTemplate(parsedTx.outputs[0]?.script) !== stateTemplate(c.d.anchor.script) || hex2(poseidonBytes(unhex(parsed.next))) !== parsedTx.outputs[0].script.slice(-66, -2)) throw Error("C6 state chain discontinuity");
-        c.events.push({ txid: tx.txid, ...parsed });
-        c.point = tx.txid + ":0";
-        c.opening = parsed.next;
+        applyTransition(c, tx.txid, await rpc("getrawtransaction", [tx.txid, false]), h, id);
       }
     }
     previous = id;
     onProgress?.({ height: h, target: height });
+  }
+}
+async function indexedSpender({ rpc, outpoint, height, check, what }) {
+  const [txid, vout] = outpoint.split(":");
+  let info = null, failed = false;
+  try {
+    info = await rpc("getspentinfo", [{ txid, index: Number(vout) }]);
+  } catch {
+    check();
+    failed = true;
+  }
+  if (failed || info === null || info?.height === -1) {
+    let coin;
+    try {
+      coin = await rpc("gettxout", [txid, Number(vout), false]);
+    } catch {
+      check();
+      throw unavailable(what);
+    }
+    if (!coin) throw unavailable(what);
+    return { coin };
+  }
+  if (!info || !Number.isSafeInteger(info.height) || info.height < 0 || !HASH3.test(info.txid) || !Number.isSafeInteger(info.index)) throw Error("Invalid C6 spent index entry");
+  if (info.height > height) {
+    if (info.height > await rpc("getblockcount")) throw Error("C6 spent index height exceeds the active tip");
+    return { later: true };
+  }
+  const blockHash = await rpc("getblockhash", [info.height]), tx = await rpc("getrawtransaction", [info.txid, true]);
+  if (tx?.txid !== info.txid || tx.blockhash !== blockHash || !(tx.confirmations > 0) || point2(tx.vin?.[info.index] ?? {}) !== outpoint) throw Error("C6 spent index disagrees with the confirmed transaction");
+  return { txid: info.txid, height: info.height, blockHash };
+}
+async function followState({ rpc, c, height, check, onProgress }) {
+  for (; ; ) {
+    check();
+    const step = await indexedSpender({ rpc, outpoint: c.point, height, check, what: "the pool state" });
+    if (step.coin) {
+      if (!Number.isSafeInteger(step.coin.confirmations) || step.coin.confirmations < 1 || step.coin.scriptPubKey?.hex !== liveStateScript(c)) throw Error("C6 indexed live state mismatch");
+      return;
+    }
+    if (step.later) return;
+    const last = c.events.at(-1)?.height ?? c.d.anchor.height;
+    if (step.height < last) throw Error("C6 spent index goes back in the state chain");
+    applyTransition(c, step.txid, await rpc("getrawtransaction", [step.txid, false]), step.height, step.blockHash);
+    onProgress?.({ height: step.height, target: height });
+  }
+}
+async function walkIndexed({ rpc, contexts, offers, spent, height, check, onProgress, checkpoint }) {
+  const saved = checkpoint ? await checkpoint.load(contexts.map((c) => c.d)) : /* @__PURE__ */ new Map();
+  for (const c of contexts) {
+    const cp = saved.get(c.d.commitment);
+    if (cp && cp.height <= height && await rpc("getblockhash", [cp.height]) === cp.hash) {
+      c.point = cp.point;
+      c.opening = cp.opening;
+      c.events = cp.events.map((e) => ({ txid: e.txid, operationId: e.operationId, nfs: [...e.nfs], height: e.height }));
+      Object.assign(c.events.at(-1), { blockHash: cp.hash, next: cp.opening });
+      try {
+        await followState({ rpc, c, height, check, onProgress });
+        continue;
+      } catch {
+        check();
+        Object.assign(c, freshContexts([c.d])[0]);
+      }
+    }
+    await followState({ rpc, c, height, check, onProgress });
+  }
+  for (const offer of offers) {
+    check();
+    const step = await indexedSpender({ rpc, outpoint: offer.outpoint, height, check, what: "a sponsor coin" });
+    if (step.txid) spent[offer.outpoint] = step.txid;
+  }
+}
+function checkpointPools(contexts, height) {
+  const pools = [];
+  for (const c of contexts) {
+    let end = -1;
+    for (let i = 0; i < c.events.length; i++) if (c.events[i].height <= height - CHECKPOINT_DEPTH) end = i;
+    if (end < 0 || !c.events[end].blockHash || !c.events[end].next) continue;
+    const last = c.events[end];
+    pools.push({
+      commitment: c.d.commitment,
+      anchor: c.d.anchor.outpoint,
+      height: last.height,
+      hash: last.blockHash,
+      point: last.txid + ":0",
+      opening: last.next,
+      events: c.events.slice(0, end + 1).map((e) => ({ txid: e.txid, operationId: e.operationId, nfs: e.nfs, height: e.height }))
+    });
+  }
+  return pools;
+}
+async function scanC6SponsorChain({ rpc, snapshot, deployments, intents, signal, onProgress, strategy = "auto", checkpoint }) {
+  const check = () => {
+    if (signal?.aborted) throw Error("C6 scan cancelled");
+  };
+  if (!["auto", "blocks", "spent-index"].includes(strategy)) throw Error("Unknown C6 sponsor scan strategy");
+  check();
+  const activation = await rpc("getblockchaininfo");
+  if (activation?.zk_portable_tree?.active_for_next_block !== true) throw Error("C6 portable public-tree verification is not active");
+  if (await rpc("getblockhash", [0]) !== snapshot.genesis) throw Error("Sponsor scanner chain mismatch");
+  const height = await rpc("getblockcount"), tipHash = await rpc("getblockhash", [height]);
+  if (!Number.isSafeInteger(height) || height < 0 || !HASH3.test(tipHash)) throw Error("Invalid chain tip");
+  const pinned = deployments.map(validateC6SponsorDeployment);
+  let contexts = freshContexts(pinned);
+  if (new Set(contexts.map((c) => c.d.commitment)).size !== contexts.length || contexts.some((c) => c.d.genesis !== snapshot.genesis)) throw Error("Ambiguous C6 pool deployments");
+  let first = height;
+  for (const c of contexts) {
+    check();
+    if (c.d.anchor.height > height || await rpc("getblockhash", [c.d.anchor.height]) !== c.d.anchor.hash) throw Error("Pinned pool anchor reorganized; restore an earlier deployment");
+    const block = await rpc("getblock", [c.d.anchor.hash, 2]);
+    const tx = block.tx?.find((t) => t.txid === c.d.anchor.outpoint.split(":")[0]);
+    if (!tx || tx.vout?.[0]?.scriptPubKey?.hex !== c.d.anchor.script) throw Error("Pinned pool UTXO absent");
+    first = Math.min(first, c.d.anchor.height + 1);
+  }
+  const offers = snapshot.operations.flatMap((o) => o.sponsors.map((s) => s.offer));
+  const created = /* @__PURE__ */ new Set(), pools = () => new Map(contexts.map((c) => [c.d.commitment, c]));
+  let spent = {};
+  for (const op of snapshot.operations) {
+    const intent = intents.find((i) => i.operationId === op.operationId);
+    if (!intent || !pools().has(intent.pool) || JSON.stringify([...intent.nullifiers].sort()) !== JSON.stringify(op.notes.map((n) => n.nf).sort())) throw Error("Missing or inconsistent C6 intent metadata");
+  }
+  for (const offer of offers) {
+    check();
+    const [id, vout] = offer.outpoint.split(":"), tx = await rpc("getrawtransaction", [id, true]);
+    if (tx.txid !== id || !(tx.confirmations > 0) || !tx.blockhash) throw Error("Sponsor funding missing or reorganized");
+    const header = await rpc("getblockheader", [tx.blockhash]);
+    if (await rpc("getblockhash", [header.height]) !== tx.blockhash) throw Error("Sponsor funding not in active chain");
+    const block = await rpc("getblock", [tx.blockhash, 2]), actual = block.tx?.find((t) => t.txid === id)?.vout?.[Number(vout)];
+    if (!actual || actual.scriptPubKey?.hex !== offer.inputScript || String(rpcAmountToSatoshis(actual.value)) !== offer.inputAtomic) throw Error("Sponsor funding binding mismatch");
+    created.add(offer.outpoint);
+    first = Math.min(first, header.height);
+  }
+  const tracked = new Set(offers.map((o) => o.outpoint));
+  let indexed = false;
+  if (!snapshot.operations.length) {
+    onProgress?.({ height, target: height });
+  } else if (strategy === "blocks") {
+    await replayBlocks({ rpc, contexts, tracked, spent, first, height, check, onProgress });
+  } else {
+    try {
+      await walkIndexed({ rpc, contexts, offers, spent, height, check, onProgress, checkpoint });
+      indexed = true;
+    } catch (e) {
+      if (e.code !== "C6_INDEX_UNAVAILABLE" || strategy === "spent-index" || signal?.aborted) throw e;
+      contexts = freshContexts(pinned);
+      spent = {};
+      await replayBlocks({ rpc, contexts, tracked, spent, first, height, check, onProgress });
+    }
   }
   for (const offer of offers) {
     check();
     const [id, vout] = offer.outpoint.split(":"), coin = await rpc("gettxout", [id, Number(vout), false]);
     if (!created.has(offer.outpoint) || (spent[offer.outpoint] ? coin !== null : !coin || coin.confirmations < 1 || coin.scriptPubKey?.hex !== offer.inputScript || String(rpcAmountToSatoshis(coin.value)) !== offer.inputAtomic)) throw Error("Unresolved sponsor spend; scan incomplete");
   }
+  const byPool = pools();
   const operations = snapshot.operations.map((op) => {
-    const intent = intents.find((i) => i.operationId === op.operationId), events = pools.get(intent.pool).events;
+    const intent = intents.find((i) => i.operationId === op.operationId), events = byPool.get(intent.pool).events;
     const matching = events.filter((e) => e.operationId === op.operationId);
     if (matching.length > 1) throw Error("Duplicate confirmed private intent");
     const used = op.notes.map((n) => n.nf).filter((nf) => events.some((e) => e.nfs.includes(nf)));
@@ -1925,6 +2102,7 @@ async function scanC6SponsorChain({ rpc, snapshot, deployments, intents, signal,
   });
   check();
   if (await rpc("getbestblockhash") !== tipHash || await rpc("getblockhash", [height]) !== tipHash) throw Error("Chain changed during C6 scan; retry");
+  if (indexed && checkpoint) await checkpoint.save(checkpointPools(contexts, height)).catch(() => false);
   return { expectedRevision: snapshot.revision, genesis: snapshot.genesis, tip: { height, hash: tipHash }, confirmedSpends: spent, operations };
 }
 
@@ -2068,6 +2246,7 @@ export {
   prepareSponsorSweep,
   validateSponsorSignature,
   SponsorJournal,
+  C6SponsorScanCheckpoint,
   validateC6SponsorDeployment,
   c6SponsorIntent,
   scanC6SponsorChain,
@@ -2077,4 +2256,4 @@ export {
   c6ReadAssetTransfer,
   parseAssetAmount
 };
-//# sourceMappingURL=chunk-ZLQ2YTES.js.map
+//# sourceMappingURL=chunk-YYD6OW57.js.map

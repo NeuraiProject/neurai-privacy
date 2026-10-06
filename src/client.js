@@ -1,4 +1,5 @@
 /* Main-thread entry: public hashes only, no private data. Safe to load in any page. */
+export { createWalletServiceRpc } from './wallet-service-rpc.js';
 export { ATOMIC_PER_XNA, MAX_ATOMIC, rpcAmountToSatoshis, parseXna, formatXna } from './amounts.js';
 export { LEGACY_P2PKH, MIN_SPONSOR_CHANGE_ATOMIC, POOL_READ_RPC_METHODS, isPoolReadRpc, assertPoolChain, confirmedPoolCoins,
   selectPoolCoins, checkPoolCoin, withdrawalScript, recheckInputs, admitTransaction, inspectFundingTransaction,

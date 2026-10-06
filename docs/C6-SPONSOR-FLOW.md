@@ -13,7 +13,9 @@ XNA/asset kind, a confirmed baseline state UTXO, its exact script and 145-byte
 opening, and the byte-exact leaves with their witness argument names.
 
 The RPC must be a trusted **fully validating, archival node**, with transaction
-lookup and block/header/UTXO/mempool reads enabled. This is not SPV or proof of
+lookup and block/header/UTXO/mempool reads enabled. Enable its spent index
+(`-spentindex`, `getspentinfo`): without it the scanner falls back to reading
+every block since the pool baseline, which is slow on long-lived pools. This is not SPV or proof of
 consensus against a malicious RPC. The scanner authenticates observations against
 that node's active chain; it does not independently mine/validate block headers.
 
@@ -60,8 +62,9 @@ nullifiers correctly; the flow never receives private proving witnesses.
    `pending()` restores reviewable preparations after a reload. A sponsor
    scheduled for recovery cannot publish the private payment again.
 7. Call `tick({autoSweep:false})` for observation. An unchanged tip/journal
-   revision skips block replay. Another tab's revision or any tip change forces
-   reconstruction. There is no persisted trusted scan cache.
+   revision skips the scan. Another tab's revision or any tip change forces a
+   new observation, which may resume from the disposable scan checkpoint
+   described below; nothing trusted is cached.
 8. Opt in to `tick({autoSweep:true})` for recovery of residual sponsors after a
    private confirmation/conflict. This also retries a previously requested ALL
    sweep. It does **not** sweep a legitimate pending sponsor by elapsed time.
@@ -71,6 +74,42 @@ nullifiers correctly; the flow never receives private proving witnesses.
 All signing is injected as `sign({raw, offer, hashType, index})`, returning locally
 signed bytes without sending. C4/C5 callers retain their SIGHASH_ALL defaults.
 For sponsorship only input 2 gets `0x83`; for an ALL sweep input 0 gets `1`.
+
+## Scan cost and checkpoint
+
+`scanC6SponsorChain` (and every flow method that scans) keeps the cost of an
+observation proportional to what the journal tracks:
+
+- **Empty journal.** With no operations there is no sponsor exposure and no
+  private intent to resolve. The scan checks activation, genesis, the pinned
+  baselines and the tip, and reads no other blocks. A new wallet opens at once.
+- **Spent index (`strategy: 'auto'`, the default, or `'spent-index'`).** Each
+  pool's state outpoint is followed with `getspentinfo`, one lookup per state
+  transition, and each tracked sponsor outpoint is looked up once. Every
+  spender is confirmed with `getrawtransaction` and `getblockhash` at the
+  indexed height, every transition passes the same leaf, digest and
+  continuity checks as block replay, and the walk ends at a confirmed live
+  state UTXO whose script commits to the reached opening. A spend that is only
+  in the mempool is not a confirmed spend.
+- **Block replay (`strategy: 'blocks'`).** The original walk over every block
+  from the earliest baseline or sponsor funding to the tip. `'auto'` falls back
+  to it when the index cannot answer (error code `C6_INDEX_UNAVAILABLE`);
+  `'spent-index'` fails closed instead.
+
+`C6SponsorFlow` also keeps a **scan checkpoint** in its own store, under
+`neurai:c6:sponsor-scan:v1:<genesis>:<walletId>`, so wallets need no extra
+integration. After an indexed scan it saves, per pool, the confirmed prefix of
+the state walk that ends at least six blocks below the scanned tip: the block
+height and hash of its last transition, the state outpoint and opening reached,
+and the intent and nullifier events seen. It contains public chain data only.
+
+The checkpoint is never trusted as an observation. A prefix is resumed only if
+it matches a pinned deployment, is well formed and its block is still on the
+active chain; the walk must continue from its opening and end at the live state
+UTXO. Any mismatch, a damaged value or a reorganization below its height
+discards it and the pool is walked again from its baseline. Deleting the key
+only makes the next scan slower; it never changes the journal, budgets or
+reservations.
 
 ## Recovery and errors
 

@@ -250,3 +250,110 @@ test('RPC transport ambiguity during recovery never releases notes or broadcasts
  const result=await healthy.sweep(f.offer.outpoint);assert.equal(result.status,'mempool');
  assert.equal(f.signatures(),count);assert.deepEqual(f.sends,[stored]);
 });
+
+/* Spent-index strategy and the sponsor scan checkpoint. The wrapper models the
+ * node's -spentindex (confirmed and mempool spends) and live UTXOs over the
+ * synthetic chain; the plain fixture RPC has no index, as an unindexed node. */
+function indexed(f, counts = {}) {
+ const spentBy = key => {
+  for (const b of f.blocks) for (const t of b.tx) { const i = t.vin.findIndex(v => `${v.txid}:${v.vout}` === key); if (i >= 0) return {txid:t.txid,index:i,height:b.height}; }
+  for (const [id,raw] of f.mempool) { const i = readSponsorTransaction(raw).inputs.findIndex(v => `${v.txid}:${v.vout}` === key); if (i >= 0) return {txid:id,index:i,height:-1}; }
+  return null;
+ };
+ return async (method, params = []) => {
+  counts[method] = (counts[method] ?? 0) + 1;
+  if (method === 'getspentinfo') {
+   const found = spentBy(`${params[0].txid}:${params[0].index}`);
+   if (!found) throw Object.assign(Error('Unable to get spent info'), {code:-5});
+   return found;
+  }
+  if (method === 'gettxout') {
+   const found = spentBy(`${params[0]}:${params[1]}`);
+   if (found && found.height >= 0) return null;
+   for (const b of f.blocks) { const t = b.tx.find(x => x.txid === params[0]), out = t?.vout?.[params[1]]; if (out) return {confirmations:f.blocks.length-b.height,value:out.value,scriptPubKey:out.scriptPubKey}; }
+   return null;
+  }
+  return f.rpc(method, params);
+ };
+}
+const grow = (f, n) => { for (let i = 0; i < n; i++) f.blocks.push({hash:h(5000+f.blocks.length),previousblockhash:f.blocks.at(-1).hash,height:f.blocks.length,tx:[]}); };
+const observe = async (f, flow, rpc, strategy, extra = {}) => {
+ const snapshot = await flow.snapshot(), meta = JSON.parse((await flow.backup()).flow);
+ return scanC6SponsorChain({rpc, snapshot, deployments:[f.deployment], intents:meta.intents, strategy, ...extra});
+};
+
+test('an empty sponsor journal observes the tip without replaying blocks', async () => {
+ const f = fixture(); grow(f, 40); const counts = {};
+ const flow = new C6SponsorFlow({...f.options, rpc:indexed(f, counts)}); await flow.initialize({create:true});
+ const state = await flow.scan();
+ assert.equal(state.tip.height, f.blocks.length - 1);
+ assert.equal(counts.getblock, 1); // the pinned anchor only
+ assert.equal(counts.getspentinfo ?? 0, 0);
+});
+
+test('spent-index scan reads pool transitions, not blocks, and matches block replay', async () => {
+ const {f, flow} = await ready(); grow(f, 30); f.confirm(f.operation(1));
+ await flow.tick({autoSweep:true}); f.confirm(f.sends[0]); grow(f, 8);
+ const counts = {}, viaIndex = await observe(f, flow, indexed(f, counts), 'spent-index');
+ assert.deepEqual(viaIndex, await observe(f, flow, f.rpc, 'blocks'));
+ assert.equal(viaIndex.operations[0].txid, readSponsorTransaction(f.operation(1)).txid);
+ assert.equal(viaIndex.confirmedSpends[f.offer.outpoint], readSponsorTransaction(f.sends[0]).txid);
+ assert.ok(counts.getblock <= 2, `getblock calls: ${counts.getblock}`); // anchor and sponsor funding
+});
+
+test('a mempool spend is not a confirmed sponsor spend in either strategy', async () => {
+ const {f, flow} = await ready(); f.confirm(f.operation(1)); await flow.tick({autoSweep:true}); grow(f, 2);
+ assert.equal(f.mempool.size, 1);
+ const viaIndex = await observe(f, flow, indexed(f), 'spent-index');
+ assert.deepEqual(viaIndex, await observe(f, flow, f.rpc, 'blocks'));
+ assert.deepEqual(viaIndex.confirmedSpends, {});
+});
+
+test('without a spent index the scan falls back to block replay; forcing the index fails closed', async () => {
+ const {f, flow} = await ready(); f.confirm(f.operation(1));
+ await assert.rejects(observe(f, flow, f.rpc, 'spent-index'), e => e.code === 'C6_INDEX_UNAVAILABLE');
+ assert.deepEqual(await observe(f, flow, f.rpc, 'auto'), await observe(f, flow, f.rpc, 'blocks'));
+ await assert.rejects(observe(f, flow, f.rpc, 'fast'), /Unknown C6 sponsor scan strategy/);
+});
+
+test('the scan checkpoint resumes the pool walk and is replaced after a reorganization', async () => {
+ const f = fixture(); grow(f, 20); const counts = {}, rpc = indexed(f, counts);
+ const {flow} = await ready({...f, options:{...f.options, rpc}});
+ f.confirm(f.operation(1)); grow(f, 10);
+ await flow.scan();
+ const key = [...f.store.map.keys()].find(k => k.startsWith('neurai:c6:sponsor-scan:v1:'));
+ const saved = JSON.parse(f.store.map.get(key)), opHeight = f.blocks.findIndex(b => b.tx.some(t => t.txid === readSponsorTransaction(f.operation(1)).txid));
+ assert.equal(saved.pools[0].events.length, 1);
+ assert.equal(saved.pools[0].height, opHeight);
+ // A fresh process (no in-memory shortcut) resumes after the saved transition.
+ grow(f, 1); for (const k in counts) delete counts[k];
+ const second = new C6SponsorFlow({...f.options, rpc}); await second.initialize();
+ const resumed = await second.scan();
+ assert.equal(counts.getspentinfo, 2); // live state and the sponsor coin; the anchor is not walked again
+ assert.equal(resumed.operations[0].operationTxid, readSponsorTransaction(f.operation(1)).txid);
+ // Reorganize the checkpoint block: the saved prefix no longer verifies.
+ const old = f.blocks[opHeight].hash; f.blocks[opHeight].hash = h(9999); f.blocks[opHeight + 1].previousblockhash = h(9999);
+ grow(f, 1); for (const k in counts) delete counts[k];
+ const third = new C6SponsorFlow({...f.options, rpc}); await third.initialize();
+ await third.scan();
+ assert.equal(counts.getspentinfo, 3); // walked again from the anchor
+ assert.equal(JSON.parse(f.store.map.get(key)).pools[0].hash, h(9999));
+ assert.notEqual(old, h(9999));
+ assert.deepEqual(await observe(f, third, rpc, 'spent-index', {checkpoint:undefined}), await observe(f, third, f.rpc, 'blocks'));
+});
+
+test('a damaged or forged scan checkpoint is ignored, never trusted', async () => {
+ const f = fixture(); grow(f, 12); const rpc = indexed(f);
+ const {flow} = await ready({...f, options:{...f.options, rpc}});
+ f.confirm(f.operation(1)); grow(f, 8); await flow.scan();
+ const key = [...f.store.map.keys()].find(k => k.startsWith('neurai:c6:sponsor-scan:v1:'));
+ const valid = f.store.map.get(key), expected = await observe(f, flow, f.rpc, 'blocks');
+ for (const damage of ['{not json', JSON.stringify({type:'other', pools:[]}),
+  JSON.stringify({...JSON.parse(valid), pools:[{...JSON.parse(valid).pools[0], opening:'05'.repeat(145)}]}),
+  JSON.stringify({...JSON.parse(valid), pools:[{...JSON.parse(valid).pools[0], point:h(77)+':0', events:[{...JSON.parse(valid).pools[0].events[0], txid:h(77)}]}]})]) {
+  f.store.map.set(key, damage);
+  const reopened = new C6SponsorFlow({...f.options, rpc}); await reopened.initialize();
+  const state = await reopened.scan();
+  assert.equal(state.operations[0].operationTxid, expected.operations[0].txid);
+ }
+});

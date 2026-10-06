@@ -3,17 +3,20 @@
  * mandatory. Signing stays local. No timers, keys or wallet-specific UI here. */
 import { SponsorJournal } from './sponsor-journal.js';
 import { scanC6SponsorChain, c6SponsorIntent, validateC6SponsorDeployment } from './c6-sponsor-chain.js';
+import { C6SponsorScanCheckpoint } from './c6-sponsor-checkpoint.js';
 import { admitTransaction, assertPoolChain } from './pool-client.js';
 import { readSponsorTransaction, validateSponsorSignature, prepareSponsorSweep } from './sponsor-sweep.js';
 const clone = s => JSON.parse(JSON.stringify(s));
 const HASH = /^[0-9a-f]{64}$/;
 export class C6SponsorFlow {
-  #store; #key; #journal; #rpc; #deployments; #locks; #fee; #sign; #checkedRevision=null;
+  #store; #key; #journal; #rpc; #deployments; #locks; #fee; #sign; #checkpoint; #checkedRevision=null;
   constructor({store, genesis, walletId, budgetAtomic, rpc, deployments, locks=globalThis.navigator?.locks, sweepFeeAtomic, sign}) {
     if(!locks || typeof locks.request!=='function')throw Error('Cross-tab Web Locks are required for C6 sponsorship');
     if(typeof rpc!=='function' || typeof sign!=='function' || typeof sweepFeeAtomic!=='function')throw Error('C6 RPC, local signer and bounded sweep fee policy required');
     this.#store=store; this.#key=`neurai:c6:flow:${genesis}:${walletId}`;
     this.#journal=new SponsorJournal({store,genesis,walletId,budgetAtomic});
+    // Disposable scan progress in the same store; without it every scan walks from the pool anchors.
+    try { this.#checkpoint=new C6SponsorScanCheckpoint({store,genesis,walletId}); } catch { this.#checkpoint=null; }
     this.#rpc=rpc; this.#deployments=clone(deployments).map(validateC6SponsorDeployment); this.#locks=locks; this.#fee=sweepFeeAtomic; this.#sign=sign;
   }
   #exclusive(fn) { return this.#locks.request(this.#key,{mode:'exclusive'},fn); }
@@ -65,7 +68,7 @@ export class C6SponsorFlow {
     if(this.#checkedRevision===snapshot.revision && snapshot.tip && await this.#rpc('getbestblockhash')===snapshot.tip.hash){
       await assertPoolChain(this.#rpc,{genesis:snapshot.genesis});return snapshot;
     }
-    const observation=await scanC6SponsorChain({rpc:this.#rpc,snapshot,deployments:this.#deployments,intents:meta.intents,...options});
+    const observation=await scanC6SponsorChain({rpc:this.#rpc,snapshot,deployments:this.#deployments,intents:meta.intents,checkpoint:this.#checkpoint??undefined,...options});
     const result=await this.#journal.reconcile(observation);this.#checkedRevision=result.revision;return result;
   }
   scan(options={}) {return this.#exclusive(()=>this.#scan(options));}

@@ -9,6 +9,45 @@ user's device. Spending keys and proof inputs never leave the device. The
 node only receives read-only calls until the application publishes a
 transaction.
 
+## Optional wallet-service WSS transport
+
+The client entry exports `createWalletServiceRpc`. It adapts a negotiated
+`neurai-wallet-services` **wss/2** connection to the same native
+`rpc(method, params)` function used by pool scanning, admission and sponsor
+recovery. It does not implement a socket or replace the existing HTTP RPC.
+
+```js
+import { createWalletServiceRpc } from '@neuraiproject/neurai-privacy/client';
+
+const rpc = createWalletServiceRpc({
+  hello, // Result of hello negotiated on this connection with wss/2.
+  expectedGenesis: poolManifest.genesis, // Application-pinned chain identity.
+  expectedServiceId: 'neurai-testnet-wallet-service', // Optional deployment pin.
+  request: (method, params) => connection.requestEnvelope(method, params),
+});
+```
+
+`connection.requestEnvelope` is an application-supplied transport function,
+not an API provided here. It must correlate response IDs and resolve the
+complete `{id, result}` or `{id, error}` WSS envelope, including service
+errors. It must reject on timeout or disconnection and never silently resend
+a transaction. Recreate the adapter after reconnecting and negotiating hello.
+
+Read queries use `rpc.call` with native units and exact numeric strings.
+Publication maps the **one-argument** `sendrawtransaction(raw)` call to
+`tx.broadcast`, returning the txid string. Extra broadcast arguments are
+unsupported and rejected before sending. The original negative `node_code`
+becomes `Error.code`; a transport rejection, malformed reply or upstream
+failure is never classified as a missing transaction (`-5`). An uncertain
+publication carries `uncertain: true` and is not retried automatically.
+
+Use a service that advertises `getblock`, `getbestblockhash`, `getspentinfo`,
+`getrawmempool` and `decoderawtransaction`. The adapter refuses unavailable
+and node-wallet methods locally and preserves native null/script/witness
+responses. It never uses `address.get_state` as an alternative RPC schema.
+The pool still checks the pinned instance and consensus activation; the
+handshake does not prove that the service's node supports C6.
+
 ## What it does
 
 - **Private wallet from the wallet words.** It derives a private wallet from

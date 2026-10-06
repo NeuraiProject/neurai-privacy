@@ -1,11 +1,13 @@
 /* C6 TEST observation from a trusted, fully validating RPC node. This is not
  * SPV: the RPC is the chain authority. Deployment anchors/leaves come from the
  * application, never from the RPC. Rebuild on every changed tip (including
- * reorgs); an incomplete scan never releases a reservation. */
+ * reorgs), resuming only from a checkpoint that still verifies on the active
+ * chain; an incomplete scan never releases a reservation. */
 import { sha256 } from '@noble/hashes/sha2.js';
 import { poseidonBytes } from './poseidon.js';
 import { rpcAmountToSatoshis } from './amounts.js';
 import { readSponsorTransaction } from './sponsor-sweep.js';
+import { CHECKPOINT_DEPTH } from './c6-sponsor-checkpoint.js';
 const hex = b => Array.from(b, n => n.toString(16).padStart(2, '0')).join('');
 const unhex = s => Uint8Array.from(s.match(/../g) ?? [], n => parseInt(n, 16));
 const hash = s => hex(sha256(new TextEncoder().encode(s)));
@@ -60,15 +62,141 @@ export function c6SponsorIntent(raw, deployment) {
   if (tx.locktime || tx.refs.length || tx.inputs.some(i => i.sequence !== 0xffffffff)) throw Error('C6 transaction fixed fields changed');
   return { operationId: parsed.operationId, pool: d.commitment, nullifiers: parsed.nfs };
 }
-export async function scanC6SponsorChain({ rpc, snapshot, deployments, intents, signal, onProgress }) {
+const unavailable = what => Object.assign(Error(`C6 sponsor scan: spent index unavailable for ${what}; use block replay`), { code: 'C6_INDEX_UNAVAILABLE' });
+const liveStateScript = c => c.d.anchor.script.slice(0, -66) + hex(poseidonBytes(unhex(c.opening))) + '75';
+const freshContexts = deployments => deployments.map(d => ({ d, point: d.anchor.outpoint, opening: d.anchor.opening, events: [] }));
+
+/** Validate one pool state transition and advance the context past it. */
+function applyTransition(c, txid, raw, height, blockHash) {
+  const parsedTx = readSponsorTransaction(raw), parsed = describe(parsedTx, c.d);
+  if (parsedTx.txid !== txid || point(parsedTx.inputs[0]) !== c.point || parsed.old !== c.opening || stateTemplate(parsedTx.outputs[0]?.script) !== stateTemplate(c.d.anchor.script) ||
+      hex(poseidonBytes(unhex(parsed.next))) !== parsedTx.outputs[0].script.slice(-66,-2)) throw Error('C6 state chain discontinuity');
+  c.events.push({ txid, operationId: parsed.operationId, nfs: parsed.nfs, height, blockHash, next: parsed.next });
+  c.point = txid + ':0'; c.opening = parsed.next;
+}
+
+/** Original strategy: read every block from the first relevant height to the captured tip. */
+async function replayBlocks({ rpc, contexts, tracked, spent, first, height, check, onProgress }) {
+  let previous = first > 0 ? await rpc('getblockhash',[first-1]) : null;
+  for (let h=first;h<=height;h++) {
+    check(); const id=await rpc('getblockhash',[h]), block=await rpc('getblock',[id,2]);
+    if (block.hash !== id || block.height !== h || (h>0 && block.previousblockhash !== previous) || !Array.isArray(block.tx)) throw Error('Incomplete active-chain block scan');
+    for (const tx of block.tx) {
+      for (const i of tx.vin ?? []) if (tracked.has(point(i))) { if(spent[point(i)]) throw Error('Duplicate confirmed sponsor spend'); spent[point(i)] = tx.txid; }
+      for (const c of contexts) {
+        if (h <= c.d.anchor.height || !tx.vin?.some(i=>point(i)===c.point)) continue;
+        if (point(tx.vin[0]) !== c.point) throw Error('Pool state spent outside input zero');
+        applyTransition(c, tx.txid, await rpc('getrawtransaction',[tx.txid,false]), h, id);
+      }
+    }
+    previous=id; onProgress?.({height:h,target:height});
+  }
+}
+
+/** Spent-index lookup of an outpoint: the confirmed spender at or below `height`, null when unspent there. */
+async function indexedSpender({ rpc, outpoint, height, check, what }) {
+  const [txid, vout] = outpoint.split(':');
+  let info = null, failed = false;
+  try { info = await rpc('getspentinfo',[{txid, index:Number(vout)}]); } catch { check(); failed = true; }
+  if (failed || info === null || info?.height === -1) {
+    // Unspent outputs and a disabled index both fail the lookup; only a live
+    // confirmed output proves the former. A mempool spend is not confirmed.
+    let coin;
+    try { coin = await rpc('gettxout',[txid, Number(vout), false]); } catch { check(); throw unavailable(what); }
+    if (!coin) throw unavailable(what);
+    return { coin };
+  }
+  if (!info || !Number.isSafeInteger(info.height) || info.height < 0 || !HASH.test(info.txid) || !Number.isSafeInteger(info.index)) throw Error('Invalid C6 spent index entry');
+  if (info.height > height) {
+    if (info.height > await rpc('getblockcount')) throw Error('C6 spent index height exceeds the active tip');
+    return { later: true };
+  }
+  const blockHash = await rpc('getblockhash',[info.height]), tx = await rpc('getrawtransaction',[info.txid,true]);
+  if (tx?.txid !== info.txid || tx.blockhash !== blockHash || !(tx.confirmations > 0) || point(tx.vin?.[info.index] ?? {}) !== outpoint) throw Error('C6 spent index disagrees with the confirmed transaction');
+  return { txid: info.txid, height: info.height, blockHash };
+}
+
+/** Follow one pool's state outpoints through the spent index up to the captured tip. */
+async function followState({ rpc, c, height, check, onProgress }) {
+  for (;;) {
+    check();
+    const step = await indexedSpender({ rpc, outpoint: c.point, height, check, what: 'the pool state' });
+    if (step.coin) {
+      if (!Number.isSafeInteger(step.coin.confirmations) || step.coin.confirmations < 1 || step.coin.scriptPubKey?.hex !== liveStateScript(c)) throw Error('C6 indexed live state mismatch');
+      return;
+    }
+    if (step.later) return;
+    const last = c.events.at(-1)?.height ?? c.d.anchor.height;
+    if (step.height < last) throw Error('C6 spent index goes back in the state chain');
+    applyTransition(c, step.txid, await rpc('getrawtransaction',[step.txid,false]), step.height, step.blockHash);
+    onProgress?.({ height: step.height, target: height });
+  }
+}
+
+/**
+ * Spent-index strategy: one lookup per pool state transition and per tracked
+ * sponsor outpoint, instead of one per block since the pool anchor. A saved
+ * checkpoint lets the walk resume where the last scan left its confirmed
+ * prefix; if that prefix no longer verifies the pool is walked from its anchor.
+ */
+async function walkIndexed({ rpc, contexts, offers, spent, height, check, onProgress, checkpoint }) {
+  const saved = checkpoint ? await checkpoint.load(contexts.map(c => c.d)) : new Map();
+  for (const c of contexts) {
+    const cp = saved.get(c.d.commitment);
+    if (cp && cp.height <= height && await rpc('getblockhash',[cp.height]) === cp.hash) {
+      c.point = cp.point; c.opening = cp.opening;
+      c.events = cp.events.map(e => ({ txid: e.txid, operationId: e.operationId, nfs: [...e.nfs], height: e.height }));
+      Object.assign(c.events.at(-1), { blockHash: cp.hash, next: cp.opening });
+      try { await followState({ rpc, c, height, check, onProgress }); continue; }
+      catch {
+        // The saved prefix did not verify: walk this pool again from its anchor.
+        check();
+        Object.assign(c, freshContexts([c.d])[0]);
+      }
+    }
+    await followState({ rpc, c, height, check, onProgress });
+  }
+  for (const offer of offers) {
+    check();
+    const step = await indexedSpender({ rpc, outpoint: offer.outpoint, height, check, what: 'a sponsor coin' });
+    if (step.txid) spent[offer.outpoint] = step.txid;
+  }
+}
+
+/** The confirmed prefix of each pool walk that is deep enough to keep. */
+function checkpointPools(contexts, height) {
+  const pools = [];
+  for (const c of contexts) {
+    let end = -1;
+    for (let i = 0; i < c.events.length; i++) if (c.events[i].height <= height - CHECKPOINT_DEPTH) end = i;
+    if (end < 0 || !c.events[end].blockHash || !c.events[end].next) continue;
+    const last = c.events[end];
+    pools.push({ commitment: c.d.commitment, anchor: c.d.anchor.outpoint, height: last.height, hash: last.blockHash, point: last.txid + ':0', opening: last.next,
+      events: c.events.slice(0, end + 1).map(e => ({ txid: e.txid, operationId: e.operationId, nfs: e.nfs, height: e.height })) });
+  }
+  return pools;
+}
+
+/**
+ * Observe the sponsor journal's operations on the active chain.
+ *
+ * `strategy`: `auto` (default) uses the node's spent index and falls back to
+ * block replay when the index is unavailable; `spent-index` and `blocks` force
+ * one. `checkpoint` (see C6SponsorScanCheckpoint) persists the indexed pool
+ * walk between scans. A journal without operations tracks nothing, so only the
+ * chain identity, the pinned anchors and the tip are checked.
+ */
+export async function scanC6SponsorChain({ rpc, snapshot, deployments, intents, signal, onProgress, strategy = 'auto', checkpoint }) {
   const check = () => { if (signal?.aborted) throw Error('C6 scan cancelled'); };
+  if (!['auto','blocks','spent-index'].includes(strategy)) throw Error('Unknown C6 sponsor scan strategy');
   check();
   const activation=await rpc('getblockchaininfo');
   if(activation?.zk_portable_tree?.active_for_next_block!==true)throw Error('C6 portable public-tree verification is not active');
   if (await rpc('getblockhash',[0]) !== snapshot.genesis) throw Error('Sponsor scanner chain mismatch');
   const height = await rpc('getblockcount'), tipHash = await rpc('getblockhash',[height]);
   if (!Number.isSafeInteger(height) || height < 0 || !HASH.test(tipHash)) throw Error('Invalid chain tip');
-  const contexts = deployments.map(d => ({ d:validateC6SponsorDeployment(d), point:d.anchor.outpoint, opening:d.anchor.opening, events:[] }));
+  const pinned = deployments.map(validateC6SponsorDeployment);
+  let contexts = freshContexts(pinned);
   if (new Set(contexts.map(c => c.d.commitment)).size !== contexts.length || contexts.some(c => c.d.genesis !== snapshot.genesis)) throw Error('Ambiguous C6 pool deployments');
   let first = height;
   for (const c of contexts) {
@@ -80,10 +208,11 @@ export async function scanC6SponsorChain({ rpc, snapshot, deployments, intents, 
     first = Math.min(first, c.d.anchor.height + 1);
   }
   const offers = snapshot.operations.flatMap(o => o.sponsors.map(s => s.offer));
-  const created = new Set(), spent = {}, pools = new Map(contexts.map(c => [c.d.commitment,c]));
+  const created = new Set(), pools = () => new Map(contexts.map(c => [c.d.commitment,c]));
+  let spent = {};
   for (const op of snapshot.operations) {
     const intent = intents.find(i => i.operationId === op.operationId);
-    if (!intent || !pools.has(intent.pool) || JSON.stringify([...intent.nullifiers].sort()) !== JSON.stringify(op.notes.map(n => n.nf).sort())) throw Error('Missing or inconsistent C6 intent metadata');
+    if (!intent || !pools().has(intent.pool) || JSON.stringify([...intent.nullifiers].sort()) !== JSON.stringify(op.notes.map(n => n.nf).sort())) throw Error('Missing or inconsistent C6 intent metadata');
   }
   // Every historical sponsor is rooted in an actual active-chain funding tx.
   for (const offer of offers) {
@@ -96,36 +225,36 @@ export async function scanC6SponsorChain({ rpc, snapshot, deployments, intents, 
     created.add(offer.outpoint); first = Math.min(first,header.height);
   }
   const tracked = new Set(offers.map(o => o.outpoint));
-  let previous = first > 0 ? await rpc('getblockhash',[first-1]) : null;
-  for (let h=first;h<=height;h++) {
-    check(); const id=await rpc('getblockhash',[h]), block=await rpc('getblock',[id,2]);
-    if (block.hash !== id || block.height !== h || (h>0 && block.previousblockhash !== previous) || !Array.isArray(block.tx)) throw Error('Incomplete active-chain block scan');
-    for (const tx of block.tx) {
-      for (const i of tx.vin ?? []) if (tracked.has(point(i))) { if(spent[point(i)]) throw Error('Duplicate confirmed sponsor spend'); spent[point(i)] = tx.txid; }
-      for (const c of contexts) {
-        if (h <= c.d.anchor.height || !tx.vin?.some(i=>point(i)===c.point)) continue;
-        if (point(tx.vin[0]) !== c.point) throw Error('Pool state spent outside input zero');
-        const raw = await rpc('getrawtransaction',[tx.txid,false]);
-        const parsedTx = readSponsorTransaction(raw), parsed = describe(parsedTx,c.d);
-        if (parsedTx.txid !== tx.txid || point(parsedTx.inputs[0]) !== c.point || parsed.old !== c.opening || stateTemplate(parsedTx.outputs[0]?.script) !== stateTemplate(c.d.anchor.script) ||
-            hex(poseidonBytes(unhex(parsed.next))) !== parsedTx.outputs[0].script.slice(-66,-2)) throw Error('C6 state chain discontinuity');
-        c.events.push({ txid:tx.txid, ...parsed }); c.point=tx.txid+':0'; c.opening=parsed.next;
-      }
+  let indexed = false;
+  if (!snapshot.operations.length) {
+    // No sponsor exposure and no private intent: there is nothing to observe.
+    onProgress?.({ height, target: height });
+  } else if (strategy === 'blocks') {
+    await replayBlocks({ rpc, contexts, tracked, spent, first, height, check, onProgress });
+  } else {
+    try {
+      await walkIndexed({ rpc, contexts, offers, spent, height, check, onProgress, checkpoint });
+      indexed = true;
+    } catch (e) {
+      if (e.code !== 'C6_INDEX_UNAVAILABLE' || strategy === 'spent-index' || signal?.aborted) throw e;
+      contexts = freshContexts(pinned); spent = {};
+      await replayBlocks({ rpc, contexts, tracked, spent, first, height, check, onProgress });
     }
-    previous=id; onProgress?.({height:h,target:height});
   }
   for (const offer of offers) {
     check(); const [id,vout]=offer.outpoint.split(':'), coin=await rpc('gettxout',[id,Number(vout),false]);
     if (!created.has(offer.outpoint) || (spent[offer.outpoint] ? coin !== null : !coin || coin.confirmations<1 || coin.scriptPubKey?.hex !== offer.inputScript || String(rpcAmountToSatoshis(coin.value))!==offer.inputAtomic)) throw Error('Unresolved sponsor spend; scan incomplete');
   }
+  const byPool = pools();
   const operations=snapshot.operations.map(op=>{
-    const intent=intents.find(i=>i.operationId===op.operationId), events=pools.get(intent.pool).events;
+    const intent=intents.find(i=>i.operationId===op.operationId), events=byPool.get(intent.pool).events;
     const matching=events.filter(e=>e.operationId===op.operationId);
     if(matching.length>1)throw Error('Duplicate confirmed private intent');
     const used=op.notes.map(n=>n.nf).filter(nf=>events.some(e=>e.nfs.includes(nf)));
     return {operationId:op.operationId,txid:matching[0]?.txid??null,spentNullifiers:used};
   });
   check(); if(await rpc('getbestblockhash')!==tipHash || await rpc('getblockhash',[height])!==tipHash)throw Error('Chain changed during C6 scan; retry');
+  // The cache is disposable: failing to store it never fails a verified scan.
+  if (indexed && checkpoint) await checkpoint.save(checkpointPools(contexts, height)).catch(() => false);
   return {expectedRevision:snapshot.revision,genesis:snapshot.genesis,tip:{height,hash:tipHash},confirmedSpends:spent,operations};
 }
-

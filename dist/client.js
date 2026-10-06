@@ -4,10 +4,11 @@ import {
   IndexedDbSponsorStore,
   PoolWorkerClient,
   ROTATION_MAX_GAP,
+  createWalletServiceRpc,
   loadRotation,
   rotationStorageKey,
   saveRotation
-} from "./chunks/chunk-YFKKRVWT.js";
+} from "./chunks/chunk-JEFMDGXJ.js";
 import {
   ATOMIC_PER_XNA,
   C4_TESTNET_ARTIFACTS,
@@ -42,7 +43,7 @@ import {
   validateC6SponsorDeployment,
   validateSponsorSignature,
   withdrawalScript
-} from "./chunks/chunk-ZLQ2YTES.js";
+} from "./chunks/chunk-YYD6OW57.js";
 export {
   ATOMIC_PER_XNA,
   C4_TESTNET_ARTIFACTS,
@@ -67,6 +68,7 @@ export {
   c6SponsorIntent,
   checkPoolCoin,
   confirmedPoolCoins,
+  createWalletServiceRpc,
   formatXna,
   inspectFundingTransaction,
   isPoolReadRpc,

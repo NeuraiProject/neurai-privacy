@@ -51,7 +51,7 @@ import {
   u32,
   u8,
   validateC6SponsorDeployment
-} from "./chunk-ZLQ2YTES.js";
+} from "./chunk-YYD6OW57.js";
 
 // src/c4-publication.js
 var utf8 = (value) => new TextEncoder().encode(value);
@@ -10819,4 +10819,4 @@ export {
 @scure/bip39/index.js:
   (*! scure-bip39 - MIT License (c) 2022 Patricio Palladino, Paul Miller (paulmillr.com) *)
 */
-//# sourceMappingURL=chunk-RSKNY33E.js.map
+//# sourceMappingURL=chunk-XFMFT6IL.js.map
