@@ -6,7 +6,7 @@ export { encodeNote, decodeNote, deriveOwner, deriveNullifierKey, noteCommitment
 export { sealVault, openVault } from './index.cjs';
 export { deriveViewPublic, sealNote, openNoteRecord } from './index.cjs';
 export { BrowserTestIdentity } from './index.cjs';
-export { NZK_DERIVATION, NZK_FAMILIES, NZK_ARGON2ID, NZK_HRP, NZK_DEFAULT_GAP, NZK_MAX_GAP, walletSeedFromMnemonic, deriveZkRoot, zkFingerprint, deriveZkAddressKeys, nzkInstanceTag, encodeNzkAddress, decodeNzkAddress, parseRecipient, bech32mEncode, bech32mDecode, ZkWalletIdentity } from './index.cjs';
+export { NZK_DERIVATION, NZK_FAMILIES, NZK_ARGON2ID, NZK_HRP, NZK_DEFAULT_GAP, NZK_MAX_GAP, walletSeedFromMnemonic, deriveZkRoot, zkFingerprint, deriveZkAddressKeys, nzkInstanceTag, encodeNzkAddress, decodeNzkAddress, parseRecipient, bech32mEncode, bech32mDecode, ZkWalletIdentity, C7_PROFILE, C7_DERIVATION, C7_RECORD_BYTES, C7Error, C7Account, c7XnaAssetId, c7PoolDomain, c7Context, c7InstanceTag, isC7Descriptor, encodeC7Address, decodeC7Address, sealC7Note, C7WalletIdentity } from './index.cjs';
 export type { NzkFamily, NzkNetwork, NzkAddressRef, NzkPoolScope, ZkWalletOptions } from './index.cjs';
 
 export interface BrowserPoolScan {
@@ -43,7 +43,7 @@ export declare function scanBrowserPool(options: {
   /** Independently pinned contract commitment that the manifest must match. */
   expectedCommitment: string;
   expectedGenesis?: string;
-  identity?: import('./index.cjs').BrowserTestIdentity | import('./index.cjs').ZkWalletIdentity;
+  identity?: import('./index.cjs').BrowserTestIdentity | import('./index.cjs').ZkWalletIdentity | import('./index.cjs').C7WalletIdentity;
   stopHeight?: number;
   onProgress?: (position:{height:number;total:number})=>void;
   /** 'spent-index' (default) needs -spentindex and -txindex; 'blocks' replays every block. */

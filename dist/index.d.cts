@@ -4,7 +4,10 @@ export interface RecipientDescriptor {
   domain: string;
   asset_id: string;
   owner: string;
+  /** X25519 view key (C4 to C6) or pk_d (C7). */
   view_pub: string;
+  /** C7 (nzk v3) only: 11-byte diversifier. */
+  d?: string;
 }
 
 export interface WalletNote {
@@ -391,9 +394,63 @@ export interface C6PoolScan {
   reserveAtomic:string;reserveScript:string|null;reservePoint:string|null;
   nullifiers:string[];root:Uint8Array|null;balanceAtomic:string;spendableAtomic:string;ignoredRecords:number;
 }
+/** C7 (NeuraiZK/v3): one viewing key per account, diversified nzk v3 addresses
+ * and 230-byte note records with a view tag, over ristretto255. TEST only. */
+export declare const C7_PROFILE: 'C7-XNA-TEST-v1';
+export declare const C7_DERIVATION: 'NeuraiZK/v3';
+export declare const C7_RECORD_BYTES: 230;
+export declare class C7Error extends Error { readonly reason: string }
+export declare function c7XnaAssetId(): Uint8Array;
+export declare function c7PoolDomain(birth: { genesis: string; emission: string; identity: string }): Uint8Array;
+export declare function c7Context(domain: string | Uint8Array, assetId: string | Uint8Array): Uint8Array;
+export declare function c7InstanceTag(domain: string | Uint8Array, assetId: string | Uint8Array): Uint8Array;
+export declare function isC7Descriptor(value: unknown): value is RecipientDescriptor & { d: string };
+export declare function encodeC7Address(descriptor: RecipientDescriptor, network: NzkNetwork): string;
+export declare function decodeC7Address(address: string, scope: NzkPoolScope): RecipientDescriptor & { d: string };
+export declare function sealC7Note(options: { descriptor: RecipientDescriptor; amountAtomic: bigint | string; rho?: Uint8Array }): { note: Uint8Array; cm: Uint8Array; record: Uint8Array };
+export declare class C7Account {
+  constructor(root: Uint8Array, options: { family: NzkFamily; account?: number; domain: string | Uint8Array; assetId: string | Uint8Array });
+  descriptor(chain: 0 | 1, index: number): RecipientDescriptor & { d: string };
+  scan(record: Uint8Array, cm: Uint8Array, options?: { full?: boolean; checkTag?: boolean }): { status: 'received' | 'owned'; ownership: 'unverified' | 'verified'; chain: 0 | 1; index: number; amountAtomic: bigint; note: Uint8Array; d: Uint8Array; cm: Uint8Array; nf?: Uint8Array };
+  lock(): void;
+}
+export declare class C7WalletIdentity {
+  static fromMnemonic(options: ZkWalletOptions & { mnemonic: string; passphrase?: string; zkPassphrase?: string }): Promise<C7WalletIdentity>;
+  static fromSeed(options: ZkWalletOptions & { seed: Uint8Array; zkPassphrase?: string }): Promise<C7WalletIdentity>;
+  static fromRoot(options: ZkWalletOptions & { root: Uint8Array }): C7WalletIdentity;
+  readonly generation: 'c7';
+  readonly derivation: 'NeuraiZK/v3';
+  readonly family: NzkFamily;
+  readonly storageId: string;
+  readonly fingerprint: string;
+  readonly account: number;
+  readonly network: NzkNetwork;
+  readonly gap: number;
+  readonly issued: number;
+  readonly maxUsed: number;
+  readonly usedIndexes: number[];
+  setGap(gap?: number): void;
+  setIssued(index: number): void;
+  descriptorAt(chain: 0 | 1, index: number): RecipientDescriptor & { d: string };
+  addressAt(chain: 0 | 1, index: number): string;
+  currentIndex(): number;
+  recipient(): RecipientDescriptor & { d: string };
+  selfRecipient(): RecipientDescriptor & { d: string };
+  issueNext(options?: { force?: boolean }): number;
+  scanRecords(entries: Array<{ record: Uint8Array; cm: Uint8Array }>, knownAddresses?: NzkAddressRef[]): Array<{ position: number; owned: { note: Uint8Array; cm: Uint8Array; amountAtomic: bigint; nf: Uint8Array; address: NzkAddressRef }; address: NzkAddressRef }>;
+  openRecord(record: Uint8Array, commitment: Uint8Array): { note: Uint8Array; cm: Uint8Array; amountAtomic: bigint; nf: Uint8Array; address: NzkAddressRef } | null;
+  prepareC6Deposit(wallet:C6OperationWallet,options:Omit<C6DepositRequest,'domain'|'assetId'|'recipient'> & {recipient?:RecipientDescriptor}):C6OperationPrepared;
+  prepareC6Transfer(wallet:C6OperationWallet,options:Omit<C6TransferRequest,'domain'|'assetId'|'spent'|'root'> & {consumed:C6RecoveredNote}):C6OperationPrepared;
+  prepareC6Withdrawal(wallet:C6OperationWallet,options:Omit<C6WithdrawalRequest,'domain'|'assetId'|'spent'|'root'> & {consumed:C6RecoveredNote}):C6OperationPrepared;
+  backupJson(): null;
+  checkpointStoreId(): string;
+  sealCheckpoint(checkpoint: import('./browser.cjs').PoolScanCheckpoint): string;
+  openCheckpoint(encoded: string): import('./browser.cjs').PoolScanCheckpoint;
+  lock(): void;
+}
 /** Fully validating trusted RPC is required; this scanner does not implement SPV. */
 export declare function scanC6Pool(options:{strategy?:'auto'|'blocks'|'spent-index';rpc:(method:string,params?:unknown[])=>Promise<any>;
-  deployment:import('./client.cjs').C6SponsorDeployment;identity:BrowserTestIdentity|ZkWalletIdentity;
+  deployment:import('./client.cjs').C6SponsorDeployment;identity:BrowserTestIdentity|ZkWalletIdentity|C7WalletIdentity;
   reserved?:Array<{cm:string;nf:string}>;signal?:AbortSignal;
   /** Disposable encrypted scan prefix; separate from the operation journal. */
   checkpointStore?:{read:(key:string)=>Promise<string|null>;compareAndSwap:(key:string,expected:string|null,replacement:string)=>Promise<boolean>};
