@@ -14,7 +14,7 @@ import {
   startC6PoolWorker,
   startPoolWorker,
   summarizeScan
-} from "./chunks/chunk-6PIMC3TX.js";
+} from "./chunks/chunk-BDEOV3DK.js";
 import "./chunks/chunk-YYD6OW57.js";
 export {
   MAX_ARTIFACT_BYTES,

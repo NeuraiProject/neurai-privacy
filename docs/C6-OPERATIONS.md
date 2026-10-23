@@ -78,13 +78,29 @@ state prevouts, pinned MAST leaves/control paths, openings, publications,
 note-tree roots, historical roots and counters. Groth16 and complete indexed
 nullifier-tree transition validity come from the validating node.
 
-By default, `scanC6Pool` follows confirmed state spends with `getspentinfo`,
-reads only blocks containing pool transitions, and confirms the final live state
-(and reserve) with `gettxout(..., false)`. The RPC needs a synchronized spent
-index and historical transactions (`getrawtransaction`, normally `txindex`).
-Unavailable indexes fall back to checked block replay; contradictory index
-entries fail closed. Direct callers can request `strategy: 'blocks'` or
-`strategy: 'spent-index'` for comparison or diagnostics.
+By default (`strategy: 'auto'`), `scanC6Pool` reads the confirmed state thread
+in pages with the node's `getprivacypoolupdates`: one call returns up to
+`historyPageLimit` pool transactions (default 20, about 15–25 kB raw each) with
+their heights and blocks, instead of `getspentinfo`, `getblockhash`, `getblock`
+and `getrawtransaction` for every pool operation. The scanner builds the cursor
+itself from the pinned birth (`pool_id` is the node's transport id of the birth
+outpoint), pins the page snapshot to the tip it captured,
+and resumes from its encrypted snapshot with a cursor at the saved state. Every
+returned transaction goes through the same checks as before (txid, input 0,
+pinned leaves, openings, publications, roots); the node only saves round trips.
+The end of the thread is confirmed independently with `gettxout(..., false)`,
+or with `getspentinfo` when the state was spent after the captured tip.
+
+When the node or the wallet service cannot serve `getprivacypoolupdates` (older
+node, no `-spentindex`/`-txindex`, method not allowed), the same pass continues
+with the spent-index walk: it follows confirmed state spends with
+`getspentinfo`, reads only blocks containing pool transitions, and confirms the
+final live state (and reserve) with `gettxout(..., false)`. That walk needs a
+synchronized spent index and historical transactions (`getrawtransaction`,
+normally `txindex`). Unavailable indexes fall back to checked block replay;
+contradictory index or history entries fail closed. Direct callers can request
+`strategy: 'pool-history'`, `'spent-index'` or `'blocks'` for comparison or
+diagnostics.
 
 The result is a coherent snapshot at `tip.height`. Ordinary chain growth does
 not invalidate it. A changed scanned prefix or reorganized birth still produces

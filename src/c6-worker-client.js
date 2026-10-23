@@ -25,7 +25,7 @@ export class C6WorkerClient {
       let result,error;
       try{
         if(data.type==='rpc'){
-          if(!['getblockchaininfo','getblockhash','getblockcount','getbestblockhash','getblock','getrawtransaction','gettxout','getspentinfo'].includes(data.method))throw Error('C6 worker RPC must be read-only');
+          if(!['getblockchaininfo','getblockhash','getblockcount','getbestblockhash','getblock','getrawtransaction','gettxout','getspentinfo','getprivacypoolupdates'].includes(data.method))throw Error('C6 worker RPC must be read-only');
           result=await this.#rpc(data.method,data.params);
           if(result===undefined)throw Error('C6 RPC returned no result: '+data.method);
           if(result?.error)throw Error(errorText(result.error));

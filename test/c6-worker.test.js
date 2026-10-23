@@ -26,7 +26,8 @@ function make(extra={}){
  const scope={navigator:{},postMessage:m=>{
   messages.push(structuredClone(m));
   if(m.type==='rpc')queueMicrotask(()=>{
-   if(m.method==='getspentinfo'||m.method==='gettxout'){void scope.onmessage?.({data:{type:'rpc-result',id:m.id,error:'Index unavailable in synthetic RPC'}});return;}
+   // A node without indexes: no spent index and no pool history pages.
+   if(m.method==='getspentinfo'||m.method==='gettxout'||m.method==='getprivacypoolupdates'){void scope.onmessage?.({data:{type:'rpc-result',id:m.id,error:'Index unavailable in synthetic RPC'}});return;}
    let result;if(m.method==='getblockcount')result=height;else if(m.method==='getbestblockhash')result=replies['getblockhash\0'+JSON.stringify([height])];else result=replies[m.method+'\0'+JSON.stringify(m.params)];
    assert.notEqual(result,undefined);void scope.onmessage?.({data:{type:'rpc-result',id:m.id,result:structuredClone(result)}});
   });

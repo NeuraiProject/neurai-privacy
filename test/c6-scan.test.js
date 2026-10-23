@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import test from 'node:test';
 import * as sdk from '../src/browser.js';
+import {c6PoolTransportId} from '../src/c6-scan.js';
 const fixture=JSON.parse(await fs.readFile(new URL('./fixtures/c6-operations-chain.json',import.meta.url)));
 const {replies,deployment}=fixture;
 const chain={operations:fixture.operations};
@@ -234,4 +235,114 @@ await check('extending the receiving gap revisits older records without replayin
   const next=indexedRpc(top),result=await scan('Alice',top,{checkpointStore:store,rpc:next.call});
   assert.ok(calls.some(n=>n===result.records.length));assert.equal(next.counts.getrawtransaction,result.events.length-scans.Alice.events.length);
  }finally{for(const key of ['gap','issued','maxUsed','scanRecords'])delete id[key];}
+});
+
+// Model the node's privacy-pool transport (getprivacypoolupdates) over the same
+// confirmed blocks: cursors, a snapshot pinned by the cursor, and pages.
+const hashAt=h=>replies['getblockhash\u0000'+JSON.stringify([h])];
+function historyRpc(target=top,{mutate,fail,chainTarget=target}={}){
+ const index=indexedRpc(chainTarget),cursors=[];
+ const blocks=Object.values(replies).filter(b=>b?.hash&&Number.isSafeInteger(b.height)&&Array.isArray(b.tx)).sort((a,b)=>a.height-b.height);
+ const poolId=c6PoolTransportId(deployment.genesis,deployment.anchor.outpoint);
+ const call=async(method,params=[])=>{
+  if(method!=='getprivacypoolupdates')return index.call(method,params);
+  index.counts[method]=(index.counts[method]??0)+1;
+  if(fail?.(index.counts[method]))throw Error('Method not found');
+  const [pool,cursor,limit=100]=params;cursors.push(structuredClone(cursor));
+  assert.equal(pool.txid+':'+pool.vout,deployment.anchor.outpoint);
+  let snapshot=target,position={txid:pool.txid,vout:pool.vout},sequence=0,script=deployment.anchor.script;
+  if(cursor){
+   assert.equal(cursor.pool_id,poolId);
+   if(hashAt(cursor.snapshot.height)!==cursor.snapshot.hash)throw Error('Cursor snapshot reorganized');
+   if(!cursor.complete)snapshot=cursor.snapshot.height;
+   position=cursor.position;sequence=cursor.sequence;
+   const created=blocks.find(b=>b.tx.some(t=>t.txid===position.txid));
+   assert.deepEqual(cursor.anchor,{height:created.height,hash:created.hash});
+   script=created.tx.find(t=>t.txid===position.txid).vout[position.vout].scriptPubKey.hex;
+  }
+  const updates=[];let complete=false;
+  for(;;){
+   let hit;for(const block of blocks.filter(b=>b.height<=snapshot))for(const tx of block.tx)if(tx.vin.some(i=>i.txid===position.txid&&i.vout===position.vout))hit={block,tx};
+   if(!hit){complete=true;break;}
+   if(updates.length>=limit)break;
+   const {block,tx}=hit,state={txid:tx.txid,vout:0,height:block.height,blockhash:block.hash,script:tx.vout[0].scriptPubKey.hex,value_satoshis:'0'};
+   updates.push({sequence:++sequence,txid:tx.txid,wtxid:tx.hash??tx.txid,height:block.height,blockhash:block.hash,input_index:0,spent:{...position},state,
+    raw:replies['getrawtransaction\u0000'+JSON.stringify([tx.txid,false])],witness:[]});
+   position={txid:tx.txid,vout:0};script=state.script;
+  }
+  const last=updates.at(-1)?.state??{...position,script};
+  const page={pool_id:poolId,genesis:deployment.genesis,profile:'authscript-v1-state-thread',privacy_profile:null,commitment:deployment.commitment,
+   snapshot:{height:snapshot,hash:hashAt(snapshot)},indexed_height:snapshot,history_complete:complete,has_more:!complete,continuation:'matching_state',
+   current_state:complete?last:null,last_state:last,transitions_followed:updates.length,
+   next_cursor:{version:1,pool_id:poolId,position:{...position},sequence,anchor:{height:last.height??deployment.anchor.height,hash:last.blockhash??deployment.anchor.hash},snapshot:{height:snapshot,hash:hashAt(snapshot)},complete},updates};
+  return mutate?mutate(page,index.counts[method]):page;
+ };
+ return {call,counts:index.counts,cursors};
+}
+
+await check('pool_id matches the node for the testnet C6 and C7 pools',()=>{
+ const genesis='0000008b384aeffecdab182575dc4e86c9f07f90318c65088532660ed9a8a021';
+ assert.equal(c6PoolTransportId(genesis,'ba82867c84b1d723b90455dd2514eb87901d7bf944b47e60214cf4ad1b0176e7:0'),'fce6715626c9e2eb268f7657273782828d20389ad7353d03c023f93a10bdd7a3');
+ assert.equal(c6PoolTransportId(genesis,'8336537aab139fa78e9a219affaefa7f2c86eb8787c36600c6a270babd8763fa:0'),'8ffeb07858ec7f59be8e80388e16fc8bdb6c9ba99e8315eaf07188a7716aedf8');
+});
+await check('pool history equals block replay without per-transition reads',async()=>{
+ const full=await scan('Alice',atT3,{strategy:'blocks'});
+ for(const strategy of ['pool-history',undefined]){
+  const history=historyRpc(atT3),result=await sdk.scanC6Pool({rpc:history.call,strategy,deployment,identity:identities.Alice});
+  assert.deepEqual(result,full);assert.equal(history.counts.getprivacypoolupdates,1);
+  assert.equal(history.counts.getrawtransaction??0,0);assert.equal(history.counts.getspentinfo??0,0);assert.equal(history.counts.getblock,1);
+  // The first cursor starts at the pinned birth and pins the captured tip.
+  assert.deepEqual(history.cursors[0],{version:1,pool_id:c6PoolTransportId(deployment.genesis,deployment.anchor.outpoint),
+   position:{txid:deployment.anchor.outpoint.split(':')[0],vout:0},sequence:0,anchor:{height:deployment.anchor.height,hash:deployment.anchor.hash},
+   snapshot:{height:atT3,hash:hashAt(atT3)},complete:false});
+ }
+});
+await check('small pool history pages give the same result',async()=>{
+ const full=await scan('Alice',top,{strategy:'blocks'}),history=historyRpc(top);
+ const result=await sdk.scanC6Pool({rpc:history.call,historyPageLimit:1,deployment,identity:identities.Alice});
+ assert.deepEqual(result,full);assert.equal(history.counts.getprivacypoolupdates,full.events.length);
+ await assert.rejects(sdk.scanC6Pool({rpc:history.call,historyPageLimit:0,deployment,identity:identities.Alice}),/page limit/);
+});
+await check('auto mode continues with the spent index in the same pass when pool history is unavailable',async()=>{
+ const full=await scan('Alice',atT3,{strategy:'blocks'});
+ const missing=historyRpc(atT3,{fail:()=>true}),result=await sdk.scanC6Pool({rpc:missing.call,deployment,identity:identities.Alice});
+ assert.deepEqual(result,full);assert.equal(missing.counts.getprivacypoolupdates,1);assert.equal(missing.counts.getspentinfo,full.events.length+1);
+ // A page that fails later keeps the transitions already applied.
+ const later=historyRpc(atT3,{fail:n=>n===2}),resumed=await sdk.scanC6Pool({rpc:later.call,historyPageLimit:2,deployment,identity:identities.Alice});
+ assert.deepEqual(resumed,full);assert.equal(later.counts.getspentinfo,full.events.length-2+1);
+ await assert.rejects(sdk.scanC6Pool({rpc:missing.call,strategy:'pool-history',deployment,identity:identities.Alice}),/pool history unavailable/);
+});
+await check('contradictory pool history fails closed instead of falling back',async()=>{
+ const alter={
+  sequence:page=>{page.updates[1].sequence=7;return page;},
+  skipped:page=>{page.updates.splice(1,1);return page;},
+  input:page=>{page.updates[0].input_index=1;return page;},
+  snapshot:page=>({...page,snapshot:{height:atT3-1,hash:hashAt(atT3-1)}}),
+  pool:page=>({...page,pool_id:'11'.repeat(32)}),
+  raw:page=>{page.updates[0].raw=page.updates[1].raw;return page;},
+  truncated:page=>({...page,updates:page.updates.slice(0,1),current_state:page.updates[0].state}),
+ };
+ for(const [name,mutate] of Object.entries(alter)){
+  await assert.rejects(sdk.scanC6Pool({rpc:historyRpc(atT3,{mutate}).call,deployment,identity:identities.Alice}),/pool history|binding|omitted/,name);
+ }
+});
+await check('pool history pins the captured tip while the chain grows',async()=>{
+ const full=await scan('Alice',atT3,{strategy:'blocks'});
+ const history=historyRpc(top,{chainTarget:top});let heightReads=0;
+ const rpc=async(m,p=[])=>m==='getblockcount'?(++heightReads===1?atT3:top):history.call(m,p);
+ const result=await sdk.scanC6Pool({rpc,deployment,identity:identities.Alice});
+ assert.deepEqual(result,full);assert.equal(history.cursors[0].snapshot.height,atT3);
+ // The state live at the captured tip was spent later: its spender is confirmed above it.
+ assert.equal(history.counts.getspentinfo,1);
+});
+await check('pool history resumes from the saved snapshot with a cursor at its state',async()=>{
+ const store=checkpointStore();const first=await scan('Alice',atT3,{checkpointStore:store,rpc:historyRpc(atT3).call});
+ const next=historyRpc(top),result=await scan('Alice',top,{checkpointStore:store,rpc:next.call});
+ assert.deepEqual(result,await scan('Alice',top));assert.equal(next.counts.getrawtransaction??0,0);assert.equal(next.counts.getprivacypoolupdates,1);
+ assert.equal(next.cursors[0].sequence,first.events.length);assert.equal(next.cursors[0].position.txid+':0',first.statePoint);
+ // A snapshot saved before pool-history support has no state block: the spent index resumes it.
+ const [key,cipher]=[...store.values.entries()].find(([k])=>k.startsWith('c6-scan-state-v2:'));
+ const envelope=identities.Alice.openCheckpoint(cipher),v=JSON.parse(envelope.data);delete v.pointBlock;envelope.data=JSON.stringify(v);store.values.set(key,identities.Alice.sealCheckpoint(envelope));
+ const old=historyRpc(top),again=await scan('Alice',top,{checkpointStore:store,rpc:old.call});
+ assert.deepEqual(again,result);assert.equal(old.counts.getprivacypoolupdates??0,0);assert.equal(old.counts.getspentinfo,1);
 });

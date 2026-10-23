@@ -448,13 +448,18 @@ export declare class C7WalletIdentity {
   openCheckpoint(encoded: string): import('./browser.js').PoolScanCheckpoint;
   lock(): void;
 }
-/** Fully validating trusted RPC is required; this scanner does not implement SPV. */
-export declare function scanC6Pool(options:{strategy?:'auto'|'blocks'|'spent-index';rpc:(method:string,params?:unknown[])=>Promise<any>;
+/** Fully validating trusted RPC is required; this scanner does not implement SPV.
+ * `auto` (default) reads the state thread in pages with `getprivacypoolupdates`
+ * and continues with `getspentinfo` when the node cannot serve them; a node
+ * without a spent index falls back to block replay. */
+export declare function scanC6Pool(options:{strategy?:'auto'|'blocks'|'spent-index'|'pool-history';rpc:(method:string,params?:unknown[])=>Promise<any>;
   deployment:import('./client.js').C6SponsorDeployment;identity:BrowserTestIdentity|ZkWalletIdentity|C7WalletIdentity;
   reserved?:Array<{cm:string;nf:string}>;signal?:AbortSignal;
   /** Disposable encrypted scan prefix; separate from the operation journal. */
   checkpointStore?:{read:(key:string)=>Promise<string|null>;compareAndSwap:(key:string,expected:string|null,replacement:string)=>Promise<boolean>};
-  onProgress?:(progress:{height:number;target:number;strategy?:'blocks'|'spent-index';phase?:'recovering'|'verifying'|'resuming'})=>void}):Promise<C6PoolScan>;
+  /** Pool transitions per `getprivacypoolupdates` page (1 to 1000, default 20; each is about 15–25 kB raw). */
+  historyPageLimit?:number;
+  onProgress?:(progress:{height:number;target:number;strategy?:'blocks'|'spent-index'|'pool-history';phase?:'recovering'|'verifying'|'resuming'})=>void}):Promise<C6PoolScan>;
 
 /** C6 TEST portable proof worker. Persistent reservations are supplied by the application. */
 export function startC6PoolWorker(options: {

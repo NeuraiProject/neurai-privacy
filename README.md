@@ -42,7 +42,10 @@ failure is never classified as a missing transaction (`-5`). An uncertain
 publication carries `uncertain: true` and is not retried automatically.
 
 Use a service that advertises `getblock`, `getbestblockhash`, `getspentinfo`,
-`getrawmempool` and `decoderawtransaction`. The adapter refuses unavailable
+`getrawmempool` and `decoderawtransaction`, and preferably
+`getprivacypoolupdates`, which lets the C6/C7 scanner read the pool history in
+a few pages instead of several calls per pool operation (see
+[C6 operations](docs/C6-OPERATIONS.md)). The adapter refuses unavailable
 and node-wallet methods locally and preserves native null/script/witness
 responses. It never uses `address.get_state` as an alternative RPC schema.
 The pool still checks the pinned instance and consensus activation; the

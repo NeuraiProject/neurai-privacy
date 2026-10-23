@@ -10429,6 +10429,13 @@ function opening(value) {
   return { root: b.slice(0, 32), notes: view.getUint32(96, true), nfs: view.getUint32(100, true), seen: view.getUint32(104, true), mode: b[108], history: view.getUint32(141, true) };
 }
 var pair2 = (a, b) => encodeField(poseidonPermutation([0n, decodeField(a), decodeField(b)])[0]);
+function c6PoolTransportId(genesis, outpoint) {
+  demand4(/^[0-9a-f]{64}$/.test(genesis) && /^[0-9a-f]{64}:\d{1,10}$/.test(outpoint), "pool transport id inputs");
+  const [txid, vout] = outpoint.split(":"), tag2 = new TextEncoder().encode("Neurai/privacy-pool/transport/v1"), n = Number(vout);
+  demand4(n <= 4294967295, "pool transport id inputs");
+  const body = concat9(Uint8Array.of(tag2.length), tag2, unhex7(genesis).reverse(), unhex7(txid).reverse(), Uint8Array.of(n & 255, n >>> 8 & 255, n >>> 16 & 255, n >>> 24));
+  return hex12(sha256(sha256(body)).reverse());
+}
 var NoteTree = class _NoteTree {
   constructor(source) {
     if (source) {
@@ -10540,9 +10547,10 @@ function statement(tx, d) {
   const rootIndex = deposit ? null : new DataView(raw.buffer, raw.byteOffset, raw.byteLength).getUint32(join4 ? 388 : 324 + 32 * count, true);
   return { form, old, next, cms, records, nfs, rootIndex, transcript: hex12(raw), root: deposit ? null : unhex7(args.R) };
 }
-async function scanC6PoolMode({ rpc, deployment, identity, reserved = [], signal, onProgress, strategy, checkpointStore }) {
+async function scanC6PoolMode({ rpc, deployment, identity, reserved = [], signal, onProgress, strategy, checkpointStore, historyPageLimit = 20, historyFallback = false }) {
   const d = validateC6SponsorDeployment(deployment);
   demand4(["xna", "asset"].includes(d.kind), "supported custody kind");
+  demand4(Number.isSafeInteger(historyPageLimit) && historyPageLimit >= 1 && historyPageLimit <= 1e3, "history page limit");
   const check = () => {
     demand4(!signal?.aborted, "cancelled");
   };
@@ -10561,6 +10569,7 @@ async function scanC6PoolMode({ rpc, deployment, identity, reserved = [], signal
     checkC7Birth(birth.tx.find((tx) => tx.txid === d.anchor.outpoint.split(":")[0]), d, identity.network);
   } else demand4(identity.generation !== "c7", "C6 pool needs a C6 wallet identity");
   let state = d.anchor.opening, point2 = d.anchor.outpoint, previous = d.anchor.hash, stateScript = d.anchor.script;
+  let pointBlock = { height: d.anchor.height, hash: d.anchor.hash };
   const anchors = /* @__PURE__ */ new Map([[d.anchor.height, d.anchor.hash]]);
   let tree = new NoteTree(), roots = [], records = [], nullifiers = /* @__PURE__ */ new Set(), seen = /* @__PURE__ */ new Set();
   const initial = opening(state);
@@ -10592,6 +10601,8 @@ async function scanC6PoolMode({ rpc, deployment, identity, reserved = [], signal
       seen = new Set(candidate.seen);
       eligible = mature;
       events = candidate.events;
+      const b = candidate.pointBlock;
+      pointBlock = b && Number.isSafeInteger(b.height) && b.height >= d.anchor.height && b.height <= candidate.tip.height && /^[0-9a-f]{64}$/.test(b.hash) ? { height: b.height, hash: b.hash } : null;
       reserveAtomic = candidate.reserveAtomic;
       reserveScript = candidate.reserveScript;
       reservePoint = candidate.reservePoint;
@@ -10622,6 +10633,49 @@ async function scanC6PoolMode({ rpc, deployment, identity, reserved = [], signal
   const saved = restored ? prefix.filter((r) => r.height <= startHeight) : [];
   let cacheWritable = true;
   if (prefix.length && !restored) onProgress?.({ height: prefix.at(-1).height, target: height, strategy, phase: "resuming" });
+  async function confirmLive(coin2) {
+    demand4(Number.isSafeInteger(coin2.confirmations) && coin2.confirmations >= 1 && coin2.scriptPubKey?.hex === stateScript, "indexed live state mismatch");
+    if (reservePoint) {
+      const [reserveId, reserveIndex] = reservePoint.split(":");
+      const reserve = await rpc("gettxout", [reserveId, Number(reserveIndex), false]);
+      demand4(reserve && reserve.confirmations >= 1 && reserve.scriptPubKey?.hex === reserveScript, "indexed live reserve mismatch");
+    }
+  }
+  async function* poolHistory() {
+    if (!pointBlock) return false;
+    const [birthTxid, birthVout] = d.anchor.outpoint.split(":"), pool = { txid: birthTxid, vout: Number(birthVout) }, poolId = c6PoolTransportId(d.genesis, d.anchor.outpoint);
+    let cursor = { version: 1, pool_id: poolId, position: { txid: point2.split(":")[0], vout: Number(point2.split(":")[1]) }, sequence: events.length, anchor: { ...pointBlock }, snapshot: { height, hash: tip }, complete: false };
+    for (; ; ) {
+      check();
+      let page;
+      try {
+        page = await rpc("getprivacypoolupdates", [pool, cursor, historyPageLimit]);
+      } catch {
+        check();
+        return false;
+      }
+      demand4(page && page.pool_id === poolId && page.genesis === d.genesis && page.commitment === d.commitment && page.snapshot?.height === height && page.snapshot?.hash === tip && typeof page.has_more === "boolean" && Array.isArray(page.updates) && page.updates.length <= historyPageLimit, "pool history page");
+      for (const u of page.updates) {
+        check();
+        demand4(u && u.sequence === events.length + 1 && u.input_index === 0 && u.spent?.txid + ":" + u.spent?.vout === point2 && u.state?.txid === u.txid && u.state?.vout === 0 && /^[0-9a-f]{64}$/.test(u.txid) && /^[0-9a-f]{64}$/.test(u.blockhash) && Number.isSafeInteger(u.height) && u.height >= pointBlock.height && u.height <= height && typeof u.raw === "string", "pool history update");
+        onProgress?.({ height: u.height, target: height, strategy });
+        yield { tx: { txid: u.txid, vin: [{ txid: u.spent.txid, vout: u.spent.vout }] }, h: u.height, rawHex: u.raw, blockHash: u.blockhash };
+      }
+      if (page.has_more) {
+        demand4(page.updates.length > 0 && page.next_cursor, "pool history progress");
+        cursor = page.next_cursor;
+        continue;
+      }
+      demand4(page.history_complete === true && page.continuation === "matching_state" && page.current_state?.txid + ":" + page.current_state?.vout === point2 && page.current_state.script === stateScript, "pool history end");
+      const [txid, index] = point2.split(":"), coin2 = await rpc("gettxout", [txid, Number(index), false]);
+      if (coin2) await confirmLive(coin2);
+      else {
+        const spent = await rpc("getspentinfo", [{ txid, index: Number(index) }]);
+        demand4(Number.isSafeInteger(spent?.height) && spent.height > height, "pool history omitted a confirmed state spend");
+      }
+      return true;
+    }
+  }
   async function* transitions() {
     for (const row of prefix) {
       if (restored && row.height <= startHeight) continue;
@@ -10630,6 +10684,10 @@ async function scanC6PoolMode({ rpc, deployment, identity, reserved = [], signal
       yield { tx: { txid: raw.txid, vin: raw.inputs.map((i) => ({ txid: i.txid, vout: i.vout })) }, h: row.height, rawHex: row.raw, cached: true, blockHash: row.hash };
     }
     const start = Math.max(startHeight, prefix.at(-1)?.height ?? d.anchor.height);
+    if (strategy === "pool-history") {
+      if (yield* poolHistory()) return;
+      if (!historyFallback) throw Object.assign(Error("C6 scan: pool history unavailable; use the spent index"), { code: "C6_HISTORY_UNAVAILABLE" });
+    }
     if (strategy === "blocks") {
       if (start > d.anchor.height) previous = await rpc("getblockhash", [start - 1]);
       for (let h = start; h <= height; h++) {
@@ -10642,8 +10700,9 @@ async function scanC6PoolMode({ rpc, deployment, identity, reserved = [], signal
       }
       return;
     }
-    let last = start;
+    let last = Math.max(start, pointBlock?.height ?? start);
     const blocks = /* @__PURE__ */ new Map();
+    const walk = strategy === "pool-history" ? "spent-index" : strategy;
     for (; ; ) {
       check();
       const [txid, index] = point2.split(":");
@@ -10663,12 +10722,7 @@ async function scanC6PoolMode({ rpc, deployment, identity, reserved = [], signal
           throw Object.assign(Error("C6 scan: spent index unavailable; use block replay"), { code: "C6_INDEX_UNAVAILABLE" });
         }
         if (coin2) {
-          demand4(Number.isSafeInteger(coin2.confirmations) && coin2.confirmations >= 1 && coin2.scriptPubKey?.hex === stateScript, "indexed live state mismatch");
-          if (reservePoint) {
-            const [reserveId, reserveIndex] = reservePoint.split(":");
-            const reserve = await rpc("gettxout", [reserveId, Number(reserveIndex), false]);
-            demand4(reserve && reserve.confirmations >= 1 && reserve.scriptPubKey?.hex === reserveScript, "indexed live reserve mismatch");
-          }
+          await confirmLive(coin2);
           break;
         }
         throw Object.assign(Error("C6 scan: spent index unavailable for consumed state; use block replay"), { code: "C6_INDEX_UNAVAILABLE" });
@@ -10687,7 +10741,7 @@ async function scanC6PoolMode({ rpc, deployment, identity, reserved = [], signal
       const tx = block2.tx.find((t) => t.txid === spent.txid);
       demand4(tx && tx.vin?.[0]?.txid + ":" + tx.vin?.[0]?.vout === point2, "spent index disagrees with confirmed transaction");
       if (h > height) break;
-      onProgress?.({ height: h, target: height, strategy });
+      onProgress?.({ height: h, target: height, strategy: walk });
       yield { tx, h, blockHash: hash3 };
       last = h;
     }
@@ -10728,6 +10782,7 @@ async function scanC6PoolMode({ rpc, deployment, identity, reserved = [], signal
     state = parsed.next;
     point2 = tx.txid + ":0";
     stateScript = out;
+    pointBlock = { height: h, hash: blockHash };
     if (checkpoint && cacheWritable) saved.push({ height: h, hash: blockHash, raw: hexRaw });
     if (checkpoint && !cached && cacheWritable) cacheWritable = await checkpoint.save(saved);
   }
@@ -10775,7 +10830,7 @@ async function scanC6PoolMode({ rpc, deployment, identity, reserved = [], signal
   for (const [h, hash3] of anchors) demand4(await rpc("getblockhash", [h]) === hash3, "chain changed during scan; retry");
   demand4(await rpc("getblockhash", [height]) === tip, "chain changed during scan; retry");
   check();
-  if (snapshots) await snapshots.save({ tip: { height, hash: tip }, state, point: point2, stateScript, tree: tree.snapshot(), roots, records, nullifiers: [...nullifiers], seen: [...seen], eligible: eligible ? { ...eligible, tree: eligible.tree.snapshot() } : null, events, reserveAtomic, reserveScript, reservePoint, lastPublicationHeight, recovered, window, coverage: coverage() });
+  if (snapshots) await snapshots.save({ tip: { height, hash: tip }, state, point: point2, pointBlock, stateScript, tree: tree.snapshot(), roots, records, nullifiers: [...nullifiers], seen: [...seen], eligible: eligible ? { ...eligible, tree: eligible.tree.snapshot() } : null, events, reserveAtomic, reserveScript, reservePoint, lastPublicationHeight, recovered, window, coverage: coverage() });
   check();
   onProgress?.({ height, target: height, strategy, phase: "complete" });
   return {
@@ -10800,13 +10855,13 @@ async function scanC6PoolMode({ rpc, deployment, identity, reserved = [], signal
 }
 async function scanC6Pool(options) {
   const strategy = options.strategy ?? "auto";
-  demand4(["auto", "blocks", "spent-index"].includes(strategy), "unknown scan strategy");
-  if (strategy !== "auto") return scanC6PoolMode({ ...options, strategy });
+  demand4(["auto", "blocks", "spent-index", "pool-history"].includes(strategy), "unknown scan strategy");
+  if (strategy !== "auto") return scanC6PoolMode({ ...options, strategy, historyFallback: false });
   try {
-    return await scanC6PoolMode({ ...options, strategy: "spent-index" });
+    return await scanC6PoolMode({ ...options, strategy: "pool-history", historyFallback: true });
   } catch (e) {
     if (e.code !== "C6_INDEX_UNAVAILABLE" || options.signal?.aborted) throw e;
-    return scanC6PoolMode({ ...options, strategy: "blocks" });
+    return scanC6PoolMode({ ...options, strategy: "blocks", historyFallback: false });
   }
 }
 
@@ -11570,7 +11625,7 @@ function unhex8(value, length) {
   if (typeof value !== "string" || !/^(?:[0-9a-f]{2})+$/.test(value) || length !== void 0 && value.length !== length * 2) throw Error("C6 worker: canonical hex required");
   return Uint8Array.from(value.match(/../g), (v) => parseInt(v, 16));
 }
-var READ_RPC = /* @__PURE__ */ new Set(["getblockchaininfo", "getblockhash", "getblockcount", "getbestblockhash", "getblock", "getrawtransaction", "gettxout", "getspentinfo"]);
+var READ_RPC = /* @__PURE__ */ new Set(["getblockchaininfo", "getblockhash", "getblockcount", "getbestblockhash", "getblock", "getrawtransaction", "gettxout", "getspentinfo", "getprivacypoolupdates"]);
 var money3 = (value) => {
   if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/.test(value)) throw Error("C6 worker: exact atomic amount required");
   return BigInt(value);
@@ -11740,7 +11795,7 @@ function startC6PoolWorker({
       signal: controller.signal,
       onProgress: (p) => {
         live(token);
-        post({ type: "stage", message: p.phase === "checkpoint" ? `Resumed saved ${generation} state through block ${p.height}; checking snapshot ${p.target}` : p.phase === "resuming" ? `Replaying saved pool operations through block ${p.height}` : p.phase === "recovering" ? "Recovering private notes on this device" : p.phase === "verifying" ? "Checking the scanned chain" : p.phase === "complete" ? `${generation} synchronized through block ${p.height}` : p.strategy === "spent-index" ? `Checking pool operation at block ${p.height} (chain snapshot ${p.target})` : `Reading ${generation} block ${p.height} / ${p.target}` });
+        post({ type: "stage", message: p.phase === "checkpoint" ? `Resumed saved ${generation} state through block ${p.height}; checking snapshot ${p.target}` : p.phase === "resuming" ? `Replaying saved pool operations through block ${p.height}` : p.phase === "recovering" ? "Recovering private notes on this device" : p.phase === "verifying" ? "Checking the scanned chain" : p.phase === "complete" ? `${generation} synchronized through block ${p.height}` : p.strategy === "spent-index" || p.strategy === "pool-history" ? `Checking pool operation at block ${p.height} (chain snapshot ${p.target})` : `Reading ${generation} block ${p.height} / ${p.target}` });
       }
     });
     live(token);
@@ -12129,4 +12184,4 @@ export {
 @scure/bip39/index.js:
   (*! scure-bip39 - MIT License (c) 2022 Patricio Palladino, Paul Miller (paulmillr.com) *)
 */
-//# sourceMappingURL=chunk-6PIMC3TX.js.map
+//# sourceMappingURL=chunk-BDEOV3DK.js.map

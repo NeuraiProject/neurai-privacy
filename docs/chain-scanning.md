@@ -183,6 +183,13 @@ Storage advice:
   from its last scan in memory, but after a restart scans start from the
   pool birth.
 
+### C6 and C7 pools
+
+`scanC6Pool` reads the pool history in pages with the node's
+`getprivacypoolupdates` (`-spentindex -txindex`) and falls back to the
+spent-index walk above in the same pass when the node cannot serve them. See
+[C6 operations](C6-OPERATIONS.md) for the cursor, the checks and the fallback.
+
 ### Sponsor scanner checkpoint
 
 The C6 sponsor scanner (`scanC6SponsorChain`, used by `C6SponsorFlow`) follows

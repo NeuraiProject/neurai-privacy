@@ -7,6 +7,7 @@ const object = value => value !== null && typeof value === 'object' && !Array.is
 const READ_METHODS = new Set([
   'getblockchaininfo', 'getblockcount', 'getblockhash', 'getblockheader',
   'getbestblockhash', 'getblock', 'getspentinfo', 'getrawmempool', 'decoderawtransaction',
+  'getprivacypoolinfo', 'getprivacypoolupdates',
   'getaddressbalance', 'getaddressdeltas', 'getaddressutxos', 'getaddressmempool',
   'getrawtransaction', 'gettxout', 'estimatesmartfee', 'getassetdata',
   'listassets', 'listassetbalancesbyaddress', 'listaddressesbyasset',

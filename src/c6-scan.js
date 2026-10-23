@@ -1,6 +1,7 @@
 /** C6 XNA TEST scanning from an application-pinned birth and a trusted fully
  * validating archival RPC. This is not SPV or a replacement for consensus.
- * Follow confirmed state spends when the spent index is available; block replay
+ * Read the state thread in pages (getprivacypoolupdates) when the node serves
+ * them, else follow confirmed state spends with the spent index; block replay
  * remains a checked fallback. Never publish a partial balance on failure.
  */
 import {C6ScanSnapshot} from './c6-scan-snapshot.js';
@@ -33,6 +34,15 @@ function opening(value){
   return {root:b.slice(0,32),notes:view.getUint32(96,true),nfs:view.getUint32(100,true),seen:view.getUint32(104,true),mode:b[108],history:view.getUint32(141,true)};
 }
 const pair=(a,b)=>encodeField(poseidonPermutation([0n,decodeField(a),decodeField(b)])[0]);
+/** The node's pool_id for a birth outpoint (getprivacypoolupdates cursors):
+ * double SHA-256 of the transport tag, the genesis and the birth outpoint. */
+export function c6PoolTransportId(genesis,outpoint){
+  demand(/^[0-9a-f]{64}$/.test(genesis)&&/^[0-9a-f]{64}:\d{1,10}$/.test(outpoint),'pool transport id inputs');
+  const [txid,vout]=outpoint.split(':'),tag=new TextEncoder().encode('Neurai/privacy-pool/transport/v1'),n=Number(vout);
+  demand(n<=0xffffffff,'pool transport id inputs');
+  const body=concat(Uint8Array.of(tag.length),tag,unhex(genesis).reverse(),unhex(txid).reverse(),Uint8Array.of(n&255,(n>>>8)&255,(n>>>16)&255,n>>>24));
+  return hex(sha256(sha256(body)).reverse());
+}
 class NoteTree{
   constructor(source){
     if(source){this.zeros=source.zeros;this.levels=source.levels.map(m=>new Map(m));this.count=source.count;return;}
@@ -115,8 +125,9 @@ function statement(tx,d){
  * transactions. Full encrypted snapshots cache trees and recovered notes;
  * their captured block and wallet scope are rechecked on every resume.
  */
-async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProgress,strategy,checkpointStore}){
+async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProgress,strategy,checkpointStore,historyPageLimit=20,historyFallback=false}){
   const d=validateC6SponsorDeployment(deployment);demand(['xna','asset'].includes(d.kind),'supported custody kind');
+  demand(Number.isSafeInteger(historyPageLimit)&&historyPageLimit>=1&&historyPageLimit<=1000,'history page limit');
   const check=()=>{demand(!signal?.aborted,'cancelled');};check();identity.recipient();
   const capability=await rpc('getblockchaininfo');demand(capability?.zk_portable_tree?.active_for_next_block===true,'portable public-tree rules inactive');
   demand(await rpc('getblockhash',[0])===d.genesis,'wrong genesis');
@@ -130,6 +141,8 @@ async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProg
     checkC7Birth(birth.tx.find(tx=>tx.txid===d.anchor.outpoint.split(':')[0]),d,identity.network);
   }else demand(identity.generation!=='c7','C6 pool needs a C6 wallet identity');
   let state=d.anchor.opening,point=d.anchor.outpoint,previous=d.anchor.hash,stateScript=d.anchor.script;
+  // Block of the transaction that created the current state: the anchor of a pool-history cursor.
+  let pointBlock={height:d.anchor.height,hash:d.anchor.hash};
   const anchors=new Map([[d.anchor.height,d.anchor.hash]]);
   let tree=new NoteTree(),roots=[],records=[],nullifiers=new Set(),seen=new Set();const initial=opening(state);
   demand(initial.notes===0&&initial.history===0&&same(initial.root,tree.root),'zero-note birth required');
@@ -152,6 +165,8 @@ async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProg
       if(mature)demand(mature.index<candidate.roots.length&&same(mature.root,candidate.roots[mature.index])&&same(mature.root,mature.tree.root),'saved eligible root');
       demand(Array.isArray(candidate.events)&&Array.isArray(candidate.recovered)&&candidate.recovered.every(r=>Number.isSafeInteger(r.position)&&r.position>=0&&r.position<candidate.records.length&&r.owned?.nf instanceof Uint8Array&&r.owned.note instanceof Uint8Array&&typeof r.owned.amountAtomic==='bigint'),'saved recovery');
       restored=candidate;tree=restoredTree;state=candidate.state;point=candidate.point;stateScript=candidate.stateScript;roots=candidate.roots;records=candidate.records;nullifiers=new Set(candidate.nullifiers);seen=new Set(candidate.seen);eligible=mature;events=candidate.events;
+      // Snapshots saved before pool-history support have no state block; the spent-index walk resumes them.
+      const b=candidate.pointBlock;pointBlock=b&&Number.isSafeInteger(b.height)&&b.height>=d.anchor.height&&b.height<=candidate.tip.height&&/^[0-9a-f]{64}$/.test(b.hash)?{height:b.height,hash:b.hash}:null;
       reserveAtomic=candidate.reserveAtomic;reserveScript=candidate.reserveScript;reservePoint=candidate.reservePoint;lastPublicationHeight=candidate.lastPublicationHeight;startHeight=candidate.tip.height;recoveryStart=records.length;anchors.set(startHeight,candidate.tip.hash);
       if(lastPublicationHeight!==null&&height-lastPublicationHeight+1>=2&&roots.length)eligible={tree:new NoteTree(tree),root:tree.root.slice(),index:roots.length-1};
       onProgress?.({height:startHeight,target:height,strategy,phase:'checkpoint'});
@@ -164,6 +179,44 @@ async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProg
   if(valid<prefix.length){prefix=prefix.slice(0,valid);await checkpoint.save(prefix);}
   const saved=restored?prefix.filter(r=>r.height<=startHeight):[];let cacheWritable=true;
   if(prefix.length&&!restored)onProgress?.({height:prefix.at(-1).height,target:height,strategy,phase:'resuming'});
+  async function confirmLive(coin){
+    demand(Number.isSafeInteger(coin.confirmations)&&coin.confirmations>=1&&coin.scriptPubKey?.hex===stateScript,'indexed live state mismatch');
+    if(reservePoint){
+      const [reserveId,reserveIndex]=reservePoint.split(':');const reserve=await rpc('gettxout',[reserveId,Number(reserveIndex),false]);
+      demand(reserve&&reserve.confirmations>=1&&reserve.scriptPubKey?.hex===reserveScript,'indexed live reserve mismatch');
+    }
+  }
+  /** Pages of the confirmed state thread, pinned to the captured tip. Returns
+   * false when the node cannot serve them (method, indexes or transport
+   * unavailable); the spent-index walk then continues from the current state.
+   * Contradictory pages fail closed. */
+  async function* poolHistory(){
+    if(!pointBlock)return false;
+    const [birthTxid,birthVout]=d.anchor.outpoint.split(':'),pool={txid:birthTxid,vout:Number(birthVout)},poolId=c6PoolTransportId(d.genesis,d.anchor.outpoint);
+    let cursor={version:1,pool_id:poolId,position:{txid:point.split(':')[0],vout:Number(point.split(':')[1])},sequence:events.length,anchor:{...pointBlock},snapshot:{height,hash:tip},complete:false};
+    for(;;){
+      check();let page;
+      try{page=await rpc('getprivacypoolupdates',[pool,cursor,historyPageLimit]);}catch{check();return false;}
+      demand(page&&page.pool_id===poolId&&page.genesis===d.genesis&&page.commitment===d.commitment&&page.snapshot?.height===height&&page.snapshot?.hash===tip&&
+        typeof page.has_more==='boolean'&&Array.isArray(page.updates)&&page.updates.length<=historyPageLimit,'pool history page');
+      for(const u of page.updates){
+        check();
+        demand(u&&u.sequence===events.length+1&&u.input_index===0&&u.spent?.txid+':'+u.spent?.vout===point&&u.state?.txid===u.txid&&u.state?.vout===0&&
+          /^[0-9a-f]{64}$/.test(u.txid)&&/^[0-9a-f]{64}$/.test(u.blockhash)&&Number.isSafeInteger(u.height)&&u.height>=pointBlock.height&&u.height<=height&&typeof u.raw==='string','pool history update');
+        onProgress?.({height:u.height,target:height,strategy});
+        // The raw transaction is checked like any other: its txid, input 0 and the pinned contract.
+        yield {tx:{txid:u.txid,vin:[{txid:u.spent.txid,vout:u.spent.vout}]},h:u.height,rawHex:u.raw,blockHash:u.blockhash};
+      }
+      if(page.has_more){demand(page.updates.length>0&&page.next_cursor,'pool history progress');cursor=page.next_cursor;continue;}
+      demand(page.history_complete===true&&page.continuation==='matching_state'&&page.current_state?.txid+':'+page.current_state?.vout===point&&page.current_state.script===stateScript,'pool history end');
+      // Confirm the end independently, as the spent-index walk does: the state
+      // is unspent, or its spender confirmed after the captured snapshot.
+      const [txid,index]=point.split(':'),coin=await rpc('gettxout',[txid,Number(index),false]);
+      if(coin)await confirmLive(coin);
+      else{const spent=await rpc('getspentinfo',[{txid,index:Number(index)}]);demand(Number.isSafeInteger(spent?.height)&&spent.height>height,'pool history omitted a confirmed state spend');}
+      return true;
+    }
+  }
   async function* transitions(){
     for(const row of prefix){
       if(restored&&row.height<=startHeight)continue;
@@ -171,6 +224,10 @@ async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProg
       yield {tx:{txid:raw.txid,vin:raw.inputs.map(i=>({txid:i.txid,vout:i.vout}))},h:row.height,rawHex:row.raw,cached:true,blockHash:row.hash};
     }
     const start=Math.max(startHeight,prefix.at(-1)?.height??d.anchor.height);
+    if(strategy==='pool-history'){
+      if(yield* poolHistory())return;
+      if(!historyFallback)throw Object.assign(Error('C6 scan: pool history unavailable; use the spent index'),{code:'C6_HISTORY_UNAVAILABLE'});
+    }
     if(strategy==='blocks'){
       if(start>d.anchor.height)previous=await rpc('getblockhash',[start-1]);
       for(let h=start;h<=height;h++){
@@ -181,7 +238,8 @@ async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProg
       }
       return;
     }
-    let last=start;const blocks=new Map();
+    let last=Math.max(start,pointBlock?.height??start);const blocks=new Map();
+    const walk=strategy==='pool-history'?'spent-index':strategy;
     for(;;){
       check();const [txid,index]=point.split(':');let spent=null,lookupFailed=false;
       try{spent=await rpc('getspentinfo',[{txid,index:Number(index)}]);}catch(e){check();lookupFailed=true;}
@@ -190,14 +248,7 @@ async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProg
         // Only an independently confirmed live state permits ending the walk.
         let coin;
         try{coin=await rpc('gettxout',[txid,Number(index),false]);}catch(e){check();throw Object.assign(Error('C6 scan: spent index unavailable; use block replay'),{code:'C6_INDEX_UNAVAILABLE'});}
-        if(coin){
-          demand(Number.isSafeInteger(coin.confirmations)&&coin.confirmations>=1&&coin.scriptPubKey?.hex===stateScript,'indexed live state mismatch');
-          if(reservePoint){
-            const [reserveId,reserveIndex]=reservePoint.split(':');const reserve=await rpc('gettxout',[reserveId,Number(reserveIndex),false]);
-            demand(reserve&&reserve.confirmations>=1&&reserve.scriptPubKey?.hex===reserveScript,'indexed live reserve mismatch');
-          }
-          break;
-        }
+        if(coin){await confirmLive(coin);break;}
         throw Object.assign(Error('C6 scan: spent index unavailable for consumed state; use block replay'),{code:'C6_INDEX_UNAVAILABLE'});
       }
       demand(spent&&Number.isSafeInteger(spent.height)&&spent.height>=last&&spent.index===0&&/^[0-9a-f]{64}$/.test(spent.txid),'invalid spent index entry');
@@ -213,7 +264,7 @@ async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProg
       const tx=block.tx.find(t=>t.txid===spent.txid);
       demand(tx&&tx.vin?.[0]?.txid+':'+tx.vin?.[0]?.vout===point,'spent index disagrees with confirmed transaction');
       if(h>height)break;
-      onProgress?.({height:h,target:height,strategy});yield {tx,h,blockHash:hash};last=h;
+      onProgress?.({height:h,target:height,strategy:walk});yield {tx,h,blockHash:hash};last=h;
     }
   }
   for await(const {tx,h,rawHex,cached,blockHash} of transitions()){
@@ -234,7 +285,7 @@ async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProg
       events.push({form:parsed.form,cms:parsed.cms.map(hex),nfs:parsed.nfs.map(hex),rootIndex:parsed.rootIndex,transcript:parsed.transcript,txid:tx.txid,intentId:c6SponsorIntent(hexRaw,d).operationId});
       if(d.kind==='asset'&&after.mode){demand(raw.outputs[1].valueAtomic==='0','asset reserve must contain no XNA');}
       reserveAtomic=after.mode?(d.kind==='asset'?c6ReadAssetTransfer(unhex(raw.outputs[1].script),{asset:d.asset,unit:d.unit,allowContract:true}).amountAtomic:raw.outputs[1].valueAtomic):'0';reserveScript=after.mode?raw.outputs[1].script:null;reservePoint=after.mode?tx.txid+':1':null;
-      state=parsed.next;point=tx.txid+':0';stateScript=out;
+      state=parsed.next;point=tx.txid+':0';stateScript=out;pointBlock={height:h,hash:blockHash};
       if(checkpoint&&cacheWritable)saved.push({height:h,hash:blockHash,raw:hexRaw});
       // Persist each validated transition before requesting the next one. No
       // private balance is emitted until final active-chain checks succeed.
@@ -270,21 +321,23 @@ async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProg
   for(const [h,hash] of anchors)demand(await rpc('getblockhash',[h])===hash,'chain changed during scan; retry');
   demand(await rpc('getblockhash',[height])===tip,'chain changed during scan; retry');
   check();
-  if(snapshots)await snapshots.save({tip:{height,hash:tip},state,point,stateScript,tree:tree.snapshot(),roots,records,nullifiers:[...nullifiers],seen:[...seen],eligible:eligible?{...eligible,tree:eligible.tree.snapshot()}:null,events,reserveAtomic,reserveScript,reservePoint,lastPublicationHeight,recovered,window,coverage:coverage()});
+  if(snapshots)await snapshots.save({tip:{height,hash:tip},state,point,pointBlock,stateScript,tree:tree.snapshot(),roots,records,nullifiers:[...nullifiers],seen:[...seen],eligible:eligible?{...eligible,tree:eligible.tree.snapshot()}:null,events,reserveAtomic,reserveScript,reservePoint,lastPublicationHeight,recovered,window,coverage:coverage()});
   check();onProgress?.({height,target:height,strategy,phase:'complete'});
   return {profile:d.kind==='asset'?'C6-ORDINARY-ASSET-TEST-J2-v1':isC7(d)?C7_PROFILE:'C6-XNA-TEST-J2-v2',genesis:d.genesis,commitment:d.commitment,tip:{height,hash:tip},statePoint:point,opening:state,
     events,reserveAtomic,reserveScript,reservePoint,notes,records,nullifiers:[...nullifiers],root:eligible?.root??null,
     balanceAtomic:String(notes.reduce((n,row)=>n+BigInt(row.amountAtomic),0n)),spendableAtomic:String(notes.filter(row=>row.spendable).reduce((n,row)=>n+BigInt(row.amountAtomic),0n)),ignoredRecords:records.length-recovered.length};
 }
 
-/** Default auto mode uses the confirmed spent index when available. A missing
- * index falls back to full block replay; contradictory index data fails closed.
- * Each returned balance is a snapshot at tip.height, even if a new block arrived.
+/** Default auto mode reads the state thread in pages (getprivacypoolupdates)
+ * and continues with the confirmed spent index in the same pass when the node
+ * cannot serve them. A missing spent index falls back to full block replay;
+ * contradictory index or history data fails closed. Each returned balance is a
+ * snapshot at tip.height, even if a new block arrived.
  */
 export async function scanC6Pool(options){
   const strategy=options.strategy??'auto';
-  demand(['auto','blocks','spent-index'].includes(strategy),'unknown scan strategy');
-  if(strategy!=='auto')return scanC6PoolMode({...options,strategy});
-  try{return await scanC6PoolMode({...options,strategy:'spent-index'});}
-  catch(e){if(e.code!=='C6_INDEX_UNAVAILABLE'||options.signal?.aborted)throw e;return scanC6PoolMode({...options,strategy:'blocks'});}
+  demand(['auto','blocks','spent-index','pool-history'].includes(strategy),'unknown scan strategy');
+  if(strategy!=='auto')return scanC6PoolMode({...options,strategy,historyFallback:false});
+  try{return await scanC6PoolMode({...options,strategy:'pool-history',historyFallback:true});}
+  catch(e){if(e.code!=='C6_INDEX_UNAVAILABLE'||options.signal?.aborted)throw e;return scanC6PoolMode({...options,strategy:'blocks',historyFallback:false});}
 }

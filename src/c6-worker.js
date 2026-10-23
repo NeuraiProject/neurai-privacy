@@ -25,7 +25,7 @@ function unhex(value, length) {
   if (typeof value !== 'string' || !/^(?:[0-9a-f]{2})+$/.test(value) || (length !== undefined && value.length !== length * 2)) throw Error('C6 worker: canonical hex required');
   return Uint8Array.from(value.match(/../g), v => parseInt(v, 16));
 }
-const READ_RPC = new Set(['getblockchaininfo', 'getblockhash', 'getblockcount', 'getbestblockhash', 'getblock', 'getrawtransaction','gettxout','getspentinfo']);
+const READ_RPC = new Set(['getblockchaininfo', 'getblockhash', 'getblockcount', 'getbestblockhash', 'getblock', 'getrawtransaction','gettxout','getspentinfo','getprivacypoolupdates']);
 const money = value => {
   if (typeof value !== 'string' || !/^(0|[1-9][0-9]*)$/.test(value)) throw Error('C6 worker: exact atomic amount required');
   return BigInt(value);
@@ -126,7 +126,7 @@ export function startC6PoolWorker({scope=globalThis, snarkjs, manifest, deployme
     let reused=null;try{reused=await unchangedScan(token);}catch{live(token);/* A failed cache check falls back to complete validation. */}
     const recovered=reused??await scanC6Pool({rpc:(m,p)=>rpc(m,p,token),deployment:pinned,identity,reserved:reservations,
       checkpointStore:durableJournal?{read:key=>storage('journal-read',key,{},token),compareAndSwap:(key,expected,replacement)=>storage('journal-write',key,{expected,replacement},token)}:undefined,
-      signal:controller.signal,onProgress:p=>{live(token);post({type:'stage',message:p.phase==='checkpoint'?`Resumed saved ${generation} state through block ${p.height}; checking snapshot ${p.target}`:p.phase==='resuming'?`Replaying saved pool operations through block ${p.height}`:p.phase==='recovering'?'Recovering private notes on this device':p.phase==='verifying'?'Checking the scanned chain':p.phase==='complete'?`${generation} synchronized through block ${p.height}`:p.strategy==='spent-index'?`Checking pool operation at block ${p.height} (chain snapshot ${p.target})`:`Reading ${generation} block ${p.height} / ${p.target}`});}});
+      signal:controller.signal,onProgress:p=>{live(token);post({type:'stage',message:p.phase==='checkpoint'?`Resumed saved ${generation} state through block ${p.height}; checking snapshot ${p.target}`:p.phase==='resuming'?`Replaying saved pool operations through block ${p.height}`:p.phase==='recovering'?'Recovering private notes on this device':p.phase==='verifying'?'Checking the scanned chain':p.phase==='complete'?`${generation} synchronized through block ${p.height}`:p.strategy==='spent-index'||p.strategy==='pool-history'?`Checking pool operation at block ${p.height} (chain snapshot ${p.target})`:`Reading ${generation} block ${p.height} / ${p.target}`});}});
     live(token);scan=recovered;scanIssued=identity.issued??null;
     post({type:'stage',message:'Updating encrypted operation history'});
     if(durableJournal&&journal){await journal.reconcile(scan);reservations=journal.reservations();const reserved=new Set(reservations.map(r=>r.cm));for(const n of scan.notes){n.reserved=reserved.has(hex(n.cm));n.spendable=!n.reserved&&!!n.root;}scan.spendableAtomic=String(scan.notes.filter(n=>n.spendable).reduce((v,n)=>v+BigInt(n.amountAtomic),0n));journalSummary();}

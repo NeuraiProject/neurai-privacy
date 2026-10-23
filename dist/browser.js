@@ -8,7 +8,7 @@ import {
   loadRotation,
   rotationStorageKey,
   saveRotation
-} from "./chunks/chunk-JEFMDGXJ.js";
+} from "./chunks/chunk-UHSGQFHN.js";
 import {
   BrowserTestIdentity,
   C4_FORMS,
@@ -91,7 +91,7 @@ import {
   verifyC5Transition,
   walletSeedFromMnemonic,
   zkFingerprint
-} from "./chunks/chunk-6PIMC3TX.js";
+} from "./chunks/chunk-BDEOV3DK.js";
 import {
   ATOMIC_PER_XNA,
   BN254_SCALAR_FIELD,

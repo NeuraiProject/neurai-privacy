@@ -8,7 +8,7 @@ import {
   loadRotation,
   rotationStorageKey,
   saveRotation
-} from "./chunks/chunk-JEFMDGXJ.js";
+} from "./chunks/chunk-UHSGQFHN.js";
 import {
   ATOMIC_PER_XNA,
   C4_TESTNET_ARTIFACTS,
