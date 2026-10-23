@@ -2,6 +2,7 @@ import {c6AssetMetadata} from './c6-assets.js';
 import {sha256} from '@noble/hashes/sha2.js';
 import {decodeNote,noteCommitment,noteNullifier} from './notes.js';
 import {sealNote} from './hpke.js';
+import {C7_PROFILE,isC7Descriptor,sealC7Note} from './c7.js';
 import {encodeField,poseidonBytes,poseidonPermutation} from './poseidon.js';
 /* Experimental six-key C6 XNA J2 wallet API. TEST only, no RPC or filesystem.
  * Secrets stay with the caller (normally a terminable Web Worker). Public
@@ -32,7 +33,7 @@ function createJoinWallet(sdk){
   p.blob,p.network,p.pool,p.created.note,p.created.cm,p.created.record)));
  const num=b=>{const value=BigInt('0x'+hex(bytes(b,32)));if(value>=21888242871839275222246405745257275088548364400416034343698204186575808495617n)throw Error('Noncanonical Fr');return value;};
  const merkle=(leaf,index,path)=>{if(!Number.isInteger(index)||index<0||index>0xffffffff||path.length!==32)throw Error('Merkle shape');let value=num(leaf),i=BigInt(index);for(const sibling of path){const other=num(sibling);value=sdk.poseidonPermutation(i&1n?[0n,other,value]:[0n,value,other])[0];i>>=1n;}return sdk.encodeField(value);};
- function prepare({manifest,domain,assetId,root,notes,fee}){
+ function prepare({manifest,domain,assetId,root,notes,fee,change}){
   const D=bytes(domain,32),AID=bytes(assetId,32),R=bytes(root,32),ctx=unhex(manifest.context);
   if(num(R)===0n||num(ctx)===0n||notes.length!==2)throw Error('Join context');
   if(!Array.isArray(manifest.fees?.J2)||!manifest.fees.J2.some(v=>money(String(v),true)===money(fee,true)))throw Error('Manifest J2 fee level');
@@ -44,11 +45,15 @@ function createJoinWallet(sdk){
   if(opened[0].index===opened[1].index||same(opened[0].cm,opened[1].cm)||same(opened[0].nf,opened[1].nf))throw Error('Distinct real notes required');
   if(opened.some(x=>x.decoded.amountAtomic%sdk.unit!==0n))throw Error('Asset note precision');
   const total=money(opened[0].decoded.amountAtomic+opened[1].decoded.amountAtomic),amount=money(total-fee);
-  const first=opened[0].decoded;
-  const created=sdk.sealNote({descriptor:{domain:hex(D),asset_id:hex(AID),owner:hex(first.owner),view_pub:hex(first.viewPub)},amountAtomic:amount});
+  const first=opened[0].decoded,own={domain:hex(D),asset_id:hex(AID),owner:hex(first.owner),view_pub:hex(first.viewPub)};
+  // The new note goes to the address of note 0. A C7 note does not carry its
+  // diversifier, so the wallet supplies that address as change.
+  if(sdk.c7&&!(isC7Descriptor(change)&&Object.keys(own).every(k=>change[k]===own[k])))throw Error('C7 J2 needs the address of note 0');
+  const created=sdk.c7?sdk.sealC7Note({descriptor:change,amountAtomic:amount}):sdk.sealNote({descriptor:own,amountAtomic:amount});
   if(opened.some(x=>same(x.cm,created.cm)))throw Error('Fresh output required');
-  const blob=new Uint8Array(4096);blob.set([3,1]);blob.set(opened[0].nf,2);blob.set(opened[1].nf,34);blob.set(created.cm,66);blob.set(created.record.slice(0,220),98);
-  if(hex(blob.slice(98,101))!=='01d900')throw Error('HPKE framing');
+  const recordBytes=sdk.c7?230:220;
+  const blob=new Uint8Array(4096);blob.set([3,1]);blob.set(opened[0].nf,2);blob.set(opened[1].nf,34);blob.set(created.cm,66);blob.set(created.record.slice(0,recordBytes),98);
+  if(sdk.c7?blob[98]!==2:hex(blob.slice(98,101))!=='01d900')throw Error('Note record framing');
   const P=sdk.poseidonBytes,dh=P(cat(P(cat(P(text('NeuraiPoolC6/J2/data\x01')),blob.slice(0,2048))),blob.slice(2048)));
   const publics=[num(ctx),num(R),...opened.map(x=>num(x.nf)),num(dh),fee,num(created.cm)];
   const input={ctx:num(ctx),D:Array.from(D),AID:Array.from(AID),unit:sdk.unit,registryRoot:Array(32).fill(0),R:num(R),
@@ -102,7 +107,8 @@ export function createC6JoinWallet({expectedGenesis,expectedCommitment,kind='xna
  let api;
  return {
   prepare(request){
-   if(request?.manifest?.profile!==(kind==='asset'?'C6-ORDINARY-ASSET-TEST-J2-v1':'C6-XNA-TEST-J2-v2'))throw Error('Unsupported C6 J2 manifest profile');
+   const c7=kind==='xna'&&request?.manifest?.profile===C7_PROFILE;
+   if(!c7&&request?.manifest?.profile!==(kind==='asset'?'C6-ORDINARY-ASSET-TEST-J2-v1':'C6-XNA-TEST-J2-v2'))throw Error('Unsupported C6 J2 manifest profile');
    if(request.manifest.network!==expectedGenesis||request.manifest.commitment!==expectedCommitment)throw Error('C6 J2 manifest differs from pinned instance');
    // J2 uses unit=1, no registry. Validate the circuit's private context
    // relation locally before allocating proving resources.
@@ -111,7 +117,8 @@ export function createC6JoinWallet({expectedGenesis,expectedCommitment,kind='xna
    if(kind==='asset'&&money(request.fee,true)!==0n)throw Error('Asset private fee must be zero');
    const context=poseidonBytes(cat(text('NeuraiPoolCtx\x01'),domain,asset,LE(unit,8),new Uint8Array(32)));
    if(hex(context)!==request.manifest.context)throw Error('C6 J2 domain/asset context mismatch');
-   api??=createJoinWallet({sha256,decodeNote,noteCommitment,noteNullifier,sealNote,encodeField,poseidonBytes,poseidonPermutation,unit});
+   if(api&&api.c7!==c7)api=undefined;
+   api??=Object.assign(createJoinWallet({sha256,decodeNote,noteCommitment,noteNullifier,sealNote,sealC7Note,c7,encodeField,poseidonBytes,poseidonPermutation,unit}),{c7});
    return api.prepare(request);
   },
   prove:(...args)=>{if(!api)throw Error('Prepare a pinned J2 first');return api.prove(...args);},

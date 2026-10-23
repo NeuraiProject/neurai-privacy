@@ -27,7 +27,7 @@ export function summarizeScan(scan) {
  * identity there is a single address and no rotation.
  */
 export function describeReceiving(identity, scan, { network }) {
-  if (!(identity instanceof ZkWalletIdentity)) {
+  if (!(identity instanceof ZkWalletIdentity) && identity?.generation !== 'c7') {
     return { kind: 'file', current: { index: 0, address: encodeNzkAddress(identity.recipient(), network) }, used: [] };
   }
   const received = new Map();

@@ -426,6 +426,44 @@ XNA D funding must not be treated as an exposed asset `0x83` sponsorship.
 See [C6 operation, recovery and worker protocol](docs/C6-OPERATIONS.md) for
 byte order, TEST scope, cancellation and outstanding integration.
 
+### C7 XNA TEST pool (NeuraiZK/v3)
+
+C7 is the successor of the C6 XNA pool. It keeps the C6 circuits, proving
+files, contract structure and worker. What changes is how notes are addressed,
+encrypted and found:
+
+- **One private wallet, many addresses.** An account has one viewing key and
+  any number of unlinkable `nzk` version 3 addresses, derived from the wallet
+  words on top of the NeuraiZK/v2 root.
+- **Fast recovery.** Each published record costs one ristretto255
+  multiplication, whatever the number of addresses. There is no address gap.
+- **Records.** Note records are 230 bytes, with a one-byte view tag.
+- **Verifiable birth.** `c7PoolDomain` derives the instance domain from the
+  genesis, the UNIQUE emission and the pool name. The scanner checks that the
+  birth burned the owner token `NAME!`.
+
+The worker selects C7 from the manifest profile `C7-XNA-TEST-v1`. Pass the C7
+pool config like the C6 one; recipients are `nzk` v3 addresses.
+`C7WalletIdentity` replaces `ZkWalletIdentity` for C7 pools, with the same
+methods. The C7 helpers are exported from every entry point:
+- `C7Account` and `C7WalletIdentity`;
+- `sealC7Note`;
+- `encodeC7Address` and `decodeC7Address`;
+- `c7PoolDomain`, `c7XnaAssetId`, `c7Context` and `c7InstanceTag`.
+
+```js
+import { C7WalletIdentity } from '@neuraiproject/neurai-privacy/browser';
+
+const wallet = await C7WalletIdentity.fromMnemonic({ mnemonic, family: 'legacy', network: 'testnet', domain, assetId });
+const address = wallet.addressAt(0, wallet.currentIndex()); // tnzk1q...
+```
+
+The byte-level specification and the reference implementation are in
+Neurai-DePIN, `contrib/privacypool/privacy-c7`. `test/fixtures/c7-vectors.json`
+is the same vector file as the node's (`src/test/data/privacy_c7_vectors.json`).
+`test/c7.test.js` checks every intermediate value, both scanners and the
+negative cases. TEST deployments only; not audited.
+
 ### C6 ordinary assets (TEST)
 
 The browser worker now supports an independently pinned pool per ordinary asset,

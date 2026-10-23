@@ -7,6 +7,7 @@ import {sha256} from '@noble/hashes/sha2.js';
 import {decodeField,encodeField,poseidonBytes} from './poseidon.js';
 import {poolTreeNode,poolIndexedLeaf} from './pool-state.js';
 import {decodeC4Publication,c4PublicationHash} from './c4-publication.js';
+import {C7_PROFILE} from './c7.js';
 import {readSponsorTransaction} from './sponsor-sweep.js';
 import {validateC6SponsorDeployment,c6SponsorIntent} from './c6-sponsor-chain.js';
 export const C6_FORMS=['D0','D1','T1','T2','T3','W_partial_no_change','W_partial_change','W_full_no_change','J2'];
@@ -66,6 +67,8 @@ export class C6PublicWorld{
 export function readC6Packet(raw,{kind='xna',manifest}={}){
  need(['xna','asset'].includes(kind),'custody kind');
  const metadata=kind==='asset'?c6AssetMetadata(manifest):null,quantum=metadata?.unit??10000000000n;
+ // C7 publications carry 230-byte records (0x02); J2 carries its record at [98, 328).
+ const c7=kind==='xna'&&manifest?.profile===C7_PROFILE,format={format:c7?'c7':'hpke'},j2end=c7?328:318;
  need(raw instanceof Uint8Array&&raw.length<=4800,'packet size');let at=0;
  const take=n=>{need(at+n<=raw.length,'truncated packet');const b=raw.slice(at,at+n);at+=n;return b;};
  const magic=c6Hex(take(8)),join=magic==='4e4336504b540200';need(join||magic==='4e4336504b540100','packet version');
@@ -78,8 +81,8 @@ export function readC6Packet(raw,{kind='xna',manifest}={}){
  need(nfs.every(n=>decodeField(n)>0n)&&new Set(nfs.map(c6Hex)).size===nfs.length,'nullifiers');
  if(!withdraw||change){
   need(publication.length===4096,'publication size');let digest;
-  if(join){need(c6Hex(publication.slice(0,2))==='0301'&&c6Hex(publication.slice(98,101))==='01d900'&&publication.slice(318).every(b=>b===0),'J2 publication');cms=[publication.slice(66,98)];need(nfs.every((n,i)=>eq(n,publication.slice(2+i*32,34+i*32)))&&eq(cms[0],publics[6]),'J2 fields');digest=poseidonBytes(c6Cat(poseidonBytes(c6Cat(poseidonBytes(text('NeuraiPoolC6/J2/data\x01')),publication.slice(0,2048))),publication.slice(2048)));}
-  else {const p=decodeC4Publication(dep?'D0':withdraw?'T1':operation,publication);cms=p.cms;need(dep||eq(p.nf,nfs[0]),'publication nf');digest=c4PublicationHash(dep?'D0':withdraw?'T1':operation,publication);if(!dep)need(cms.every((cm,i)=>eq(cm,publics[withdraw?6:5+i])),'publication cm');}
+  if(join){need(c6Hex(publication.slice(0,2))==='0301'&&(c7?publication[98]===2:c6Hex(publication.slice(98,101))==='01d900')&&publication.slice(j2end).every(b=>b===0),'J2 publication');cms=[publication.slice(66,98)];need(nfs.every((n,i)=>eq(n,publication.slice(2+i*32,34+i*32)))&&eq(cms[0],publics[6]),'J2 fields');digest=poseidonBytes(c6Cat(poseidonBytes(c6Cat(poseidonBytes(text('NeuraiPoolC6/J2/data\x01')),publication.slice(0,2048))),publication.slice(2048)));}
+  else {const p=decodeC4Publication(dep?'D0':withdraw?'T1':operation,publication,format);cms=p.cms;need(dep||eq(p.nf,nfs[0]),'publication nf');digest=c4PublicationHash(dep?'D0':withdraw?'T1':operation,publication,format);if(!dep)need(cms.every((cm,i)=>eq(cm,publics[withdraw?6:5+i])),'publication cm');}
   need(eq(digest,publics[dep?2:withdraw?7:join?4:3]),'publication digest');
  }else need(publication.length===0&&c6Hex(publics[7])==='04bf938a28af8bc7ab2810e0adf3cbbb55aa4feb79827feed2722c5123baac15','no-publication domain');
  if(dep){const amount=decodeField(publics[3]);need(amount>0n&&amount<=MAX&&amount%quantum===0n&&eq(publics[1],poseidonBytes(c6Cat(text('NIP045/dep\x01'),c6LE(amount,8),cms[0]))),'deposit binding');}
@@ -99,8 +102,8 @@ function controls(leaves,C){
  */
 export function buildC6Transaction({packet,scan,manifest,deployment,funding,sponsor}){
  if(deployment?.kind==='asset')return buildAssetTransaction({packet,scan,manifest,deployment,funding,sponsor});
- const d=validateC6SponsorDeployment(deployment),p=readC6Packet(packet);
- need(manifest.profile==='C6-XNA-TEST-J2-v2'&&c6Hex(p.network)===manifest.network&&c6Hex(p.pool)===manifest.commitment&&manifest.commitment===d.commitment&&c6Hex(p.publics[0])===manifest.context,'instance pins');
+ const d=validateC6SponsorDeployment(deployment),p=readC6Packet(packet,{manifest});
+ need((manifest.profile==='C6-XNA-TEST-J2-v2'||manifest.profile===C7_PROFILE&&typeof d.emission==='string')&&c6Hex(p.network)===manifest.network&&c6Hex(p.pool)===manifest.commitment&&manifest.commitment===d.commitment&&c6Hex(p.publics[0])===manifest.context,'instance pins');
  need(manifest.fees?.[p.operation]?.some(f=>String(f)===String(p.fee)),'fee level');
  const vk=c6Unhex(manifest.vks?.[p.operation]??'');need(vk.length>0&&c6Hex(sha256(vk))===manifest.vk_sha256?.[p.operation],'VK integrity');
  const world=new C6PublicWorld();need(c6Hex(world.opening())===d.anchor.opening,'empty birth');

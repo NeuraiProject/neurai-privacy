@@ -20,11 +20,24 @@ function le64(value) {
   return result;
 }
 const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
-function layout(form) {
+/** Note records: "hpke" (C4 to C6: 1024-byte HPKE records, 220 bytes published)
+ * or "c7" (230-byte C7 records whose first byte is 0x02). */
+const FORMATS = { hpke: 220, c7: 230 };
+function recordBytes(format) {
+  demand(Object.hasOwn(FORMATS, format), 'Unknown note record format');
+  return FORMATS[format];
+}
+function layout(form, format = 'hpke') {
   const deposit = form === 'D0' || form === 'D1';
   demand(deposit || /^T[1-4]$/.test(form), 'Unsupported C4 publication form');
-  const count = deposit ? 1 : Number(form[1]);
-  return { deposit, count, recordsAt: 34 + count * 32, end: 34 + count * 252 };
+  const count = deposit ? 1 : Number(form[1]), record = recordBytes(format);
+  return { deposit, count, record, recordsAt: 34 + count * 32, end: 34 + count * (32 + record) };
+}
+function publishedRecord(record, format) {
+  if (format === 'hpke') return compactRecord(record);
+  bytes(record, 230, 'C7 record');
+  demand(record[0] === 2, 'Noncanonical C7 record');
+  return record;
 }
 function compactRecord(record) {
   bytes(record, 1024, 'HPKE record');
@@ -40,9 +53,9 @@ export function c4Context({ domain, assetId, unit, registryRoot = new Uint8Array
   return poseidonBytes(concat(utf8('NeuraiPoolCtx'), Uint8Array.of(1), domain, assetId, le64(unit), registryRoot));
 }
 
-export function decodeC4Publication(form, blob) {
+export function decodeC4Publication(form, blob, { format = 'hpke' } = {}) {
   bytes(blob, 4096, 'C4 publication');
-  const spec = layout(form);
+  const spec = layout(form, format);
   demand(blob[0] === 2 && blob[1] === spec.count, 'C4 version/count mismatch');
   demand(blob.slice(spec.end).every(x => x === 0), 'Noncanonical C4 padding');
   const nf = spec.deposit ? null : blob.slice(2, 34);
@@ -53,27 +66,28 @@ export function decodeC4Publication(form, blob) {
     const cm = blob.slice(34 + i * 32, 66 + i * 32);
     demand(decodeField(cm) !== 0n && !cms.some(other => same(other, cm)), 'Zero or duplicate commitment');
     cms.push(cm);
-    const record = new Uint8Array(1024);
-    record.set(blob.slice(spec.recordsAt + i * 220, spec.recordsAt + (i + 1) * 220));
-    compactRecord(record); records.push(record);
+    const published = blob.slice(spec.recordsAt + i * spec.record, spec.recordsAt + (i + 1) * spec.record);
+    const record = format === 'hpke' ? new Uint8Array(1024) : published;
+    if (format === 'hpke') record.set(published);
+    publishedRecord(record, format); records.push(record);
   }
   return { cms, records, nf };
 }
 
-export function encodeC4Publication(form, { cms, records, nf = null }) {
-  const spec = layout(form);
+export function encodeC4Publication(form, { cms, records, nf = null }, { format = 'hpke' } = {}) {
+  const spec = layout(form, format);
   demand(Array.isArray(cms) && Array.isArray(records) && cms.length === spec.count && records.length === spec.count, 'Wrong note count');
   demand(spec.deposit ? nf === null : nf instanceof Uint8Array, 'Wrong nullifier presence');
   const result = new Uint8Array(4096); result.set([2, spec.count]);
   if (!spec.deposit) result.set(bytes(nf, 32, 'Nullifier'), 2);
   cms.forEach((cm, i) => result.set(bytes(cm, 32, 'Commitment'), 34 + i * 32));
-  records.forEach((record, i) => result.set(compactRecord(record), spec.recordsAt + i * 220));
-  decodeC4Publication(form, result);
+  records.forEach((record, i) => result.set(publishedRecord(record, format), spec.recordsAt + i * spec.record));
+  decodeC4Publication(form, result, { format });
   return result;
 }
 
-export function c4PublicationHash(form, blob) {
-  decodeC4Publication(form, blob);
+export function c4PublicationHash(form, blob, { format = 'hpke' } = {}) {
+  decodeC4Publication(form, blob, { format });
   const seed = poseidonBytes(utf8('NIP045/dat\x03'));
   return poseidonBytes(concat(poseidonBytes(concat(seed, blob.slice(0, 2048))), blob.slice(2048)));
 }

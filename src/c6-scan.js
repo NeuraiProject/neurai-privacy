@@ -9,6 +9,7 @@ import {c6ReadAssetTransfer} from './c6-assets.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { decodeField, encodeField, poseidonBytes, poseidonPermutation } from './poseidon.js';
 import { decodeC4Publication } from './c4-publication.js';
+import { C7_PROFILE } from './c7.js';
 import { readSponsorTransaction } from './sponsor-sweep.js';
 import { validateC6SponsorDeployment, c6SponsorIntent } from './c6-sponsor-chain.js';
 const hex=b=>Array.from(b,v=>v.toString(16).padStart(2,'0')).join('');
@@ -62,6 +63,20 @@ class NoteTree{
   }
 }
 const forms=['D0','D1','T1','T2','T3','W_partial_no_change','W_partial_change','W_full_no_change','J2'];
+/** C7 deployments carry their UNIQUE emission (domain derivation and birth check). */
+const isC7=d=>typeof d.emission==='string';
+const BURN={mainnet:'NbURNXXXXXXXXXXXXXXXXXXXXXXXT65Gdr',testnet:'tBURNXXXXXXXXXXXXXXXXXXXXXXXVZLroy',regtest:'tBURNXXXXXXXXXXXXXXXXXXXXXXXVZLroy'};
+/** C7 verifiable birth: the birth spends the UNIQUE emission and sends the owner
+ * token NAME! to the network's global burn address. */
+function checkC7Birth(tx,d,network){
+  demand(/^[0-9a-f]{64}:\d{1,10}$/.test(d.emission),'C7 emission');
+  const [txid,vout]=d.emission.split(':');
+  demand(tx.vin?.some(i=>i.txid===txid&&i.vout===Number(vout)),'C7 birth must spend the emission');
+  const identity=tx.vout?.[0]?.scriptPubKey?.asset?.name;
+  demand(typeof identity==='string'&&identity.includes('#'),'C7 birth state carries the identity');
+  const owner=identity.slice(0,identity.indexOf('#'))+'!';
+  demand(tx.vout.some(o=>o.scriptPubKey?.asset?.name===owner&&JSON.stringify(o.scriptPubKey?.addresses)===JSON.stringify([BURN[network]])),'C7 birth must burn '+owner);
+}
 function statement(tx,d){
   const w=tx.inputs[0]?.witness;demand(w?.[0]==='10','NoAuth MAST witness');
   const leaf=d.leaves.find(l=>l.script===w.at(-2));demand(leaf&&w.length===leaf.args.length+3,'leaf/witness layout');
@@ -79,11 +94,13 @@ function statement(tx,d){
   if(count){
     const blob=unhex(args.chunk1+args.chunk2);
     if(join){
-      demand(blob.length===4096&&blob[0]===3&&blob[1]===1&&hex(blob.slice(98,101))==='01d900'&&blob.slice(318).every(v=>v===0),'J2 publication');
+      // 03 01 || nf0 || nf1 || cm || one record || zero padding
+      const c7=isC7(d),end=c7?328:318;
+      demand(blob.length===4096&&blob[0]===3&&blob[1]===1&&(c7?blob[98]===2:hex(blob.slice(98,101))==='01d900')&&blob.slice(end).every(v=>v===0),'J2 publication');
       demand(nfs.every((nf,i)=>same(nf,blob.slice(2+32*i,34+32*i))),'J2 publication nullifiers');
-      cms=[blob.slice(66,98)];const record=new Uint8Array(1024);record.set(blob.slice(98,318));records=[record];
+      cms=[blob.slice(66,98)];const record=c7?blob.slice(98,328):new Uint8Array(1024);if(!c7)record.set(blob.slice(98,318));records=[record];
     }else{
-      const parsed=decodeC4Publication(deposit?'D0':form==='W_partial_change'?'T1':form,blob);
+      const parsed=decodeC4Publication(deposit?'D0':form==='W_partial_change'?'T1':form,blob,{format:isC7(d)?'c7':'hpke'});
       cms=parsed.cms;records=parsed.records;demand(deposit||same(parsed.nf,nfs[0]),'publication nullifier');
     }
     const offset=join?356:324;
@@ -108,6 +125,10 @@ async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProg
   demand(await rpc('getblockhash',[d.anchor.height])===d.anchor.hash,'birth reorganized');
   const birth=await rpc('getblock',[d.anchor.hash,2]);
   demand(birth.hash===d.anchor.hash&&birth.height===d.anchor.height&&birth.tx?.find(tx=>tx.txid===d.anchor.outpoint.split(':')[0])?.vout?.[0]?.scriptPubKey?.hex===d.anchor.script,'birth UTXO');
+  if(isC7(d)){
+    demand(identity.generation==='c7','C7 pool needs a C7 wallet identity');
+    checkC7Birth(birth.tx.find(tx=>tx.txid===d.anchor.outpoint.split(':')[0]),d,identity.network);
+  }else demand(identity.generation!=='c7','C6 pool needs a C6 wallet identity');
   let state=d.anchor.opening,point=d.anchor.outpoint,previous=d.anchor.hash,stateScript=d.anchor.script;
   const anchors=new Map([[d.anchor.height,d.anchor.hash]]);
   let tree=new NoteTree(),roots=[],records=[],nullifiers=new Set(),seen=new Set();const initial=opening(state);
@@ -124,7 +145,7 @@ async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProg
       const restoredTree=NoteTree.restore(candidate.tree),o=opening(candidate.state);
       demand(o.notes===restoredTree.count&&same(o.root,restoredTree.root)&&Array.isArray(candidate.records)&&candidate.records.length===o.notes&&Array.isArray(candidate.roots)&&candidate.roots.length===o.history,'saved state counts');
       demand(candidate.nullifiers.length===o.nfs-initial.nfs&&candidate.seen.length===o.seen-initial.seen&&new Set(candidate.nullifiers).size===candidate.nullifiers.length&&new Set(candidate.seen).size===candidate.seen.length,'saved sets');
-      candidate.records.forEach((r,i)=>demand(r.index===i&&r.cm instanceof Uint8Array&&r.cm.length===32&&r.record instanceof Uint8Array&&r.record.length===1024&&same(restoredTree.get(0,i),r.cm)&&Number.isSafeInteger(r.height)&&r.height<=candidate.tip.height,'saved record'));
+      candidate.records.forEach((r,i)=>demand(r.index===i&&r.cm instanceof Uint8Array&&r.cm.length===32&&r.record instanceof Uint8Array&&r.record.length===(isC7(d)?230:1024)&&same(restoredTree.get(0,i),r.cm)&&Number.isSafeInteger(r.height)&&r.height<=candidate.tip.height,'saved record'));
       candidate.roots.forEach(r=>demand(r instanceof Uint8Array&&r.length===32&&decodeField(r)>=0n,'saved historical root'));
       demand(/^[0-9a-f]{64}:0$/.test(candidate.point)&&typeof candidate.stateScript==='string'&&candidate.stateScript.slice(0,-66)===d.anchor.script.slice(0,-66)&&candidate.stateScript.slice(-66,-2)===hex(poseidonBytes(unhex(candidate.state))),'saved state script');
       const mature=candidate.eligible?{...candidate.eligible,tree:NoteTree.restore(candidate.eligible.tree)}:null;
@@ -251,7 +272,7 @@ async function scanC6PoolMode({rpc,deployment,identity,reserved=[],signal,onProg
   check();
   if(snapshots)await snapshots.save({tip:{height,hash:tip},state,point,stateScript,tree:tree.snapshot(),roots,records,nullifiers:[...nullifiers],seen:[...seen],eligible:eligible?{...eligible,tree:eligible.tree.snapshot()}:null,events,reserveAtomic,reserveScript,reservePoint,lastPublicationHeight,recovered,window,coverage:coverage()});
   check();onProgress?.({height,target:height,strategy,phase:'complete'});
-  return {profile:d.kind==='asset'?'C6-ORDINARY-ASSET-TEST-J2-v1':'C6-XNA-TEST-J2-v2',genesis:d.genesis,commitment:d.commitment,tip:{height,hash:tip},statePoint:point,opening:state,
+  return {profile:d.kind==='asset'?'C6-ORDINARY-ASSET-TEST-J2-v1':isC7(d)?C7_PROFILE:'C6-XNA-TEST-J2-v2',genesis:d.genesis,commitment:d.commitment,tip:{height,hash:tip},statePoint:point,opening:state,
     events,reserveAtomic,reserveScript,reservePoint,notes,records,nullifiers:[...nullifiers],root:eligible?.root??null,
     balanceAtomic:String(notes.reduce((n,row)=>n+BigInt(row.amountAtomic),0n)),spendableAtomic:String(notes.filter(row=>row.spendable).reduce((n,row)=>n+BigInt(row.amountAtomic),0n)),ignoredRecords:records.length-recovered.length};
 }

@@ -5,6 +5,7 @@ import {c6AssetMetadata,c6AssetTransferScript} from './c6-assets.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { decodeNote, encodeNote, noteCommitment, noteNullifier } from './notes.js';
 import { sealNote } from './hpke.js';
+import { C7_PROFILE, isC7Descriptor, sealC7Note } from './c7.js';
 import { decodeField, encodeField, poseidonBytes, poseidonPermutation } from './poseidon.js';
 import { c4Context, encodeC4Publication, c4PublicationHash } from './c4-publication.js';
 
@@ -65,9 +66,20 @@ function member(cm, index, path) {
 function descriptor(note) {
   return { domain: hex(note.domain), asset_id: hex(note.assetId), owner: hex(note.owner), view_pub: hex(note.viewPub) };
 }
-function seal(recipient, amount, domain, assetId) {
+function seal(recipient, amount, domain, assetId, c7 = false) {
   require(recipient && recipient.domain === hex(domain) && recipient.asset_id === hex(assetId), 'recipient instance');
-  return sealNote({ descriptor: recipient, amountAtomic: amount });
+  require(isC7Descriptor(recipient) === c7, c7 ? 'a C7 pool needs a version 3 private address' : 'a C6 pool needs a version 1 private address');
+  return c7 ? sealC7Note({ descriptor: recipient, amountAtomic: amount }) : sealNote({ descriptor: recipient, amountAtomic: amount });
+}
+/** Where the change of a spent note goes: its own address. A C7 note does not
+ * carry its diversifier, so the wallet supplies that address as request.change. */
+function changeOf(request, note, c7) {
+  const own = descriptor(note);
+  if (!c7) return own;
+  const change = request.change;
+  require(isC7Descriptor(change) && change.owner === own.owner && change.view_pub === own.view_pub &&
+    change.domain === own.domain && change.asset_id === own.asset_id, 'C7 change address must hold the spent note');
+  return change;
 }
 function compress(proof) {
   const fp = 21888242871839275222246405745257275088696311157297823662689037894645226208583n;
@@ -95,7 +107,8 @@ export function createC6OperationWallet({ expectedGenesis, expectedCommitment, k
   const fingerprint = p => hex(sha256(utf8(JSON.stringify(p))));
   function context(request, op) {
     const { manifest } = request;
-    require(manifest?.profile === (kind==='asset'?'C6-ORDINARY-ASSET-TEST-J2-v1':'C6-XNA-TEST-J2-v2'), 'unsupported manifest profile');
+    const c7 = kind === 'xna' && manifest?.profile === C7_PROFILE;
+    require(c7 || manifest?.profile === (kind==='asset'?'C6-ORDINARY-ASSET-TEST-J2-v1':'C6-XNA-TEST-J2-v2'), 'unsupported manifest profile');
     require(manifest.network === expectedGenesis && manifest.commitment === expectedCommitment, 'manifest differs from pinned instance');
     const D = bytes(request.domain, 32, 'domain'), AID = bytes(request.assetId, 32, 'asset');
     const unit=kind==='asset'?c6AssetMetadata(manifest).unit:1n;
@@ -108,7 +121,7 @@ export function createC6OperationWallet({ expectedGenesis, expectedCommitment, k
       return money(typeof v === 'number' ? String(v) : v, true);
     });
     require(approved.includes(fee)&& (kind!=='asset'||fee===0n), 'unapproved fee');
-    return { D, AID, ctx, fee, unit, quantum:kind==='asset'?unit:QUANTUM, asset:manifest.asset, input: { ctx: decodeField(ctx), D: Array.from(D), AID: Array.from(AID), unit, registryRoot: Array(32).fill(0), fee } };
+    return { D, AID, ctx, fee, unit, c7, format: { format: c7 ? 'c7' : 'hpke' }, quantum:kind==='asset'?unit:QUANTUM, asset:manifest.asset, input: { ctx: decodeField(ctx), D: Array.from(D), AID: Array.from(AID), unit, registryRoot: Array(32).fill(0), fee } };
   }
   function spent(request, state) {
     const row = request.spent;
@@ -133,9 +146,9 @@ export function createC6OperationWallet({ expectedGenesis, expectedCommitment, k
     require(amount % state.quantum === 0n, 'deposit must be a multiple of 100 XNA');
     const funding = bytes(request.funding, 36, 'funding outpoint');
     require(money(request.fundingValue) === money(amount + state.fee), 'funding must equal amount plus fee');
-    const created = seal(request.recipient, amount, state.D, state.AID);
-    const blob = encodeC4Publication('D0', { cms: [created.cm], records: [created.record] });
-    const data = c4PublicationHash('D0', blob), dep = poseidonBytes(concat(utf8('NIP045/dep\x01'), le(amount, 8), created.cm));
+    const created = seal(request.recipient, amount, state.D, state.AID, state.c7);
+    const blob = encodeC4Publication('D0', { cms: [created.cm], records: [created.record] }, state.format);
+    const data = c4PublicationHash('D0', blob, state.format), dep = poseidonBytes(concat(utf8('NIP045/dep\x01'), le(amount, 8), created.cm));
     Object.assign(state.input, { note: Array.from(created.note), cm: decodeField(created.cm), amount, dep: decodeField(dep), data_hash: decodeField(data) });
     return finish('D', state, [created], blob, [decodeField(state.ctx), decodeField(dep), decodeField(data), amount, state.fee], [], undefined, funding);
   }
@@ -149,15 +162,15 @@ export function createC6OperationWallet({ expectedGenesis, expectedCommitment, k
       const amount = money(output.amountAtomic), change = output.isChange === true;
       if (change) changes++;
       else require(amount % state.quantum === 0n, 'recipient amount must be a multiple of 100 XNA');
-      const own = descriptor(input.decoded);
+      const own = changeOf(request, input.decoded, state.c7);
       if (change && output.recipient) require(Object.keys(own).every(k => output.recipient[k] === own[k]), 'change must preserve owner and viewing key');
       total = money(total + amount); flags.push(change ? 1 : 0);
-      return seal(change ? own : output.recipient, amount, state.D, state.AID);
+      return seal(change ? own : output.recipient, amount, state.D, state.AID, state.c7);
     });
     require(changes <= 1 && total === input.decoded.amountAtomic, 'transfer conservation or duplicate change');
     require(created.every(row => !same(row.cm, input.cm)) && new Set(created.map(row => hex(row.cm))).size === created.length, 'fresh distinct outputs');
-    const blob = encodeC4Publication(request.operation, { cms: created.map(row => row.cm), records: created.map(row => row.record), nf: input.nf });
-    const data = c4PublicationHash(request.operation, blob);
+    const blob = encodeC4Publication(request.operation, { cms: created.map(row => row.cm), records: created.map(row => row.record), nf: input.nf }, state.format);
+    const data = c4PublicationHash(request.operation, blob, state.format);
     Object.assign(state.input, { data_hash: decodeField(data), notes: created.map(row => Array.from(row.note)),
       amounts: created.map(row => decodeNote(row.note).amountAtomic), cms: created.map(row => decodeField(row.cm)), changeFlags: flags });
     return finish(request.operation, state, created, blob, [decodeField(state.ctx), decodeField(input.root), decodeField(input.nf), decodeField(data), state.fee, ...state.input.cms], [input.resource]);
@@ -170,11 +183,11 @@ export function createC6OperationWallet({ expectedGenesis, expectedCommitment, k
     require(left >= 0n, 'withdrawal conservation');
     if (kind==='asset'||amount >= QUANTUM) require(amount % state.quantum === 0n, 'withdrawal must be a multiple of 100 XNA');
     else require(left === 0n, 'small recovery must consume the entire note');
-    const created = left ? [seal(descriptor(input.decoded), money(left), state.D, state.AID)] : [];
+    const created = left ? [seal(changeOf(request, input.decoded, state.c7), money(left), state.D, state.AID, state.c7)] : [];
     const dummy = encodeNote({ domain: state.D, assetId: state.AID, owner: encodeField(1n),
       viewPub: Uint8Array.of(9, ...Array(31).fill(0)), amountAtomic: state.unit, rho: new Uint8Array(32) });
-    const blob = left ? encodeC4Publication('T1', { cms: [created[0].cm], records: [created[0].record], nf: input.nf }) : new Uint8Array();
-    const data = left ? c4PublicationHash('T1', blob) : unhex(EMPTY_W_DATA, 32);
+    const blob = left ? encodeC4Publication('T1', { cms: [created[0].cm], records: [created[0].record], nf: input.nf }, state.format) : new Uint8Array();
+    const data = left ? c4PublicationHash('T1', blob, state.format) : unhex(EMPTY_W_DATA, 32);
     const pay = poseidonBytes(concat(utf8('NeuraiPoolC6/pay\x01'), Uint8Array.of(payout.length), payout));
     const cm = left ? decodeField(created[0].cm) : 0n;
     Object.assign(state.input, { amount, pay: decodeField(pay), cm_change: cm, data_hash: decodeField(data),

@@ -7,6 +7,8 @@ import {c6AssetMetadata,c6ReadAssetTransfer} from './c6-assets.js';
  */
 import { BrowserTestIdentity } from './browser-wallet.js';
 import { ZkWalletIdentity, parseRecipient } from './zk-wallet.js';
+import { C7WalletIdentity } from './c7-wallet.js';
+import { C7_PROFILE, c7PoolDomain, c7XnaAssetId, decodeC7Address, encodeC7Address, isC7Descriptor } from './c7.js';
 import { C6PrivateJournal } from './c6-private-journal.js';
 import { buildC6Transaction,c6Outpoint,readC6Packet } from './c6-transaction.js';
 import { readSponsorTransaction } from './sponsor-sweep.js';
@@ -39,8 +41,11 @@ export function startC6PoolWorker({scope=globalThis, snarkjs, manifest, deployme
   // The RPC genesis uses display order; wire packet pins use internal order.
   const pinned=validateC6SponsorDeployment(structuredClone(deployment));
   manifest=structuredClone(manifest); artifacts=structuredClone(artifacts);
-  if (!['xna','asset'].includes(pinned.kind) || hex(unhex(pinned.genesis,32).reverse())!==expectedGenesis || pinned.commitment!==expectedCommitment || manifest?.network!==expectedGenesis || manifest?.commitment!==expectedCommitment || manifest?.profile!==(pinned.kind==='asset'?'C6-ORDINARY-ASSET-TEST-J2-v1':'C6-XNA-TEST-J2-v2')) throw Error('C6 worker: pinned instance mismatch');
-  const kind=pinned.kind;
+  const c7=manifest?.profile===C7_PROFILE&&pinned.kind==='xna'&&typeof pinned.emission==='string';
+  if (!['xna','asset'].includes(pinned.kind) || hex(unhex(pinned.genesis,32).reverse())!==expectedGenesis || pinned.commitment!==expectedCommitment || manifest?.network!==expectedGenesis || manifest?.commitment!==expectedCommitment || (!c7&&manifest?.profile!==(pinned.kind==='asset'?'C6-ORDINARY-ASSET-TEST-J2-v1':'C6-XNA-TEST-J2-v2'))) throw Error('C6 worker: pinned instance mismatch');
+  // A C7 instance is derived, not trusted: genesis, emission and name give its domain.
+  if(c7&&(hex(c7PoolDomain({genesis:pinned.genesis,emission:pinned.emission,identity:manifest.identity}))!==domain||hex(c7XnaAssetId())!==assetId))throw Error('C7 worker: domain or asset does not derive from the pinned birth');
+  const kind=pinned.kind,generation=c7?'C7':'C6';
   if(kind==='asset'){const meta=c6AssetMetadata(manifest);if(pinned.asset!==meta.name||String(pinned.unit)!==String(meta.unit))throw Error('C6 asset deployment metadata mismatch');if(!durableJournal||!buildTransactions)throw Error('Assets require durable private and sponsor journals');}
   unhex(domain,32);unhex(assetId,32);
   if(network!=='testnet'&&network!=='regtest')throw Error('C6 worker: TEST networks only');
@@ -78,10 +83,21 @@ export function startC6PoolWorker({scope=globalThis, snarkjs, manifest, deployme
     const next=new C6PrivateJournal({identity,genesis:expectedGenesis,commitment:expectedCommitment,packetOptions:{kind,manifest},
       read:key=>storage('journal-read',key,{},token),compareAndSwap:(key,expected,replacement)=>storage('journal-write',key,{expected,replacement},token),assertLive:()=>live(token)});
     await next.open({create:!!data.create,backup:data.backup?.cipher});live(token);journal=next;
-    if(identity instanceof ZkWalletIdentity&&journal.value.issued>1)identity.setIssued(journal.value.issued);
+    if(derived(identity)&&journal.value.issued>1)identity.setIssued(journal.value.issued);
     reservations=journal.reservations();journalSummary();
   }
   const receiving=()=>describeReceiving(identity,scan,{network});
+  const derived=value=>value instanceof ZkWalletIdentity||value instanceof C7WalletIdentity;
+  // C7 recipients are nzk v3 addresses or their descriptors; C6 keeps version 1.
+  function recipientOf(input){
+    if(!c7)return parseRecipient(input,pool);
+    try{
+      if(typeof input==='string'&&input.trim()[0]!=='{')return decodeC7Address(input.trim(),pool);
+      const value=typeof input==='string'?JSON.parse(input):input;
+      if(!isC7Descriptor(value))throw Error('not a version 3 descriptor');
+      return decodeC7Address(encodeC7Address(value,network),pool);
+    }catch(e){throw Error(`Recipient is not a C7 private address of this pool (${e?.reason??e?.message??e})`);}
+  }
   function cancel(){epoch++;controller?.abort();identity?.lock();identity=null;scan=null;journal=null;for(const c of calls.values())c.reject(Error('C6 worker: cancelled/locked'));calls.clear();}
   async function unchangedScan(token){
     if(!scan||scanIssued!==(identity.issued??null))return null;
@@ -106,11 +122,11 @@ export function startC6PoolWorker({scope=globalThis, snarkjs, manifest, deployme
   }
   async function refresh(token){
     if(durableJournal&&journal){await journal.reload();reservations=journal.reservations();}
-    post({type:'stage',message:'Reading confirmed C6 pool history'});
+    post({type:'stage',message:`Reading confirmed ${generation} pool history`});
     let reused=null;try{reused=await unchangedScan(token);}catch{live(token);/* A failed cache check falls back to complete validation. */}
     const recovered=reused??await scanC6Pool({rpc:(m,p)=>rpc(m,p,token),deployment:pinned,identity,reserved:reservations,
       checkpointStore:durableJournal?{read:key=>storage('journal-read',key,{},token),compareAndSwap:(key,expected,replacement)=>storage('journal-write',key,{expected,replacement},token)}:undefined,
-      signal:controller.signal,onProgress:p=>{live(token);post({type:'stage',message:p.phase==='checkpoint'?`Resumed saved C6 state through block ${p.height}; checking snapshot ${p.target}`:p.phase==='resuming'?`Replaying saved pool operations through block ${p.height}`:p.phase==='recovering'?'Recovering private notes on this device':p.phase==='verifying'?'Checking the scanned chain':p.phase==='complete'?`C6 synchronized through block ${p.height}`:p.strategy==='spent-index'?`Checking pool operation at block ${p.height} (chain snapshot ${p.target})`:`Reading C6 block ${p.height} / ${p.target}`});}});
+      signal:controller.signal,onProgress:p=>{live(token);post({type:'stage',message:p.phase==='checkpoint'?`Resumed saved ${generation} state through block ${p.height}; checking snapshot ${p.target}`:p.phase==='resuming'?`Replaying saved pool operations through block ${p.height}`:p.phase==='recovering'?'Recovering private notes on this device':p.phase==='verifying'?'Checking the scanned chain':p.phase==='complete'?`${generation} synchronized through block ${p.height}`:p.strategy==='spent-index'?`Checking pool operation at block ${p.height} (chain snapshot ${p.target})`:`Reading ${generation} block ${p.height} / ${p.target}`});}});
     live(token);scan=recovered;scanIssued=identity.issued??null;
     post({type:'stage',message:'Updating encrypted operation history'});
     if(durableJournal&&journal){await journal.reconcile(scan);reservations=journal.reservations();const reserved=new Set(reservations.map(r=>r.cm));for(const n of scan.notes){n.reserved=reserved.has(hex(n.cm));n.spendable=!n.reserved&&!!n.root;}scan.spendableAtomic=String(scan.notes.filter(n=>n.spendable).reduce((v,n)=>v+BigInt(n.amountAtomic),0n));journalSummary();}
@@ -141,14 +157,14 @@ export function startC6PoolWorker({scope=globalThis, snarkjs, manifest, deployme
     }else
     if(data.action==='deposit') {
       plan=identity.prepareC6Deposit(wallet,{...options,amountAtomic:data.amountAtomic,funding:unhex(data.funding,36),fundingValue:data.fundingValue,
-        ...(data.recipient===undefined?{}:{recipient:parseRecipient(data.recipient,pool)})});
+        ...(data.recipient===undefined?{}:{recipient:recipientOf(data.recipient)})});
     }else{
       const consumed=scan.notes.find(n=>hex(n.cm)===data.note&&n.spendable);
       if(!consumed)throw Error('C6 worker: selected note is unavailable, immature or reserved');
       if(data.action==='withdraw')plan=identity.prepareC6Withdrawal(wallet,{...options,consumed,amountAtomic:data.amountAtomic,payoutScript:unhex(data.payoutScript)});
       else if(data.action==='transfer') {
         if(!Array.isArray(data.recipients)||data.recipients.length<1||data.recipients.length>3)throw Error('C6 worker: one to three recipients required');
-        const outputs=data.recipients.map(r=>({amountAtomic:r.amountAtomic,recipient:parseRecipient(r.recipient,pool)}));
+        const outputs=data.recipients.map(r=>({amountAtomic:r.amountAtomic,recipient:recipientOf(r.recipient)}));
         const remainder=money(consumed.amountAtomic)-money(options.fee)-outputs.reduce((n,o)=>n+money(o.amountAtomic),0n);
         if(remainder<0n)throw Error('C6 worker: insufficient selected note');
         if(remainder>0n)outputs.push({amountAtomic:String(remainder),isChange:true});
@@ -231,8 +247,9 @@ export function startC6PoolWorker({scope=globalThis, snarkjs, manifest, deployme
       if(data.type==='create'||data.type==='restore'||data.type==='derive') {
         identity?.lock();identity=null;scan=null;journal=null;
         let next;
-        if(data.type==='derive')next=await ZkWalletIdentity.fromMnemonic({...pool,mnemonic:data.mnemonic,passphrase:data.passphrase??'',family:data.family,
+        if(data.type==='derive')next=await (c7?C7WalletIdentity:ZkWalletIdentity).fromMnemonic({...pool,mnemonic:data.mnemonic,passphrase:data.passphrase??'',family:data.family,
           zkPassphrase:data.zkPassphrase??'',account:data.account,gap:data.gap,issued:data.issued});
+        else if(c7)throw Error('C7 worker: the private wallet is derived from the wallet words');
         else next=data.type==='create'?await BrowserTestIdentity.create({...pool,password:data.password})
           :await BrowserTestIdentity.fromBackup({...pool,password:data.password,backup:data.backup});
         try{live(token);}catch(e){next.lock();throw e;}identity=next;
@@ -246,7 +263,7 @@ export function startC6PoolWorker({scope=globalThis, snarkjs, manifest, deployme
       else if(data.type==='scan') {if(!identity)throw Error('C6 worker: unlock first');await refresh(token);}
       else if(data.type==='prepare')await prepare(data,token);
       else if(data.type==='new-address') {
-        if(!(identity instanceof ZkWalletIdentity))throw Error('C6 worker: derived wallet required');
+        if(!derived(identity))throw Error('C6 worker: derived wallet required');
         if(durableJournal&&!journal)throw Error('C6 journal required');
         identity.issueNext({force:!!data.force});if(durableJournal){if(!journal)throw Error('C6 journal required');await journal.edit(v=>{v.issued=identity.issued;});}post({type:'addresses',recipient:identity.recipient(),addresses:receiving()});
       }else throw Error('C6 worker: unknown request');

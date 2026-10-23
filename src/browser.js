@@ -22,6 +22,9 @@ export {createC6JoinWallet} from './c6-join.js';
 
 export {createC6OperationWallet} from './c6-operations.js';
 
+export { C7_PROFILE, C7_DERIVATION, C7_RECORD_BYTES, C7Error, C7Account, c7XnaAssetId, c7PoolDomain, c7Context, c7InstanceTag, isC7Descriptor, encodeC7Address, decodeC7Address, sealC7Note } from './c7.js';
+export { C7WalletIdentity } from './c7-wallet.js';
+
 export {scanC6Pool} from './c6-scan.js';
 
 export {startC6PoolWorker} from './c6-worker.js';
