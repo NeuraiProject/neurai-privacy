@@ -2,46 +2,53 @@
 
 The Neurai privacy pool is a contract on the Neurai chain that holds XNA and
 keeps a private ledger of who owns it. Ownership is recorded as **notes**.
-The chain only stores a commitment to each note plus an encrypted copy that
+The chain only stores a commitment to each note plus an encrypted record that
 only the recipient can read. Every pool transaction carries a Groth16
-zero-knowledge proof that the private ledger was updated correctly. The
-proof reveals no owner, and for assignments inside the pool it reveals no
-amount either.
+zero-knowledge proof about the notes it spends and creates. The proof
+reveals no owner, and for transfers and joins it reveals no amount either.
 
-The pool needs no special wallet support from the node. It is built from
-existing Neurai features: a UNIQUE asset, AuthScript outputs with MAST
-leaves, Groth16 verification and transaction introspection. This library
-handles everything on the wallet side.
+This library implements the C7 XNA TEST pool (`C7_PROFILE`,
+`C7-XNA-TEST-v1`). C7 runs on the node's portable public-tree rules
+(consensus profile 3). It needs no wallet support from the node: it is built
+from a UNIQUE asset, AuthScript outputs with MAST leaves, Groth16
+verification and those tree rules.
 
-## Pool instance and manifest
+## Pool instance, manifest and deployment
 
-A pool instance is created once by a **birth** transaction. The birth
-consumes the UNIQUE asset `NAME#POOL` and creates the first state output,
-which holds the digest of an empty pool. The instance is then identified by:
+A pool instance is created once by a **birth** transaction. The birth spends
+a UNIQUE **emission** outpoint, creates the first state output (an empty
+pool) carrying the UNIQUE asset `NAME#POOL`, and burns the owner token
+`NAME!` to the network's global burn address, so nobody keeps control of the
+pool asset. The instance is then identified by:
 
-- **domain**, 32 bytes that separate this instance from every other one. All
-  note hashes include it.
-- **asset ID**, 32 bytes for the pooled asset (native XNA here).
-- **commitment**, the MAST root of the contract leaves (one leaf per form).
-- **reserve commitment**, the hash of the guard script that locks the reserve.
+- **domain**, 32 bytes derived from the genesis, the emission outpoint and
+  the pool name (`c7PoolDomain`). All note hashes include it, so notes of one
+  instance cannot be used in another.
+- **asset ID**, `c7XnaAssetId()`, the identifier of native XNA.
+- **context** (`ctx`), a Poseidon hash of domain, asset ID, quantum 1 and an
+  all-zero registry root (`c7Context`). It is the first public input of
+  every proof.
+- **commitment**, the MAST root of the contract leaves, one leaf per form.
 
-The **manifest** pins all of this together with the genesis hash, the birth
-transaction and height, the leaf scripts, the control blocks and the
-verification keys. The wallet validates the manifest before it reads the
-chain:
+The application pins two public documents, never taken from RPC data:
 
-- every leaf with its control block must hash to the pinned commitment;
-- every verification key must hash to its `vkHash`, and the leaf script must
-  contain that hash;
-- the guard script must hash to the reserve commitment;
-- the domain is recomputed from the genesis and the issuance outpoint, and
-  the context is recomputed;
-- the commitment must equal a value pinned independently of the manifest
-  (`expectedCommitment`). The bundled TEST deployment carries its own pin;
-  an application that supplies another manifest must pin its commitment.
+- the **manifest**: profile, network (genesis in internal byte order),
+  identity `NAME#POOL`, context, commitment, one verification key per
+  operation (`vks`, with `vk_sha256`) and the discrete fee levels of each
+  operation (`fees`);
+- the **deployment**: genesis (RPC order), commitment, `kind: 'xna'`, the
+  emission, the birth anchor (height, block hash, outpoint, script and the
+  145-byte opening of the empty state) and the leaves (form, script and
+  witness argument names).
 
-These checks prove that the manifest is internally consistent. They do not
-prove that the scripts implement safe custody. Trusting a manifest is a
+`validateC7Deployment` checks the deployment's shape: the anchor script
+starts with the commitment and ends with the digest of the anchor opening,
+and every leaf is a known form with the mandatory witness arguments. The
+worker also checks that the manifest and the deployment match the pins and
+that the domain derives from the birth. The transaction builder checks every
+leaf against the commitment (MAST pin) and every verification key against
+its hash. These checks prove that the documents are consistent. They do not
+prove that the scripts implement safe custody; pinning a deployment is a
 deliberate decision of the application. See the
 [security model](security-model.md).
 
@@ -50,46 +57,58 @@ deliberate decision of the application. See the
 Every pool transaction spends the current pool outputs and creates new ones.
 
 **State output (output 0).** Value 0. Its script is an AuthScript output
-(`OP_1 <commitment>`) that also carries the pool's UNIQUE asset `NAME#POOL`
-with the 32-byte state digest attached. Whoever spends it must use one of the
-contract leaves, so every change to the pool state needs a valid proof.
+(`OP_1 <commitment>`) that also carries one unit of `NAME#POOL` with the
+32-byte state digest attached. Whoever spends it must use one of the
+contract leaves.
 
 **Reserve output (output 1).** Holds all the XNA in the pool. It is locked
-by a separate guard script (`OP_1 <reserve commitment>`). The guard only
-lets the reserve move in a transaction that also spends the pool state
-output as input 0, so the reserve follows the contract's rules. The reserve
-value is public.
-
-When the pool becomes empty (`W_full`), no reserve output is created. The
-next deposit (`D0`) creates it again.
+by a guard script bound to the contract commitment and the pool identity,
+so it can only be spent together with the state output. The reserve value is
+public. When a withdrawal empties the pool (`W_full_no_change`), no reserve
+output is created; the next deposit (`D0`) creates it again.
 
 ## Pool state
 
-The state digest commits to three Merkle trees, each 32 levels deep and
-hashed with Poseidon over the BN254 scalar field:
+The state commits to four Merkle trees, each 32 levels deep and hashed with
+Poseidon over the BN254 scalar field:
 
 | Tree | Content | Purpose |
 | --- | --- | --- |
 | Note tree | Commitments of all notes ever created, in order. | Proves a spent note exists. |
 | Nullifier tree | Indexed (sorted, linked) tree of all published nullifiers. | Proves a nullifier is new, which prevents double spends. |
 | Seen tree | Indexed tree of all commitments. | Proves a new commitment is unique. |
+| History tree | The note-tree root after every operation that created notes. | Lets a proof use any earlier root. |
 
-The **state opening** is 109 bytes: the three roots, the three counters and
-a mode byte. Mode 0 means the pool holds nothing; mode 1 means it holds
-notes. The digest is `PoseidonBytes(opening)`. Each proof takes the old and
-new digests (`S_old`, `S_new`) as public inputs, so the chain moves from one
-state to the next only through proven transitions. Byte layouts are in
+The **state opening** is 145 bytes: the note, nullifier and seen roots, their
+three counters, a mode byte, the history root and the number of historical
+roots. Mode 0 means the pool holds nothing; mode 1 means it holds notes. The
+digest is `PoseidonBytes(opening)`. Byte layouts are in
 [data formats](data-formats.md#pool-trees-and-state-opening).
+
+## Portable proofs
+
+A C7 proof does not mention the pool state. It proves facts about notes: that
+the spent note is in the note tree under one **historical root** `R`, that the
+spender owns it, that its nullifier is correct, that value is conserved and
+that the published records encrypt the new notes. The state transition itself
+travels as a public **transcript** in the witness: the old and new openings,
+the nullifiers, the new commitments and every insertion path. The node checks
+that the transcript starts at the state being spent, applies exactly those
+insertions and ends at the digest of the new state output.
+
+This makes a proof **portable**. When another pool transaction confirms
+first, the proof stays valid because its root is still in the history tree;
+only the transcript, the prevouts and the reserve change. The worker builds
+the transaction against the latest confirmed state just before returning it,
+and `rebuild` relocates a saved operation again without proving. A deposit
+built as `D0` becomes `D1` when the pool was refilled in the meantime.
 
 ## Notes, commitments and nullifiers
 
-A note records a domain, an asset ID, an owner, the recipient's viewing
-public key, an amount in satoshis and a random `rho`. Two secrets of the
-owner matter:
-
-- the **spend secret**, from which the public `owner` value and the private
-  nullifier key `nk` are derived with Poseidon;
-- the **view seed**, from which an X25519 viewing key pair is derived.
+A note (CP1, 169 bytes) records a domain, an asset ID, an owner, the
+recipient's transmission key `pk_d`, an amount in atomic units and a random
+`rho`. Each address has a **spend secret**, from which the public `owner`
+value and the private nullifier key `nk` are derived:
 
 ```text
 owner = PoseidonBytes("NIP043/owner/CP1" || domain || spendSecret)
@@ -100,51 +119,61 @@ nf    = PoseidonBytes("NIP043/nf/CP1"    || domain || nk || rho || cm)
 
 Creating a note appends `cm` to the note and seen trees. Spending it
 publishes `nf`. Only the owner knows `nk`, so nobody else can compute the
-nullifier or tell which commitment it belongs to. The proof shows that the
-spent note is in the note tree, that the spender knows its spend secret and
-that `nf` is new.
+nullifier or tell which commitment it belongs to.
 
 ## Encrypted note records
 
-The sender encrypts each new note to the recipient's viewing key with HPKE
-(RFC 9180: X25519, HKDF-SHA256, ChaCha20-Poly1305) and publishes the record
-together with its commitment. A record is 1024 bytes, but only its first 220
-are meaningful; the publication stores those and the rest is zero. The
-associated data binds the record to the domain and to `cm`.
+The sender encrypts each new note to the recipient's address and publishes
+the 230-byte record together with its commitment. C7 records are adapted
+from Zcash Orchard over ristretto255: an ephemeral key derived from `rho`, a
+one-byte **view tag**, and ChaCha20-Poly1305 encryption of the note and its
+diversifier, bound to the domain and `cm`.
 
-The recipient finds its notes by trial decryption. It tries every published
-record with its viewing keys and keeps the ones that decrypt to a note whose
-commitment matches and whose owner matches its spend secret. No separate
-message has to reach the recipient: the chain carries everything needed to
-recover the note. See [chain scanning](chain-scanning.md).
+An account has one incoming viewing key. To find its notes it multiplies
+each record's ephemeral key by that key once, compares the view tag (which
+rejects about 255 of 256 foreign records without decrypting) and decrypts
+the rest. The diversifier inside the plaintext tells which address received
+the note, so the cost does not depend on the number of addresses. No message
+has to reach the recipient: the chain carries everything needed to recover
+the note. See [chain scanning](chain-scanning.md).
 
 ## Operations and forms
 
-Each pool transaction uses exactly one form. Every form has its own circuit,
-verification key and contract leaf.
+Every operation has its own circuit and verification key (`D`, `T1`, `T2`,
+`T3`, `W`, `J2`). The contract has one leaf per **form**; the builder picks
+the form from the operation and the reserve.
 
 | Form | Operation | Notes consumed | Notes created | Reserve |
 | --- | --- | --- | --- | --- |
 | `D0` | First deposit into an empty pool | 0 | 1 | 0 → amount |
 | `D1` | Deposit into a pool that holds notes | 0 | 1 | grows by the amount |
-| `T1` | Assign a whole note to one recipient | 1 | 1 | unchanged |
-| `T2` | Assign a note to two notes (recipient and change, or two recipients) | 1 | 2 | unchanged |
-| `T3`, `T4` | Assign a note to three or four notes | 1 | 3 or 4 | unchanged |
-| `W_partial` | Withdraw one whole note while other notes remain | 1 | 0 | shrinks by the note amount |
-| `W_full` | Withdraw the last note, emptying the pool | 1 | 0 | → 0, no reserve output |
+| `T1`, `T2`, `T3` | Transfer one note to 1, 2 or 3 notes, change included | 1 | 1 to 3 | shrinks by the fee |
+| `J2` | Join two notes of the wallet into one | 2 | 1 | shrinks by the fee |
+| `W_partial_change` | Withdraw part of a note; the rest becomes a new note | 1 | 1 | shrinks by amount and fee |
+| `W_partial_no_change` | Withdraw a whole note while the pool keeps XNA | 1 | 0 | shrinks by amount and fee |
+| `W_full_no_change` | Withdraw a whole note that empties the pool | 1 | 0 | → 0, no reserve output |
 
-Rules that follow from the forms:
+Rules the library enforces:
 
-- **One note in per transaction.** A transaction spends at most one note, so
-  a payment cannot be larger than the largest single note.
-- **Assignments conserve value.** The created notes must add up exactly to
-  the consumed note. The fee never comes out of a note.
-- **Withdrawals take a whole note.** To withdraw part of a note, first assign
-  it to two notes (`T2`, one to yourself) and then withdraw one of them.
-- **Deposits need an exact coin.** The deposited amount comes from one
-  transparent coin of exactly that value.
+- **Fees.** The fee is a public input and must be one of the manifest's
+  levels for the operation. A deposit's funding coin pays it; every other
+  operation pays it from the reserve, and the spent note covers it.
+- **Conservation.** The created notes plus the fee add up exactly to the
+  consumed notes.
+- **Quantum.** Deposits, transfer payments to other recipients and
+  withdrawals are multiples of 100 XNA. Change can be any amount. A smaller
+  withdrawal is allowed only when it takes the whole note after its fee.
+- **Change address.** The change of a transfer or a withdrawal goes back to
+  the spent note's address, and a join's note goes to the address of its
+  first note. The wallet supplies that address, because a C7 note does not
+  carry its diversifier.
+- **Deposits need an exact coin.** The deposit spends one confirmed
+  transparent coin worth exactly the amount plus the fee.
 
 ## Transaction layout
+
+All pool transactions are version 3 with the witness flag, locktime 0,
+sequences `0xffffffff` and no reference inputs.
 
 Inputs, in this order:
 
@@ -152,75 +181,42 @@ Inputs, in this order:
 | --- | --- | --- |
 | 0 | Current state output | every form |
 | 1 | Current reserve output | every form except `D0` |
-| next | Funding coin (exact deposit amount) | `D0`, `D1` |
-| last | Sponsor coin (pays the fee) | every form |
+| last | Funding coin (amount plus fee) | `D0`, `D1` |
 
 Outputs, in this order:
 
 | # | Output | Present in |
 | --- | --- | --- |
-| 0 | New state output with `S_new` | every form |
-| 1 | New reserve output | every form except `W_full` |
-| next | Withdrawal payment to a transparent script | `W_partial`, `W_full` |
-| last | Sponsor change (sponsor value minus fee, back to the sponsor's script) | every form |
+| 0 | New state output | every form |
+| 1 | New reserve output | every form except `W_full_no_change` |
+| last | Withdrawal payment to a transparent script | `W_*` forms |
 
-The witness of input 0 holds the compressed proof, the verification key,
-either the 4096-byte publication (deposits and assignments) or the nullifier
-(withdrawals), the serialized prevouts, the leaf script and its control
-block. The reserve input reveals the guard script. Funding and sponsor
-inputs are signed by the user's transparent wallet after the proof is built.
+The witness of input 0 holds the leaf's arguments: the five 3072-byte pieces
+of the transcript, the compressed proof, the verification key, either the
+4096-byte publication (in two halves) or the nullifier, the amount (deposits)
+or the historical root `R`, and the serialized prevouts; then the leaf script
+and its control block. The reserve input reveals the guard script. The
+funding coin of a deposit is signed by the user's transparent wallet with
+`SIGHASH_ALL` after the transaction is built; the other forms need no
+transparent signature.
 
-The **publication** carries the new commitments, their encrypted records and,
-for assignments, the nullifier. The proof takes its hash (`data_hash`) as a
-public input, so nobody can swap the records after proving.
-
-## Binding the proof to the transaction
-
-A proof must not be reusable in another transaction. The library computes the
-NIP-042 TXHASH of the transaction with mask `0x011f`, which covers version,
-locktime, prevouts, sequences, outputs and the (empty) list of reference
-inputs. Its Poseidon hash is the
-**anchor**, a public input of every proof. The leaf script recomputes the
-same value through transaction introspection.
-
-TXHASH does not cover signatures. The user's wallet can therefore sign the
-funding and sponsor inputs after proving without invalidating the proof.
-Changing any input or output, including the fee, requires a new proof.
+The **publication** carries the new commitments, their records and, when a
+note is spent, the nullifier. Its hash (`data_hash`) is a public input, so
+nobody can swap the records after proving.
 
 ## Contention and finality
 
 There is one state output, and each pool transaction spends it. Only one pool
-transaction can confirm on a given state:
+transaction can confirm on a given state. Because proofs are portable, the
+loser of a race does not prove again: rescan and rebuild the operation
+against the new state (the worker does this in `prepare` and `rebuild`), then
+publish the new bytes. Two operations that spend the same note cannot both
+confirm; the journal marks the loser as conflicted.
 
-- Two users who prepare against the same state race each other. The loser's
-  transaction becomes invalid. Its owner must rescan and prove again against
-  the new state; a `D0` may then have to become a `D1`.
-- Pool transactions cannot be chained in the mempool. The scanner follows
-  confirmed state only, so wait for confirmation before preparing the next
-  operation.
-- A reorganization can undo confirmed pool transactions. The scanner detects
-  it and rebuilds; see [chain scanning](chain-scanning.md#reorganizations).
-
-## The C4 profile
-
-The library implements the C4 XNA TEST contract profile. Earlier TEST
-profiles are no longer supported.
-
-| Property | C4 |
-| --- | --- |
-| Manifest schema | `neurai-c4-xna-test-v1` |
-| Forms | `D0 D1 T1 T2 T3 T4 W_partial W_full` |
-| Notes per assignment | 1 to 4, change included |
-| Domain | SHA-256 of the genesis, the issuance outpoint of the UNIQUE asset and the pool identity |
-| Context public input | `ctx`, a Poseidon hash of domain, asset ID, unit and registry root |
-| Publication | Version 2, records stored in their compact 220-byte form |
-| Funding, fee and withdrawal scripts | Legacy P2PKH, strict PQ (`OP_2`) and strict ECDSA (`OP_3`) |
-| Dust rule | Per script type, from the dust relay fee |
-| Pinning | The manifest must match an independently pinned commitment |
-| In the package | `C4_TESTNET_MANIFEST`, `C4_TESTNET_ARTIFACTS`, `C4_TESTNET_COMMITMENT` |
-
-C4 is single-asset: unit 1 and an all-zero registry root. Shared
-multi-asset reserves and per-asset permissions are not part of this profile.
+Pool transactions cannot be chained in the mempool, and a note becomes
+spendable only when the publication that created it has two confirmations.
+A reorganization can undo confirmed pool transactions; the scanner detects
+it and rebuilds. See [chain scanning](chain-scanning.md#reorganizations).
 
 ## Related reading
 

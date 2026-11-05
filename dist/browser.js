@@ -1,27 +1,27 @@
 import {
-  C6SponsorFlow,
-  C6WorkerClient,
-  IndexedDbSponsorStore,
-  PoolWorkerClient,
-  ROTATION_MAX_GAP,
+  C7WorkerClient,
+  IndexedDbJournalStore,
+  LEGACY_P2PKH,
+  POOL_READ_RPC_METHODS,
+  admitTransaction,
+  assertPoolChain,
+  checkPoolCoin,
+  confirmedPoolCoins,
   createWalletServiceRpc,
-  loadRotation,
-  rotationStorageKey,
-  saveRotation
-} from "./chunks/chunk-UHSGQFHN.js";
+  inspectFundingTransaction,
+  isPoolReadRpc,
+  publicationStatus,
+  publishTransaction,
+  recheckInputs,
+  withdrawalScript
+} from "./chunks/chunk-Y3V4NVG2.js";
 import {
-  BrowserTestIdentity,
-  C4_FORMS,
-  C5_CHUNKS,
-  C5_CHUNK_BYTES,
-  C5_FORMS,
   C7Account,
   C7Error,
   C7WalletIdentity,
   C7_DERIVATION,
   C7_PROFILE,
   C7_RECORD_BYTES,
-  HEX32,
   MAX_ARTIFACT_BYTES,
   NZK_ARGON2ID,
   NZK_DEFAULT_GAP,
@@ -29,472 +29,228 @@ import {
   NZK_FAMILIES,
   NZK_HRP,
   NZK_MAX_GAP,
-  RESET_TESTNET_GENESIS,
-  ZkWalletIdentity,
-  balanceText,
+  argon2idAsync,
   bech32mDecode,
   bech32mEncode,
-  buildC4Transaction,
-  buildC5Transaction,
-  buildC6Transaction,
-  c4DustAtomic,
-  c5TransitionBinding,
+  buildC7Transaction,
   c7Context,
   c7InstanceTag,
   c7PoolDomain,
   c7XnaAssetId,
-  createC6JoinWallet,
-  createC6OperationWallet,
+  chacha20poly1305,
+  createC7JoinWallet,
+  createC7OperationWallet,
   decodeC7Address,
   decodeNote,
-  decodeNzkAddress,
   deriveNullifierKey,
   deriveOwner,
-  deriveViewPublic,
-  deriveZkAddressKeys,
   deriveZkRoot,
   describeReceiving,
-  descriptor,
-  encodeC5Transition,
   encodeC7Address,
   encodeNote,
-  encodeNzkAddress,
-  finishC4,
-  finishC5,
-  hmac,
   isC7Descriptor,
-  joinC5Transition,
   loadVerifiedArtifact,
-  noteCmText,
   noteCommitment,
   noteNullifier,
-  nzkInstanceTag,
-  openNoteRecord,
-  openVault,
-  parseRecipient,
-  planC4Operation,
-  prepareC4,
-  prepareC5,
-  proveC4,
-  readC6Packet,
-  scanBrowserPool,
-  scanC6Pool,
+  readC7Packet,
+  scanC7Pool,
   sealC7Note,
-  sealNote,
-  sealVault,
-  splitC5Transition,
-  startC6PoolWorker,
-  startPoolWorker,
-  summarizeScan,
-  validateC4Manifest,
-  validateC5Manifest,
-  verifyC5Transition,
-  walletSeedFromMnemonic,
-  zkFingerprint
-} from "./chunks/chunk-BDEOV3DK.js";
+  startC7PoolWorker,
+  walletSeedFromMnemonic
+} from "./chunks/chunk-TGJJTLQZ.js";
 import {
   ATOMIC_PER_XNA,
   BN254_SCALAR_FIELD,
-  C4_TESTNET_ARTIFACTS,
-  C4_TESTNET_COMMITMENT,
-  C4_TESTNET_MANIFEST,
-  C4_TESTNET_NETWORK,
-  LEGACY_P2PKH,
   MAX_ATOMIC,
-  MIN_SPONSOR_CHANGE_ATOMIC,
-  POOL_READ_RPC_METHODS,
-  SponsorJournal,
-  admitTransaction,
-  assertPoolChain,
-  c6AssetMetadata,
-  c6AssetTransferScript,
-  c6ReadAssetTransfer,
-  c6SponsorIntent,
-  checkPoolCoin,
-  confirmedPoolCoins,
+  c7Intent,
   decodeField,
   encodeField,
   formatXna,
-  inspectFundingTransaction,
-  isPoolReadRpc,
-  parseAssetAmount,
   parseXna,
   poseidonBytes,
   poseidonPermutation,
-  prepareSponsorSweep,
-  publicationStatus,
-  publishTransaction,
-  recheckInputs,
   rpcAmountToSatoshis,
-  scanC6SponsorChain,
-  selectPoolCoins,
-  sha256,
-  validateC6SponsorDeployment,
-  validateSponsorSignature,
-  withdrawalScript
-} from "./chunks/chunk-YYD6OW57.js";
+  validateC7Deployment
+} from "./chunks/chunk-WIDDQ5UR.js";
 
-// src/core.js
-var NeuraiPrivacy = class {
-  constructor({ rpc, backend, expectedGenesis = RESET_TESTNET_GENESIS }) {
-    if (typeof rpc !== "function") throw new TypeError("rpc function is required");
-    if (!backend || typeof backend.scan !== "function" || typeof backend.transact !== "function") {
-      throw new TypeError("privacy backend is required");
-    }
-    if (!HEX32.test(expectedGenesis)) throw new TypeError("invalid genesis hash");
-    this.rpc = rpc;
-    this.backend = backend;
-    this.profile = backend.profile ?? "rwax";
-    this.expectedGenesis = expectedGenesis.toLowerCase();
-    this._operation = Promise.resolve();
-  }
-  async assertNetwork() {
-    const genesis = await this.rpc("getblockhash", [0]);
-    if (typeof genesis !== "string" || genesis.toLowerCase() !== this.expectedGenesis) {
-      throw new Error("unexpected Neurai genesis: " + String(genesis));
-    }
-  }
-  async networkStatus() {
-    await this.assertNetwork();
-    const height = await this.rpc("getblockcount", []);
-    const blockhash = await this.rpc("getbestblockhash", []);
-    if (!Number.isSafeInteger(height) || height < 0 || !HEX32.test(blockhash)) {
-      throw new Error("invalid node status");
-    }
-    return { height, blockhash };
-  }
-  createWallet() {
-    return this.backend.init();
-  }
-  backupWallet(file) {
-    return this.backend.backup(file);
-  }
-  restoreWallet(file) {
-    return this.backend.restore(file);
-  }
-  async fundingStatus({ amountSats, feeSats } = {}) {
-    await this.assertNetwork();
-    return this.backend.funding({ amountSats, feeSats });
-  }
-  async createFundingUtxo({ amountSats, feeSats } = {}) {
-    await this.assertNetwork();
-    return this.backend.funding({ amountSats, feeSats, create: true });
-  }
-  async recipient() {
-    await this.assertNetwork();
-    return descriptor(await this.backend.recipient());
-  }
-  async scan(options) {
-    await this.assertNetwork();
-    const result = await this.backend.scan(options);
-    if (result.test_only !== true) throw new Error("invalid TEST wallet result");
-    if (this.backend.requiresBlockVerification === true || result.height !== void 0 || result.blockhash !== void 0) {
-      if (!Number.isSafeInteger(result.height) || result.height < 1 || !HEX32.test(result.blockhash)) {
-        throw new Error("invalid TEST wallet scan block");
-      }
-      const rpcBlockhash = await this.rpc("getblockhash", [result.height]);
-      if (typeof rpcBlockhash !== "string" || rpcBlockhash.toLowerCase() !== result.blockhash.toLowerCase()) {
-        throw new Error("wallet scanner and RPC node disagree at scanned height; retry after synchronization");
-      }
-    }
-    const ownedNotes = (result.owned_notes ?? []).map((note) => ({
-      cm: noteCmText(note.cm),
-      amountAtomic: balanceText(note.amount_sats, "note amount"),
-      spent: note.spent === true,
-      createdTxid: note.created_txid,
-      createdHeight: note.created_height,
-      spentTxid: note.spent_txid,
-      spentHeight: note.spent_height,
-      slot: note.slot
-    }));
-    const history = (result.history ?? []).map((event) => ({
-      txid: event.txid,
-      height: event.height,
-      form: event.form,
-      reserveAtomic: balanceText(event.reserve_sats, "event reserve")
-    }));
-    if (this.profile === "xna") {
-      const { reserve_amount, balance_units, owned_notes, ...safe } = result;
-      return {
-        ...safe,
-        ownedNotes,
-        history,
-        balanceAtomic: balanceText(result.balance_sats, "balance"),
-        reserveAtomic: balanceText(result.reserve_sats, "reserve")
-      };
-    }
-    if (!Number.isSafeInteger(result.balance_units) || result.balance_units < 0 || !Number.isSafeInteger(result.reserve_amount) || result.reserve_amount < 0) {
-      throw new Error("invalid or unsafe TEST wallet balance");
-    }
-    return {
-      ...result,
-      ownedNotes,
-      history,
-      balanceAtomic: BigInt(result.balance_units),
-      reserveAtomic: BigInt(result.reserve_amount)
-    };
-  }
-  async listNotes(options) {
-    return (await this.scan(options)).ownedNotes;
-  }
-  async history(options) {
-    return (await this.scan(options)).history;
-  }
-  async #spend(options) {
-    const perform = async () => {
-      await this.assertNetwork();
-      const maxRebuilds = options.maxRebuilds ?? 1;
-      if (!Number.isSafeInteger(maxRebuilds) || maxRebuilds < 0 || maxRebuilds > 3) {
-        throw new RangeError("maxRebuilds must be between 0 and 3");
-      }
-      for (let attempt = 0; ; attempt++) {
-        try {
-          const result = await this.backend.transact(options);
-          if (this.profile !== "xna") return result;
-          const { reserve_after, ...safe } = result;
-          return { ...safe, reserveAtomic: balanceText(result.reserve_sats, "reserve") };
-        } catch (error) {
-          const stale = /txn-mempool-conflict|bad-txns-inputs-missingorspent|missing or spent/i.test(String(error));
-          if (!stale || attempt >= maxRebuilds) throw error;
-          options.onProgress?.({ stage: "rebuild", attempt: attempt + 1 });
-        }
-      }
-    };
-    const task = this._operation.then(perform, perform);
-    this._operation = task.catch(() => {
-    });
-    return task;
-  }
-  /** Deposit an existing RWAX or native-XNA TEST UTXO into this wallet. */
-  deposit({ amountUnits, amountSats, broadcast = false, mine = false, feeSats, onProgress, maxRebuilds } = {}) {
-    if (this.profile === "rwax" && amountSats !== void 0) throw new TypeError("RWAX uses amountUnits");
-    if (this.profile === "xna" && amountUnits !== void 0) throw new TypeError("XNA uses amountSats");
-    return this.#spend({
-      kind: "deposit",
-      ...this.profile === "rwax" ? { amountUnits: amountUnits ?? 1 } : { amountSats },
-      broadcast,
-      mine,
-      feeSats,
-      onProgress,
-      maxRebuilds
-    });
-  }
-  /** Spend this wallet's private note to one or two shielded recipients. */
-  transfer({ recipients, splitSats, noteCm, broadcast = false, mine = false, feeSats, onProgress, maxRebuilds }) {
-    return this.#spend({
-      kind: "transfer",
-      recipients,
-      splitSats,
-      noteCm,
-      broadcast,
-      mine,
-      feeSats,
-      onProgress,
-      maxRebuilds
-    });
-  }
-  /** Withdraw an owned TEST note to a transparent output. */
-  withdraw({ recipient, noteCm, broadcast = false, mine = false, feeSats, onProgress, maxRebuilds } = {}) {
-    return this.#spend({
-      kind: "withdraw",
-      recipient,
-      noteCm,
-      broadcast,
-      mine,
-      feeSats,
-      onProgress,
-      maxRebuilds
-    });
-  }
-  async publishPrepared(candidate) {
-    if (!candidate || !HEX32.test(candidate.txid) || typeof candidate.raw_tx !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(candidate.raw_tx)) {
-      throw new TypeError("valid prepared transaction required");
-    }
-    await this.assertNetwork();
-    const decoded = await this.rpc("decoderawtransaction", [candidate.raw_tx]);
-    if (decoded?.txid !== candidate.txid) throw new Error("prepared txid mismatch");
-    const [check] = await this.rpc("testmempoolaccept", [[candidate.raw_tx], true]);
-    if (check?.allowed !== true && check?.allowed !== 1) throw new Error("prepared transaction rejected: " + String(check?.["reject-reason"] ?? "unknown"));
-    const sent = await this.rpc("sendrawtransaction", [candidate.raw_tx, true]);
-    if (sent !== candidate.txid) throw new Error("broadcast returned another txid");
-    return { ...candidate, raw_tx: void 0, broadcast: true };
-  }
-  async transactionStatus(txid) {
-    let tx;
-    try {
-      tx = await this.transaction(txid);
-    } catch (error) {
-      if (/No such mempool|No such transaction|not found/i.test(String(error))) {
-        return {
-          txid,
-          state: "unknown",
-          confirmations: 0,
-          height: null,
-          blockhash: null
-        };
-      }
-      throw error;
-    }
-    const confirmations = tx?.confirmations ?? 0;
-    const blockhash = tx?.blockhash ?? null;
-    let height = tx?.height ?? null;
-    if (confirmations > 0 && height === null && HEX32.test(blockhash)) {
-      const header = await this.rpc("getblockheader", [blockhash]);
-      height = header?.height;
-      if (!Number.isSafeInteger(height) || height < 0) {
-        throw new Error("invalid confirmed transaction height");
-      }
-    }
-    return {
-      txid,
-      state: confirmations > 0 ? "confirmed" : "mempool",
-      confirmations,
-      height,
-      blockhash
-    };
-  }
-  async transaction(txid) {
-    if (!HEX32.test(txid)) throw new TypeError("invalid transaction ID");
-    await this.assertNetwork();
-    return this.rpc("getrawtransaction", [txid, true]);
-  }
-};
+// src/shared.js
+var RESET_TESTNET_GENESIS = "000000c710413a4265a996d30c86043aedef6a563900f1bc43fea61d5b2dc77d";
 
-// src/c6-sponsor-wallet-id.js
-var hex = (b) => Array.from(b, (n) => n.toString(16).padStart(2, "0")).join("");
-async function c6SponsorWalletId(mnemonic, passphrase = "") {
-  const seed = await walletSeedFromMnemonic(mnemonic, passphrase);
+// src/protocol-constants.js
+var NEURAI_TEST_VAULT_AAD_V1 = "Neurai/NIP045/testnet-wallet/vault/v1";
+
+// src/vault.js
+var utf8 = new TextEncoder();
+var decoder = new TextDecoder("utf-8", { fatal: true });
+var VAULT_AAD = utf8.encode(NEURAI_TEST_VAULT_AAD_V1);
+var MEMORY_KIB = 64 * 1024;
+var MAX_CIPHERTEXT = 16 * 1024 * 1024;
+function bytesToHex(bytes) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+function hexToBytes(hex, length, name) {
+  if (typeof hex !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(hex) || length !== null && hex.length !== length * 2) {
+    throw new TypeError(`invalid wallet vault ${name}`);
+  }
+  return Uint8Array.from(hex.match(/../g), (pair) => parseInt(pair, 16));
+}
+function passwordBytes(password) {
+  const bytes = typeof password === "string" ? utf8.encode(password) : password;
+  if (!(bytes instanceof Uint8Array) || bytes.length === 0) {
+    throw new TypeError("nonempty wallet password required");
+  }
+  return bytes;
+}
+function canonicalJson(value) {
+  if (Array.isArray(value)) return value.map(canonicalJson);
+  if (value && typeof value === "object" && !(value instanceof Uint8Array)) {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalJson(value[key])]));
+  }
+  return value;
+}
+async function deriveKey(password, salt) {
+  const key = await argon2idAsync(
+    passwordBytes(password),
+    salt,
+    { t: 3, m: MEMORY_KIB, p: 1, dkLen: 32, maxmem: MEMORY_KIB * 1024 }
+  );
+  return key;
+}
+async function sealVault(payload, password) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new TypeError("wallet vault payload must be an object");
+  }
+  if (!globalThis.crypto?.getRandomValues) {
+    throw new Error("secure browser randomness is required");
+  }
+  const salt = globalThis.crypto.getRandomValues(new Uint8Array(16));
+  const nonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
+  const plaintext = utf8.encode(JSON.stringify(canonicalJson(payload)));
+  if (plaintext.length > MAX_CIPHERTEXT - 16) throw new RangeError("wallet vault payload too large");
+  const key = await deriveKey(password, salt);
   try {
-    return hex(hmac(sha256, seed, new TextEncoder().encode("NeuraiC6SponsorWallet/v1")));
+    const ciphertext = chacha20poly1305(key, nonce, VAULT_AAD).encrypt(plaintext);
+    return JSON.stringify({
+      version: 1,
+      kdf: "argon2id",
+      memory_kib: MEMORY_KIB,
+      passes: 3,
+      lanes: 1,
+      salt: bytesToHex(salt),
+      nonce: bytesToHex(nonce),
+      ciphertext: bytesToHex(ciphertext)
+    }) + "\n";
   } finally {
-    seed.fill(0);
+    key.fill(0);
+    plaintext.fill(0);
+  }
+}
+async function openVault(encoded, password) {
+  const raw = encoded instanceof Uint8Array ? decoder.decode(encoded) : encoded;
+  if (typeof raw !== "string" || raw.length > MAX_CIPHERTEXT * 2 + 1024) {
+    throw new TypeError("invalid wallet vault JSON");
+  }
+  const envelope = JSON.parse(raw);
+  if (!envelope || typeof envelope !== "object" || Array.isArray(envelope) || envelope.version !== 1 || envelope.kdf !== "argon2id" || envelope.memory_kib !== MEMORY_KIB || envelope.passes !== 3 || envelope.lanes !== 1) {
+    throw new Error("unsupported wallet vault parameters");
+  }
+  const salt = hexToBytes(envelope.salt, 16, "salt");
+  const nonce = hexToBytes(envelope.nonce, 12, "nonce");
+  const ciphertext = hexToBytes(envelope.ciphertext, null, "ciphertext");
+  if (ciphertext.length < 16 || ciphertext.length > MAX_CIPHERTEXT) {
+    throw new RangeError("invalid wallet vault ciphertext size");
+  }
+  const key = await deriveKey(password, salt);
+  let plaintext;
+  try {
+    plaintext = chacha20poly1305(key, nonce, VAULT_AAD).decrypt(ciphertext);
+    const payload = JSON.parse(decoder.decode(plaintext));
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("invalid wallet vault payload");
+    }
+    return payload;
+  } finally {
+    key.fill(0);
+    plaintext?.fill(0);
   }
 }
 export {
   ATOMIC_PER_XNA,
   BN254_SCALAR_FIELD,
-  BrowserTestIdentity,
-  C4_FORMS,
-  C4_TESTNET_ARTIFACTS,
-  C4_TESTNET_COMMITMENT,
-  C4_TESTNET_MANIFEST,
-  C4_TESTNET_NETWORK,
-  C5_CHUNKS,
-  C5_CHUNK_BYTES,
-  C5_FORMS,
-  C6SponsorFlow,
-  C6WorkerClient,
+  C7WorkerClient as C6WorkerClient,
   C7Account,
   C7Error,
   C7WalletIdentity,
+  C7WorkerClient,
   C7_DERIVATION,
   C7_PROFILE,
   C7_RECORD_BYTES,
-  IndexedDbSponsorStore,
+  IndexedDbJournalStore,
+  IndexedDbJournalStore as IndexedDbSponsorStore,
   LEGACY_P2PKH,
   MAX_ARTIFACT_BYTES,
   MAX_ATOMIC,
-  MIN_SPONSOR_CHANGE_ATOMIC,
   NZK_ARGON2ID,
   NZK_DEFAULT_GAP,
   NZK_DERIVATION,
   NZK_FAMILIES,
   NZK_HRP,
   NZK_MAX_GAP,
-  NeuraiPrivacy,
   POOL_READ_RPC_METHODS,
-  PoolWorkerClient,
   RESET_TESTNET_GENESIS,
-  ROTATION_MAX_GAP,
-  SponsorJournal,
-  ZkWalletIdentity,
   admitTransaction,
   assertPoolChain,
   bech32mDecode,
   bech32mEncode,
-  buildC4Transaction,
-  buildC5Transaction,
-  buildC6Transaction,
-  c4DustAtomic,
-  c5TransitionBinding,
-  c6AssetMetadata,
-  c6AssetTransferScript,
-  c6ReadAssetTransfer,
-  c6SponsorIntent,
-  c6SponsorWalletId,
+  buildC7Transaction as buildC6Transaction,
+  buildC7Transaction,
   c7Context,
   c7InstanceTag,
+  c7Intent,
   c7PoolDomain,
   c7XnaAssetId,
   checkPoolCoin,
   confirmedPoolCoins,
-  createC6JoinWallet,
-  createC6OperationWallet,
+  createC7JoinWallet as createC6JoinWallet,
+  createC7OperationWallet as createC6OperationWallet,
+  createC7JoinWallet,
+  createC7OperationWallet,
   createWalletServiceRpc,
   decodeC7Address,
   decodeField,
   decodeNote,
-  decodeNzkAddress,
   deriveNullifierKey,
   deriveOwner,
-  deriveViewPublic,
-  deriveZkAddressKeys,
   deriveZkRoot,
   describeReceiving,
-  encodeC5Transition,
   encodeC7Address,
   encodeField,
   encodeNote,
-  encodeNzkAddress,
-  finishC4,
-  finishC5,
   formatXna,
   inspectFundingTransaction,
   isC7Descriptor,
   isPoolReadRpc,
-  joinC5Transition,
-  loadRotation,
   loadVerifiedArtifact,
   noteCommitment,
   noteNullifier,
-  nzkInstanceTag,
-  openNoteRecord,
   openVault,
-  parseAssetAmount,
-  parseRecipient,
   parseXna,
-  planC4Operation,
   poseidonBytes,
   poseidonPermutation,
-  prepareC4,
-  prepareC5,
-  prepareSponsorSweep,
-  proveC4,
   publicationStatus,
   publishTransaction,
-  readC6Packet,
+  readC7Packet as readC6Packet,
+  readC7Packet,
   recheckInputs,
-  rotationStorageKey,
   rpcAmountToSatoshis,
-  saveRotation,
-  scanBrowserPool,
-  scanC6Pool,
-  scanC6SponsorChain,
+  scanC7Pool as scanC6Pool,
+  scanC7Pool,
   sealC7Note,
-  sealNote,
   sealVault,
-  selectPoolCoins,
-  splitC5Transition,
-  startC6PoolWorker,
-  startPoolWorker,
-  summarizeScan,
-  validateC4Manifest,
-  validateC5Manifest,
-  validateC6SponsorDeployment,
-  validateSponsorSignature,
-  verifyC5Transition,
+  startC7PoolWorker as startC6PoolWorker,
+  startC7PoolWorker,
+  validateC7Deployment,
   walletSeedFromMnemonic,
-  withdrawalScript,
-  zkFingerprint
+  withdrawalScript
 };
 //# sourceMappingURL=browser.js.map

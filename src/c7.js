@@ -12,7 +12,7 @@ import { chacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { BinaryFF1 } from '@noble/ciphers/ff1.js';
 import { encodeNote, decodeNote, noteCommitment } from './notes.js';
 import { poseidonBytes } from './poseidon.js';
-import { c4Context } from './c4-publication.js';
+import { c7PublicationContext } from './c7-publication.js';
 import { bech32mEncode, bech32mDecode, NZK_FAMILIES, NZK_HRP } from './zk-wallet.js';
 
 export const C7_PROFILE = 'C7-XNA-TEST-v1';
@@ -89,9 +89,9 @@ export function c7PoolDomain({ genesis, emission, identity }) {
     unhex(match[1], 32, 'emission txid').reverse(), u32le(Number(match[2])), [name.length], name));
 }
 
-/** Public input 0 of every proof (same construction as C6). */
+/** Public input 0 of every proof: the pool context with quantum 1. */
 export function c7Context(domain, assetId) {
-  return c4Context({ domain: bytes(domain, 32, 'domain'), assetId: bytes(assetId, 32, 'assetId'), unit: 1n });
+  return c7PublicationContext({ domain: bytes(domain, 32, 'domain'), assetId: bytes(assetId, 32, 'assetId'), unit: 1n });
 }
 
 export function c7InstanceTag(domain, assetId) {

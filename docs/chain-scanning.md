@@ -1,130 +1,140 @@
-# Chain scanning and checkpoints
+# Chain scanning
 
 The wallet keeps no balance of its own. Every scan rebuilds the public pool
-state from the chain, checks each step against the manifest, and then finds
-the notes that belong to the wallet. `scanBrowserPool` does this. The worker
-calls it on every `scan` and before every `prepare`.
+state from the chain, checks each step against the pinned deployment, and
+then finds the notes that belong to the wallet. `scanC7Pool` does this. The
+worker calls it on every `scan`, before every `prepare` and again just before
+it builds a transaction.
+
+```js
+const scan = await scanC7Pool({
+  rpc, deployment, identity,            // identity: a C7WalletIdentity
+  reserved: journalReservations,        // [{cm, nf}] held by pending operations
+  strategy: 'auto', historyPageLimit: 20,
+  checkpointStore,                      // optional encrypted caches, see below
+  signal, onProgress,
+});
+```
 
 ## Node requirements
 
 The scanner talks to one fully validating Neurai node through `rpc(method,
-params)`. It relies on the node to enforce consensus. It does not verify
-the Groth16 proofs of past transactions itself; it checks that each
-confirmed transition is consistent with the pinned contract.
+params)`. This is not SPV: it relies on the node to enforce consensus, and it
+does not verify the Groth16 proofs of past transactions itself. It checks that
+each confirmed transition is consistent with the pinned contract.
 
-| Strategy | Node flags | Cost |
+| Strategy | Node flags | How it follows the state |
 | --- | --- | --- |
-| `spent-index` (default) | `-spentindex -txindex` | A few RPC calls per pool operation, independent of chain length. |
-| `blocks` | `-txindex` | One `getblock` per block since the pool birth. For nodes without a spent index. |
+| `auto` (default) | `-spentindex -txindex` | `pool-history`, continuing with `spent-index` in the same pass when the node cannot serve pages; `blocks` when the spent index is missing. |
+| `pool-history` | `-spentindex -txindex` | Pages of `getprivacypoolupdates`, up to `historyPageLimit` (1 to 1000, default 20) pool transactions per call. |
+| `spent-index` | `-spentindex -txindex` | `getspentinfo` and the blocks that contain pool transactions. |
+| `blocks` | `-txindex` | One `getblock` per block since the pool birth. |
 
-Methods used: `getblockhash`, `getbestblockhash`, `getblockcount`, `getblock`
-(blocks strategy only), `getrawtransaction`, `gettxout` and `getspentinfo`.
+Methods used: `getblockchaininfo`, `getblockhash`, `getblockcount`,
+`getblock`, `getrawtransaction`, `gettxout`, `getspentinfo` and
+`getprivacypoolupdates`. A forced `pool-history` scan fails with code
+`C7_HISTORY_UNAVAILABLE` when the node cannot serve pages; a spent-index walk
+fails with `C7_INDEX_UNAVAILABLE` when the index does not answer, which makes
+`auto` switch to block replay. Contradictory index or history data always
+fails closed.
 
 ## Before reading the pool
 
-1. Validate the manifest against `expectedCommitment` and `expectedGenesis`
-   and check that it lists one distinct verification key per form.
-2. Check that the node's block 0 is the manifest's genesis.
-3. If an identity is given, check that its descriptor belongs to the
-   manifest's domain and asset ID.
-4. If a checkpoint is given, restore it (see [checkpoints](#checkpoints)).
+1. `validateC7Deployment` checks the pinned deployment, and the identity must
+   be a C7 wallet identity.
+2. `getblockchaininfo` must report `zk_portable_tree.active_for_next_block:
+   true`: the node applies the portable public-tree rules.
+3. The node's block 0 must be the deployment's genesis.
+4. The tip is captured (`getblockcount`, `getblockhash`). The block at the
+   anchor height must be the anchor's block.
+5. The birth transaction must create the anchor script as output 0, spend the
+   deployment's emission, carry the pool identity `NAME#POOL` in output 0 and
+   burn the owner token `NAME!` to the network's burn address. Its opening
+   must be the empty pool.
 
-## Following the state with the spent index
+## Following the state
 
-Without a checkpoint, the scan starts at the pool birth:
+**Pool history.** The scanner builds the cursor itself from the pinned birth:
+`pool_id` is the node's transport id of the birth outpoint
+(`SHA256d(len || "Neurai/privacy-pool/transport/v1" || genesis || birthTxid
+|| u32le(vout))`, in display order), the position is the current state
+outpoint and the snapshot is the captured tip. Every page must name that pool,
+genesis, commitment and snapshot. Every update must be the next one in
+sequence, spend the current state as input 0 and create the next state as
+output 0. The last page must report a complete history ending at the current
+state with the expected script; the scanner then confirms independently that
+the state is unspent (`gettxout`), or that its spender confirmed after the
+captured tip (`getspentinfo`). The node only saves round trips: every raw
+transaction goes through the checks below.
 
-- the birth transaction must be confirmed at `birthHeight` in the active
-  chain;
-- its output 0 must be the state script of an empty pool;
-- one of its inputs must spend an output that carries the pool's UNIQUE asset.
+**Spent index.** The scanner asks `getspentinfo` which transaction spent the
+current state output. A confirmed spender must spend it as input 0, at a
+height not lower than the previous step, in a block that is still at its
+height. When no spender is reported, the state and the reserve must be
+unspent and confirmed with the expected scripts, and the walk ends. A
+spender above the captured tip is ordinary chain growth: the scan stops
+there and returns a snapshot at the captured height.
 
-Then it follows the state output step by step:
+**Block replay.** The scanner reads every block from the birth to the
+captured tip, requires each to link to the previous one and picks the
+transaction that spends the current state as input 0.
 
-1. Ask `getspentinfo` which transaction spent the current state output.
-2. If a confirmed spender exists, it must spend the state as input 0, at a
-   height not lower than the previous step. The scanner fetches it, checks
-   that it is in the active chain at that height, applies the transition and
-   repeats with the new state output.
-3. If there is no confirmed spender, the scanner checks with `gettxout` that
-   the state output and the reserve output are unspent. The scan then ends at
-   the current height. A spender that is only in the mempool is ignored.
-4. If the state is spent but the index does not report the spender, it asks
-   once more, then fails with a message that the node needs `-spentindex`.
-
-Without `stopHeight`, the scan follows the state to its current unspent
-output, even past the height read at the start. With `stopHeight` it stops
-there.
-
-At the end, the scanner reads again the hash of every block it used. If any
-changed, it fails with `chain reorganized during scan; retry`.
-
-The `blocks` strategy replays every block from the birth height instead,
-looks for the transaction that spends the current state as input 0, applies
-the same checks, and requires the chain tip to be unchanged at the end.
+At the end, the scanner reads again the hash of every block it used and of
+the captured tip. If any changed, it fails with
+`C7 scan: chain changed during scan; retry`.
 
 ## Checks on every transition
 
 For each pool transaction, the scanner:
 
-- requires a MAST spend of the state (witness item 0 is `0x10`);
-- identifies the form from the SHA-256 of the verification key in the
-  witness, and requires the exact leaf script, control block and key of
-  that form;
-- checks that the form fits the reserve (`D0` only on an empty pool) and that
-  input 1 is the current reserve output;
-- decodes the publication (deposits and assignments) or the nullifier
-  (withdrawals), inserts the nullifier and the new commitments into the trees
-  and fails on a duplicate;
-- recomputes the state digest and requires output 0 to carry exactly that
-  digest;
-- checks the reserve output script and its value change: unchanged for
-  assignments, increased by the funding coin's value for deposits, decreased
-  by the payment's value for withdrawals, and no reserve after `W_full`.
+- requires the raw transaction to have the reported txid, spend the current
+  state as input 0, be version 3 with locktime 0, final sequences and no
+  reference inputs;
+- requires a MAST spend of the state (witness item 0 is `0x10`), finds the
+  leaf by its script, checks the witness length and checks the control block
+  against the pinned commitment;
+- reads the transcript from `tree0`…`tree4` and requires its length and
+  header to match the leaf's form;
+- requires the transcript's old opening to be the current state and output 0
+  to carry the digest of the new opening, with the pinned script template;
+- requires distinct, nonzero nullifiers that never appeared before;
+- decodes the publication, requires its commitments to be those of the
+  transcript and never seen before, and keeps their records;
+- requires a spend's historical root to be the root at its index;
+- checks the note count, the note-tree root and the other counters of the
+  new opening;
+- reads the reserve from output 1 while the pool holds notes.
 
-Each transition is recorded as `{txid, height, form, digest, reserveAtomic}`.
-All published commitments and records are kept with their tree slot,
-transaction and height.
+Each transition is recorded as an event `{form, cms, nfs, rootIndex,
+transcript, txid, intentId}`. `buildC7Transaction` replays these events to
+rebuild the public trees, and the journal matches `intentId` with its
+operations.
 
 ## Finding the wallet's notes
 
-After the walk, the scanner tries to decrypt every published record that the
-checkpoint has not already covered.
-
-A wallet opened from its words (`ZkWalletIdentity`) has many addresses, so it
-searches a window:
-
-1. It tries the internal address (chain 1, index 0), where deposits and
-   change go.
-2. It tries receiving addresses 0, 1, 2, … up to at least `gap − 1` and at
-   least the last issued index.
-3. Every time a receiving address turns out to be used, the window extends to
-   that index plus `gap`.
-
-The order of the records does not matter. A record counts as owned when it
-decrypts with the address's viewing key, the note matches the pool and the
-commitment, and its owner matches the address's spend secret. The scanner
-then computes the note's nullifier.
+After the walk, `C7WalletIdentity.scanRecords` tries every published record
+that a saved snapshot has not already covered. Per record it computes one
+shared secret with the account's viewing key, compares the one-byte view tag,
+and decrypts the records that pass. The diversifier in the plaintext names the
+address, so the cost does not depend on how many addresses the wallet used,
+and the order of the records does not matter. A record counts as owned when
+the note matches the pool, the address and the commitment, and its owner
+matches the address's spend secret. The scanner then computes the nullifier.
 
 A note is **spent** when its nullifier appears in a later transition. The
-balance is the sum of the unspent owned notes. Each note keeps the address
-that received it, which selects the key used to spend it.
+balance is the sum of the unspent owned notes. A note is **spendable** when:
 
-The cost of this step grows with the number of records times the number of
-addresses tried. A checkpoint avoids decrypting old records again.
+- it is under the most recent root whose publication has at least two
+  confirmations at the scan tip (the scanner gives it that root and its
+  Merkle path), and
+- neither its commitment nor its nullifier is in `reserved`.
 
-## Address rotation
-
-`issueNext()` hands out the next receiving address. It refuses to go more
-than `gap` addresses past the highest used one unless `force` is set, because
-a later recovery with the same gap would not find payments sent there. The
-default gap is 20 and the maximum 1000.
-
-The scanner learns which addresses are used, but it cannot know which
-addresses were handed out and never paid. The application can store that
-non-secret state with `rotationStorageKey`, `loadRotation` and
-`saveRotation`, and pass `gap` and `issued` to `derive` or `scan`. If this
-state is lost, a scan restores everything up to the last used address, and
-the wallet may hand out an already shown address again.
+The result is private: it contains plaintext notes, records and paths. Keep it
+inside the worker. Its fields are `profile`, `genesis`, `commitment`, `tip`,
+`statePoint`, `opening`, `events`, `reserveAtomic`, `reserveScript`,
+`reservePoint`, `notes`, `records`, `nullifiers`, `root`, `balanceAtomic`,
+`spendableAtomic` and `ignoredRecords`. The worker sends the page only
+balances, commitments and amounts.
 
 ## Reorganizations
 
@@ -133,67 +143,38 @@ used, so a reorganization is handled by scanning again:
 
 - a note created in a disconnected block disappears from the next scan;
 - a note whose spend was disconnected becomes unspent again;
-- a checkpoint whose block is no longer in the active chain is discarded and
-  the scan starts from the pool birth.
+- a cache whose block is no longer in the active chain is discarded;
+- the journal reopens reservations whose confirmation was disconnected.
 
-One confirmation is enough for the scanner. An application that wants more
-certainty before showing a received payment as final can compare the note's
-`height` with the chain height.
+## Encrypted caches
 
-## Checkpoints
+With `checkpointStore: { read, compareAndSwap }` the scanner keeps two
+disposable records, encrypted with the identity (see
+[data formats](data-formats.md#encrypted-caches-and-journal)):
 
-A scan returns a plaintext `checkpoint` with everything needed to continue
-later:
+- **Scan prefix.** Every validated pool transaction with its height and block
+  hash, at most 2048 transactions and 2 MiB. On the next scan every saved
+  block is checked against the active chain; a reorganization or a lower tip
+  trims the affected suffix, and only the missing part is downloaded.
+- **Scan snapshot.** The completed scan: trees, records, roots, nullifiers,
+  events, the reserve and the recovered notes, at most 3 MiB. It is saved only
+  after the final chain checks. It is reused when its tip block is still in
+  the active chain and its contents pass shape checks; the scan then
+  continues from the saved state. Note recovery runs only over new records,
+  unless the wallet's receiving index changed since the snapshot.
 
-- the manifest ID (SHA-256 of the manifest JSON), the height and block hash;
-- the pool state trees, the state and reserve outpoints and the reserve;
-- all transitions, all published commitments and records, and the
-  transaction that published each nullifier;
-- the wallet tag and its address window (`gap`, `issued`);
-- the owned notes, **including their plaintext**.
+A damaged or foreign cache is ignored and rebuilt. A storage error or a
+concurrent write from another tab stops the scan (`C7 scan: progress changed
+in another tab; retry`); it never returns an unchecked balance. The caches are
+**not** the operation journal: losing them only repeats public scanning.
 
-Because it contains note plaintexts, the checkpoint must be encrypted and
-authenticated before it is stored. The worker does this: it seals the
-checkpoint with ChaCha20-Poly1305 under a key derived from the wallet
-(see [data formats](data-formats.md#scan-checkpoint-envelope)) and gives the
-page only the encrypted string. Direct callers of `scanBrowserPool` must do
-the same.
+The worker passes its journal store as `checkpointStore` in durable mode. It
+also keeps the last scan in memory and reuses it when nothing can have
+changed: the last publication is mature, the portable rules are active, the
+captured tip is still in the chain and the state and reserve outputs are
+unspent with the expected scripts and value. Issuing an address, a spent
+state, a younger publication or a reorganization forces a new scan.
 
-On the next scan the checkpoint is used only if:
-
-- it decrypts with the wallet's key, so it belongs to the same wallet;
-- its manifest ID matches the current manifest;
-- its fields are well formed and its height is not above the scan height;
-- the node still has the same block at its height.
-
-Otherwise the scan starts from the pool birth. The pool part of a valid
-checkpoint is always reused. Its owned notes are reused only when the wallet
-tag and the address window are unchanged; after changing `gap` or `issued`,
-the scanner searches all records again.
-
-Storage advice:
-
-- Keep checkpoints on the device, for example in IndexedDB, under a key that
-  includes the network and the wallet (`rotationStorageKey(...) + ':scan'`).
-- Do not upload them to a server.
-- A storage failure must not block scanning; the scan simply starts from the
-  pool birth.
-- The checkpoint grows with the pool history. Above 32 MiB of plaintext the
-  worker cannot seal it and returns `null`. The open worker still continues
-  from its last scan in memory, but after a restart scans start from the
-  pool birth.
-
-### C6 and C7 pools
-
-`scanC6Pool` reads the pool history in pages with the node's
-`getprivacypoolupdates` (`-spentindex -txindex`) and falls back to the
-spent-index walk above in the same pass when the node cannot serve them. See
-[C6 operations](C6-OPERATIONS.md) for the cursor, the checks and the fallback.
-
-### Sponsor scanner checkpoint
-
-The C6 sponsor scanner (`scanC6SponsorChain`, used by `C6SponsorFlow`) follows
-the same spent-index walk and keeps its own, separate checkpoint: the confirmed
-prefix of each pool's state chain, stored next to the sponsor journal. It holds
-no private data and is verified against the active chain before reuse. See
-[C6 sponsor lifecycle](C6-SPONSOR-FLOW.md#scan-cost-and-checkpoint).
+A durable worker can scan before its journal is open. It then reports
+`historyReady: false`, the confirmed balance and zero spendable balance;
+preparing an operation still needs the journal.

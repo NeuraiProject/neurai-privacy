@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  rpcAmountToSatoshis, parseXna, formatXna, isPoolReadRpc, assertPoolChain, confirmedPoolCoins, selectPoolCoins,
+  rpcAmountToSatoshis, parseXna, formatXna, isPoolReadRpc, assertPoolChain, confirmedPoolCoins,
   checkPoolCoin, withdrawalScript, recheckInputs, admitTransaction, inspectFundingTransaction, publishTransaction,
-  publicationStatus, rotationStorageKey, loadRotation, saveRotation, C4_TESTNET_MANIFEST,
-} from '../src/client.js';
+  publicationStatus, RESET_TESTNET_GENESIS as GENESIS,
+} from '../src/index.js';
 
-const GENESIS = C4_TESTNET_MANIFEST.genesis;
+const POOL = { genesis: GENESIS };
 const P2PKH = '76a914' + '11'.repeat(20) + '88ac';
 const OTHER = '76a914' + '22'.repeat(20) + '88ac';
 function stubRpc(handlers) {
@@ -41,13 +41,13 @@ test('exact amounts: RPC values, user input and formatting', () => {
 });
 
 test('read-only RPC allowlist and chain check', async () => {
-  for (const method of ['getblockhash', 'getblock', 'getrawtransaction', 'gettxout', 'getspentinfo']) assert.equal(isPoolReadRpc(method), true);
+  for (const method of ['getblockchaininfo', 'getblockhash', 'getblock', 'getrawtransaction', 'gettxout', 'getspentinfo', 'getprivacypoolupdates']) assert.equal(isPoolReadRpc(method), true);
   for (const method of ['sendrawtransaction', 'dumpprivkey', 'signrawtransaction', 'testmempoolaccept']) assert.equal(isPoolReadRpc(method), false);
-  await assertPoolChain(stubRpc({ getblockhash: GENESIS }).rpc, C4_TESTNET_MANIFEST);
-  await assert.rejects(assertPoolChain(stubRpc({ getblockhash: '00'.repeat(32) }).rpc, C4_TESTNET_MANIFEST), /not on the network/);
+  await assertPoolChain(stubRpc({ getblockhash: GENESIS }).rpc, POOL);
+  await assert.rejects(assertPoolChain(stubRpc({ getblockhash: '00'.repeat(32) }).rpc, POOL), /not on the network/);
 });
 
-test('coin discovery and selection for deposits and fees', async () => {
+test('coin discovery keeps confirmed supported coins of the base currency', async () => {
   const utxos = [
     { txid: 'a'.repeat(64), outputIndex: 0, script: P2PKH, satoshis: 100000000000, assetName: 'XNA', address: 'tA' },
     { txid: 'b'.repeat(64), outputIndex: 1, script: P2PKH, satoshis: 899986985000, assetName: 'XNA', address: 'tA' },
@@ -58,13 +58,6 @@ test('coin discovery and selection for deposits and fees', async () => {
   const { rpc } = stubRpc({ gettxout: txid => txid === 'c'.repeat(64) ? { confirmations: 0 } : { confirmations: 3 } });
   const coins = await confirmedPoolCoins(rpc, utxos, { baseCurrency: 'XNA' });
   assert.deepEqual(coins.map(c => [c.txid[0], c.vout, c.valueSats, c.scriptHex]), [['a', 0, '100000000000', P2PKH], ['b', 1, '899986985000', P2PKH]]);
-  const deposit = selectPoolCoins(coins, { action: 'deposit', amountAtomic: 100000000000n, feeAtomic: 10000000n });
-  assert.equal(deposit.funding.txid[0], 'a');
-  assert.equal(deposit.sponsor.txid[0], 'b');
-  assert.throws(() => selectPoolCoins(coins, { action: 'deposit', amountAtomic: 5n, feeAtomic: 1n }), /exact deposit coin/);
-  assert.equal(selectPoolCoins(coins, { action: 'transfer', amountAtomic: 0n, feeAtomic: 10000000n }).funding, undefined);
-  assert.throws(() => selectPoolCoins([coins[0]], { action: 'deposit', amountAtomic: 100000000000n, feeAtomic: 1n }), /separate confirmed/);
-  assert.throws(() => selectPoolCoins(coins, { action: 'transfer', amountAtomic: 0n, feeAtomic: 899986985000n }), /separate confirmed/);
 });
 
 test('coin rechecks compare exact satoshis, script and confirmation', async () => {
@@ -88,8 +81,8 @@ test('funding inspection, admission and inputs recheck', async () => {
   await assert.rejects(inspectFundingTransaction(stubRpc({ decoderawtransaction: decoded,
     testmempoolaccept: [{ allowed: false, 'reject-reason': 'min relay fee not met' }] }).rpc, 'raw'), /min relay fee/);
   assert.equal((await admitTransaction(rpc, 'raw')).txid, 'f'.repeat(64));
-  await recheckInputs(stubRpc({ getblockhash: GENESIS, gettxout: { value: 1 } }).rpc, C4_TESTNET_MANIFEST, [{ txid: 'a', vout: 0 }]);
-  await assert.rejects(recheckInputs(stubRpc({ getblockhash: GENESIS, gettxout: null }).rpc, C4_TESTNET_MANIFEST, [{ txid: 'a', vout: 0 }]), /spent while preparing/);
+  await recheckInputs(stubRpc({ getblockhash: GENESIS, gettxout: { value: 1 } }).rpc, POOL, [{ txid: 'a', vout: 0 }]);
+  await assert.rejects(recheckInputs(stubRpc({ getblockhash: GENESIS, gettxout: null }).rpc, POOL, [{ txid: 'a', vout: 0 }]), /spent while preparing/);
 });
 
 test('publication marks unknown outcomes as uncertain and resolves them later', async () => {
@@ -97,56 +90,22 @@ test('publication marks unknown outcomes as uncertain and resolves them later', 
   const base = { getblockhash: GENESIS, gettxout: { value: 1 }, testmempoolaccept: [{ allowed: true }],
     decoderawtransaction: { txid: tx.txid } };
   const seen = [];
-  assert.equal(await publishTransaction(stubRpc({ ...base, sendrawtransaction: tx.txid }).rpc, C4_TESTNET_MANIFEST, tx,
+  assert.equal(await publishTransaction(stubRpc({ ...base, sendrawtransaction: tx.txid }).rpc, POOL, tx,
     { onBroadcast: txid => seen.push(txid) }), tx.txid);
   assert.deepEqual(seen, [tx.txid]);
   await assert.rejects(publishTransaction(stubRpc({ ...base, decoderawtransaction: { txid: '0'.repeat(64) },
-    sendrawtransaction: tx.txid }).rpc, C4_TESTNET_MANIFEST, tx), /does not match/);
+    sendrawtransaction: tx.txid }).rpc, POOL, tx), /does not match/);
   await assert.rejects(publishTransaction(stubRpc({ ...base, sendrawtransaction: () => { throw new Error('timeout'); } }).rpc,
-    C4_TESTNET_MANIFEST, tx), e => e.uncertain === true && /uncertain: timeout/.test(e.message));
-  await assert.rejects(publishTransaction(stubRpc({ ...base, sendrawtransaction: '0'.repeat(64) }).rpc, C4_TESTNET_MANIFEST, tx),
+    POOL, tx), e => e.uncertain === true && /uncertain: timeout/.test(e.message));
+  await assert.rejects(publishTransaction(stubRpc({ ...base, sendrawtransaction: '0'.repeat(64) }).rpc, POOL, tx),
     e => e.uncertain === true);
   await assert.rejects(publishTransaction(stubRpc({ ...base, testmempoolaccept: [{ allowed: false, 'reject-reason': 'txn-mempool-conflict' }] }).rpc,
-    C4_TESTNET_MANIFEST, tx), e => !e.uncertain && /conflict/.test(e.message));
+    POOL, tx), e => !e.uncertain && /conflict/.test(e.message));
   const found = confirmations => stubRpc({ ...base, getrawtransaction: { txid: tx.txid, confirmations } }).rpc;
-  assert.equal(await publicationStatus(found(3), C4_TESTNET_MANIFEST, tx), 'confirmed');
-  assert.equal(await publicationStatus(found(0), C4_TESTNET_MANIFEST, tx), 'mempool');
+  assert.equal(await publicationStatus(found(3), POOL, tx), 'confirmed');
+  assert.equal(await publicationStatus(found(0), POOL, tx), 'mempool');
   const missing = extra => stubRpc({ ...base, getrawtransaction: () => { throw new Error('No such mempool or blockchain transaction'); }, ...extra }).rpc;
-  assert.equal(await publicationStatus(missing(), C4_TESTNET_MANIFEST, tx), 'retryable');
-  await assert.rejects(publicationStatus(missing({ testmempoolaccept: [{ allowed: false }] }), C4_TESTNET_MANIFEST, tx), /remains uncertain/);
-  await assert.rejects(publicationStatus(missing(), C4_TESTNET_MANIFEST, { txid: tx.txid }), /unavailable/);
-});
-
-test('rotation state is small, validated and tolerant of unavailable storage', () => {
-  const key = rotationStorageKey({ network: 'xna-test', walletId: 'tWallet', derivation: 'NeuraiZK/v2', family: 'legacy', storageId: 'ab'.repeat(32), account: 0 });
-  assert.equal(key, 'neurai-privacy-zk:v2:' + JSON.stringify(['xna-test', 'tWallet', 'legacy', 0, 'ab'.repeat(32)]));
-  assert.throws(() => rotationStorageKey({ network: 'x', derivation: 'NeuraiZK/v2', family: 'legacy', storageId: 'nothex!!', account: 0 }), /storageId/);
-  const map = new Map();
-  const storage = { getItem: k => map.get(k) ?? null, setItem: (k, v) => map.set(k, v) };
-  assert.equal(loadRotation(storage, key), null);
-  assert.equal(saveRotation(storage, key, { gap: 20, issued: 3 }), true);
-  assert.deepEqual(loadRotation(storage, key), { gap: 20, issued: 3 });
-  for (const bad of ['not json', '{"gap":0,"issued":1}', '{"gap":1001,"issued":1}', '{"gap":20,"issued":-1}']) {
-    map.set(key, bad);
-    assert.equal(loadRotation(storage, key), null);
-  }
-  const broken = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('quota'); } };
-  assert.equal(loadRotation(broken, key), null);
-  assert.equal(saveRotation(broken, key, { gap: 20, issued: 1 }), false);
-  assert.equal(saveRotation(null, key, { gap: 20, issued: 1 }), false);
-});
-
-
-test('C5 refuses old and pre-activation RPC nodes before funding/publication', async () => {
-  const manifest = {...C4_TESTNET_MANIFEST, schema:'neurai-c5-xna-test-v1', zkProfile:2};
-  for (const info of [{}, {zk_public_tree:{}}, {zk_public_tree:{active_for_next_block:false}},
-                      {zk_public_tree:{active_for_next_block:'true'}}]) {
-    const stub=stubRpc({getblockhash:GENESIS,getblockchaininfo:info});
-    await assert.rejects(assertPoolChain(stub.rpc,manifest), /C5 public-tree/);
-    assert.deepEqual(stub.calls.map(x=>x[0]),['getblockhash','getblockchaininfo']);
-  }
-  await assertPoolChain(stubRpc({getblockhash:GENESIS,getblockchaininfo:{zk_public_tree:{active_for_next_block:true}}}).rpc,manifest);
-  await assert.rejects(assertPoolChain(stubRpc({getblockhash:'00'.repeat(32)}).rpc,manifest),/network/);
-  // Existing C4 clients do not acquire a dependency on the new capability RPC.
-  await assertPoolChain(stubRpc({getblockhash:GENESIS}).rpc,C4_TESTNET_MANIFEST);
+  assert.equal(await publicationStatus(missing(), POOL, tx), 'retryable');
+  await assert.rejects(publicationStatus(missing({ testmempoolaccept: [{ allowed: false }] }), POOL, tx), /remains uncertain/);
+  await assert.rejects(publicationStatus(missing(), POOL, { txid: tx.txid }), /unavailable/);
 });

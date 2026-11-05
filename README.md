@@ -1,27 +1,267 @@
 # @neuraiproject/neurai-privacy
 
-JavaScript library for private XNA payments on Neurai.
+JavaScript library for private XNA payments in the Neurai C7 privacy pool.
 
-Value is kept in private notes inside the Neurai privacy pool. The library
-derives private wallets and `nzk` receiving addresses from the wallet's words,
-reads the pool from a Neurai node and builds zero-knowledge proofs on the
-user's device. Spending keys and proof inputs never leave the device. The
-node only receives read-only calls until the application publishes a
-transaction.
+Value is kept in private notes inside the pool. The library derives a private
+wallet and `nzk` receiving addresses from the wallet's words, reads the pool
+from a Neurai node and builds zero-knowledge proofs on the user's device.
+Spending keys and proof inputs never leave a dedicated Web Worker. The node
+only receives read-only calls until the application publishes a transaction.
+
+> **TEST only.** C7 deployments are experimental TEST instances. Their proving
+> keys come from a public setup and nothing has been independently audited.
+> Do not use them for funds of value.
+
+## 0.4.0: C7 only
+
+0.4.0 removes the C4, C5 and C6 pools. The C7 runtime, which used to live in
+modules named after C6, now has C7 names. This is a breaking release.
+
+**Removed APIs**
+
+- The C4 and C5 pools: `startPoolWorker`, `PoolWorkerClient`, `prepareC4`,
+  `finishC4`, `prepareC5`, `finishC5`, the C5 transition helpers, the
+  bundled `C4_TESTNET_*` deployment, `scanBrowserPool` and the C4
+  pool-operations helpers (`summarizeScan`, `planC4Operation`, `proveC4`,
+  `buildC4Transaction`, `buildC5Transaction`).
+- The C6 profiles `C6-XNA-TEST-J2-v2` and `C6-ORDINARY-ASSET-TEST-J2-v1`,
+  including C6 asset pools (`c6AssetMetadata`, `c6AssetTransferScript`,
+  `c6ReadAssetTransfer`, `parseAssetAmount`) and the whole sponsor flow,
+  journal and sweep (`SponsorJournal`, `C6SponsorFlow`, `scanC6SponsorChain`,
+  `prepareSponsorSweep`, `validateSponsorSignature`, `c6SponsorWalletId`,
+  `validateC6SponsorDeployment`, `c6SponsorIntent`).
+- The Node backend for the Python wallet: `NeuraiPrivacy` and
+  `CliTestBackend`.
+- `BrowserTestIdentity` (random identities in an encrypted file) and
+  `ZkWalletIdentity`, with the nzk v1 address functions (`zkFingerprint`,
+  `deriveZkAddressKeys`, `nzkInstanceTag`, `encodeNzkAddress`,
+  `decodeNzkAddress`, `parseRecipient`).
+- The HPKE note records of C4 to C6: `deriveViewPublic`, `sealNote`,
+  `openNoteRecord`.
+- The address rotation store (`ROTATION_MAX_GAP`, `rotationStorageKey`,
+  `loadRotation`, `saveRotation`), `selectPoolCoins` and
+  `MIN_SPONSOR_CHANGE_ATOMIC`.
+
+**Renamed APIs.** The old names stay as deprecated aliases for one release.
+They are the same objects as the new names.
+
+| Old name | New name |
+| --- | --- |
+| `startC6PoolWorker` | `startC7PoolWorker` |
+| `C6WorkerClient` | `C7WorkerClient` |
+| `scanC6Pool` | `scanC7Pool` |
+| `buildC6Transaction` | `buildC7Transaction` |
+| `readC6Packet` | `readC7Packet` |
+| `createC6JoinWallet` | `createC7JoinWallet` |
+| `createC6OperationWallet` | `createC7OperationWallet` |
+| `IndexedDbSponsorStore` | `IndexedDbJournalStore` |
+| `C7WalletIdentity.prepareC6Deposit`, `prepareC6Transfer`, `prepareC6Withdrawal`, `prepareC6Join` | `prepareC7Deposit`, `prepareC7Transfer`, `prepareC7Withdrawal`, `prepareC7Join` |
+| Types `C6JoinManifest`, `C6JoinNote`, `C6JoinRequest`, `C6JoinPrepared`, `C6JoinResult`, `C6JoinWallet` | `C7JoinManifest`, `C7JoinNote`, `C7JoinRequest`, `C7JoinPrepared`, `C7ProofResult`, `C7JoinWallet` |
+| Types `C6OperationManifest`, `C6OperationContext`, `C6DepositRequest`, `C6TransferRequest`, `C6WithdrawalRequest`, `C6OperationPrepared`, `C6OperationWallet` | `C7OperationManifest`, `C7OperationContext`, `C7DepositRequest`, `C7TransferRequest`, `C7WithdrawalRequest`, `C7OperationPrepared`, `C7OperationWallet` |
+| Types `C6RecoveredNote`, `C6PoolScan`, `C6Packet`, `C6BuiltTransaction` | `C7RecoveredNote`, `C7PoolScan`, `C7Packet`, `C7BuiltTransaction` |
+| Types `SponsorStore`, `ZkWalletOptions` | `JournalStore`, `C7WalletOptions` |
+
+**New exports.** `validateC7Deployment(deployment)` checks a pinned
+deployment. `c7Intent(raw, deployment)` returns the public intent of a pool
+transaction. Both are in the `client` entry.
+
+**Behaviour changes**
+
+- A deployment must have `kind: 'xna'` and an `emission` (`"txid:vout"`),
+  and a manifest must have the profile `C7_PROFILE` (`C7-XNA-TEST-v1`).
+  Other profiles are refused.
+- J2 requests and transfers need the change address (`change`): the
+  descriptor of the spent note's address, or of note 0 for J2. A withdrawal
+  that leaves change needs it too. `C7WalletIdentity.prepareC7*` supplies it.
+- Error messages start with `C7` instead of `C6`, except
+  `C6 private journal missing: …`. NeuraiWallet and the web wallet recognise
+  that text with `startsWith`, so it stays verbatim until the aliases are
+  removed.
+- The scanner's error codes are `C7_INDEX_UNAVAILABLE` and
+  `C7_HISTORY_UNAVAILABLE` (they were `C6_…`).
+- Storage keys and journal types keep their names (`neurai-c6-private-journal-v1`,
+  `neurai-c6-scan-prefix-v1`, `c6-scan-state-v2:`…), so journals and scan
+  caches saved by earlier releases stay readable. The protocol byte tags
+  (`NeuraiPoolC6/pay`, `NeuraiPoolC6/J2/data`, `NeuraiC6Packet`,
+  `NeuraiC6Intent/v1` and the `NC6PKT` packet magic) are unchanged on
+  purpose: the C7 contract and proofs commit to them.
+- `assertPoolChain` only checks the genesis; the C5 capability check is gone.
+- The optional peer dependency `@neuraiproject/neurai-rpc` accepts
+  `^0.7.0 || ^0.8.0 || ^0.9.0`.
+
+**Tests.** The suite runs a C7 flow end to end on an in-memory chain with the
+real C7 deployment of the 2026-09-26 testnet (`test/fixtures/c7-deployment.json`):
+deposit, transfer, join and withdrawal through the scanner, the transaction
+builder, the worker, its client and the durable journal.
+
+## What it does
+
+- **Private wallet from the wallet words.** The BIP-39 words, the optional
+  BIP-39 passphrase, an optional ZK passphrase, a family (`legacy`, `ecdsa`
+  or `pq`) and an account number give one private wallet per pool. The same
+  inputs always recover it, so there is no extra file to back up.
+- **Receiving addresses.** An account has one viewing key and any number of
+  unlinkable `nzk` version 3 addresses (`nzk1…`, `tnzk1…`, `rnzk1…`).
+  Recovery costs one ristretto255 multiplication per published record,
+  whatever the number of addresses, so there is no address gap.
+- **Pool operations.** Deposit XNA, transfer to up to three outputs (change
+  included), join two notes into one (J2) and withdraw to a Legacy, strict
+  PQ or strict ECDSA address.
+- **Local proving worker.** It downloads the Groth16 proving files, checks
+  their size and SHA-256, proves in a Web Worker and verifies every proof
+  before returning it.
+- **Durable encrypted journal.** Every operation is reserved before proving
+  and saved before it is returned, in an encrypted compare-and-swap store,
+  so two tabs never spend the same note and a restart never forgets an
+  exposed operation.
+- **Public relocation.** A proof does not depend on the current pool state.
+  The worker rebuilds the public tree transition against the latest
+  confirmed state when it builds the transaction, and `rebuild` does it
+  again later without proving again.
+- **Chain scanning.** It rebuilds the pool state from a pinned birth, checks
+  each transition against the pinned contract and finds the wallet's notes.
+- **Publication helpers.** They recheck inputs, ask the node whether it
+  accepts a transaction, broadcast it and report an unknown outcome as
+  uncertain instead of guessing.
+
+## Install
+
+```sh
+npm install @neuraiproject/neurai-privacy
+```
+
+The bundles include `@noble/hashes`, `@noble/ciphers` and `@noble/curves`
+2.2.0, `@scure/bip39` 2.0.1 and `@scure/base` 2.0.0, so the package has no
+runtime dependencies. Node use needs Node 20.19 or later. Proving needs
+snarkjs 0.7.6, which the application passes to the worker. It is not a
+dependency because snarkjs is GPL-3.0 licensed.
+
+## Entry points
+
+| Import | Load it in | Contents |
+| --- | --- | --- |
+| `@neuraiproject/neurai-privacy/client` | The page | Exact amounts, pool RPC checks, publication, `validateC7Deployment`, `c7Intent`, `IndexedDbJournalStore` and `C7WorkerClient`. No key or note cryptography and no secrets. |
+| `@neuraiproject/neurai-privacy/worker` | A dedicated Web Worker | `startC7PoolWorker`, the scanner, the operation and J2 wallets, the transaction builder and the artifact loader. |
+| `@neuraiproject/neurai-privacy/browser` | Browser or worker | Everything above plus `C7WalletIdentity`, `C7Account`, C7 addresses and notes, the wallet root and the building blocks (Poseidon, CP1 notes, vault). |
+| `@neuraiproject/neurai-privacy` | Node | The same API as the browser entry, as ESM and CommonJS. Bundlers resolve it to the browser entry. |
+
+Keep every secret inside the worker. The page only handles public data:
+`nzk` addresses, balances, commitments, packets and unsigned transactions.
+
+The `client`, `worker` and `browser` entries are ES modules. From CommonJS,
+`require('@neuraiproject/neurai-privacy')` loads the Node build with its own
+declarations. Node 20.19 and later can also `require()` the three ES module
+entries; TypeScript accepts that with `module` set to `node20` or `nodenext`.
+
+## Using it in a web app
+
+The application ships a reviewed pool config: the C7 manifest, the
+deployment, the domain and asset ID, and the pinned proving files. Never take
+any of it from an RPC response.
+
+The worker file holds the private wallet:
+
+```js
+// pool.worker.js
+import * as snarkjs from 'snarkjs';
+import { startC7PoolWorker } from '@neuraiproject/neurai-privacy/worker';
+import config from './c7-testnet.json';
+
+startC7PoolWorker({
+  scope: self, snarkjs,
+  manifest: config.manifest, deployment: config.deployment,
+  domain: config.domain, assetId: config.assetId, network: 'testnet',
+  expectedGenesis: config.manifest.network, expectedCommitment: config.manifest.commitment,
+  artifacts: config.artifacts, artifactBaseUrl: new URL('/privacy-c7/', self.location.origin).href,
+  reservations: [], buildTransactions: true, durableJournal: true,
+});
+```
+
+The worker checks that the deployment, the manifest and the two pins agree,
+and that the domain derives from the deployment's birth. `expectedGenesis`
+and `manifest.network` are the genesis in internal byte order (the reverse
+of `getblockhash(0)`).
+
+The page talks to it through `C7WorkerClient`. The client forwards only
+read-only RPC methods and the encrypted journal reads and writes, and runs
+one operation at a time.
+
+```js
+import { getRPC } from '@neuraiproject/neurai-rpc';
+import { C7WorkerClient, IndexedDbJournalStore, admitTransaction, publishTransaction } from '@neuraiproject/neurai-privacy/client';
+
+const rpc = getRPC(rpcUser, rpcPassword, rpcUrl);
+const store = new IndexedDbJournalStore({ name: 'neurai-c7-private-journal-v1' });
+const pool = new C7WorkerClient({
+  worker: new Worker(new URL('./pool.worker.js', import.meta.url), { type: 'module' }),
+  rpc, store, onStage: text => showProgress(text),
+  onCrash: () => showLocked(), // the worker lost its keys; open the wallet in a new worker
+});
+
+const { identity } = await pool.derive({ mnemonic, passphrase, zkPassphrase: '', family: 'legacy', account: 0 });
+showReceivingAddress(identity.addresses.current.address); // tnzk1...
+await pool.openJournal({ create: firstUseOnThisDevice });   // see below
+const { scan } = await pool.scan();
+showBalance(scan.result.balanceAtomic, scan.result.spendableAtomic);
+
+// Pay 200 XNA from one of the wallet's notes. The worker adds the change.
+const prepared = await pool.prepare({
+  action: 'transfer', note: scan.result.notes[0].cm, fee: '10000000',
+  recipients: [{ recipient: 'tnzk1...', amountAtomic: '20000000000' }],
+});
+const tx = prepared.transaction;
+await pool.recordSigned(prepared.operationId, tx.raw);     // no transparent input to sign
+const { txid } = await admitTransaction(rpc, tx.raw);       // testmempoolaccept, nothing is sent
+await pool.broadcastAttempt(prepared.operationId);          // record the attempt before sending
+await publishTransaction(rpc, { genesis: config.deployment.genesis }, { raw: tx.raw, txid, points: tx.inputPoints });
+```
+
+A deposit spends one confirmed transparent coin worth exactly the amount
+plus the fee. Pass it as `funding` (the 36-byte outpoint in hex),
+`fundingValue` and `fundingPoint` (`"txid:vout"`). Sign the funding input
+(`tx.funding.index`) with `SIGHASH_ALL` in the transparent wallet and record
+the signed bytes with `recordSigned` before admitting them.
+
+`openJournal()` without `create` fails with `C6 private journal missing: …`
+when this browser has no history for the wallet. Use `create: true` only for
+genuinely new use, or restore an exported backup with
+`openJournal({ backup })`. The full flow, the journal rules and the failure
+cases are in the [transaction lifecycle](docs/transaction-lifecycle.md) and
+[C7 operations](docs/C7-OPERATIONS.md).
+
+The application provides these parts:
+
+- **Proving files.** Serve the pinned `wasm`, `zkey` and `vk` files of the
+  forms D, T1, T2, T3, W and J2 under `artifactBaseUrl`, or pass
+  `fetchArtifact`. The worker checks each size and SHA-256 before use.
+- **A node with indexes.** The scanner reads the pool history with
+  `getprivacypoolupdates` and falls back to `getspentinfo`; both need
+  `-spentindex` and `-txindex`. Without a spent index it replays blocks.
+- **Transparent signing.** The worker never sees transparent keys. Deposit
+  funding coins and withdrawal destinations can be Legacy P2PKH, strict PQ
+  (`OP_2`) or strict ECDSA (`OP_3`).
+  `@neuraiproject/neurai-sign-transaction` can sign them.
+- **Publication state.** `publishTransaction` rejects with `uncertain: true`
+  when the node call fails after sending. Keep the transaction ID and call
+  `publicationStatus` later.
+
+Amounts are atomic units, as bigint or decimal strings.
+`rpcAmountToSatoshis` converts node amounts without floating-point
+arithmetic. `parseXna` and `formatXna` handle user input and display.
 
 ## Optional wallet-service WSS transport
 
 The client entry exports `createWalletServiceRpc`. It adapts a negotiated
 `neurai-wallet-services` **wss/2** connection to the same native
-`rpc(method, params)` function used by pool scanning, admission and sponsor
-recovery. It does not implement a socket or replace the existing HTTP RPC.
+`rpc(method, params)` function used by pool scanning, admission and
+publication. It does not implement a socket or replace the existing HTTP RPC.
 
 ```js
 import { createWalletServiceRpc } from '@neuraiproject/neurai-privacy/client';
 
 const rpc = createWalletServiceRpc({
   hello, // Result of hello negotiated on this connection with wss/2.
-  expectedGenesis: poolManifest.genesis, // Application-pinned chain identity.
+  expectedGenesis: config.deployment.genesis, // Application-pinned chain identity, RPC order.
   expectedServiceId: 'neurai-testnet-wallet-service', // Optional deployment pin.
   request: (method, params) => connection.requestEnvelope(method, params),
 });
@@ -43,258 +283,70 @@ publication carries `uncertain: true` and is not retried automatically.
 
 Use a service that advertises `getblock`, `getbestblockhash`, `getspentinfo`,
 `getrawmempool` and `decoderawtransaction`, and preferably
-`getprivacypoolupdates`, which lets the C6/C7 scanner read the pool history in
-a few pages instead of several calls per pool operation (see
-[C6 operations](docs/C6-OPERATIONS.md)). The adapter refuses unavailable
+`getprivacypoolupdates`, which lets the scanner read the pool history in a
+few pages instead of several calls per pool operation (see
+[chain scanning](docs/chain-scanning.md)). The adapter refuses unavailable
 and node-wallet methods locally and preserves native null/script/witness
 responses. It never uses `address.get_state` as an alternative RPC schema.
-The pool still checks the pinned instance and consensus activation; the
-handshake does not prove that the service's node supports C6.
-
-## What it does
-
-- **Private wallet from the wallet words.** It derives a private wallet from
-  the BIP-39 words, the optional BIP-39 passphrase, an optional ZK passphrase
-  and an account number. The same inputs always recover the same wallet, so
-  there is no extra file to back up.
-- **Receiving addresses.** It encodes `nzk1…`, `tnzk1…` and `rnzk1…`
-  addresses for mainnet, testnet and regtest. It hands out a new address for
-  each payment and recovers them with a gap limit, like an HD wallet.
-- **Pool operations.** Deposit XNA into the pool, assign all or part of a
-  note to another address, and withdraw a note to a transparent address. The
-  library chooses the right circuit for each case.
-- **Chain scanning.** It rebuilds the pool state from the node, checks it
-  against the pinned pool contract and finds the notes that belong to the
-  wallet, marking the spent ones.
-- **Proofs on the device.** It downloads the Groth16 proving parameters,
-  checks their size and SHA-256, proves in a Web Worker and verifies every
-  proof before returning a transaction.
-- **Publication.** It rechecks the inputs, asks the node whether it accepts
-  the transaction, broadcasts it and reports an unknown outcome as uncertain
-  instead of guessing.
-- **Building blocks.** Poseidon hashing, note encoding, commitments,
-  nullifiers, encrypted note records (HPKE) and an encrypted JSON vault for
-  identities that do not come from wallet words.
-
-## Install
-
-The package is configured for public npm publication but has not been
-published yet. After publication, install it with:
-
-```sh
-npm install @neuraiproject/neurai-privacy
-```
-
-For local development before publication, run `npm ci && npm run build`
-in this directory, then use `npm install /path/to/neurai-privacy` in the app.
-The bundles include `@noble/hashes`, `@noble/ciphers` and `@noble/curves`
-2.2.0, so the published package has no runtime dependencies on them.
-Node use needs Node 20.19 or later. Proving needs
-snarkjs 0.7.6, which the application passes to the worker. It is not a
-dependency because snarkjs is GPL-3.0 licensed.
-
-## Entry points
-
-| Import | Load it in | Contents |
-| --- | --- | --- |
-| `@neuraiproject/neurai-privacy/client` | The page | Exact amounts, pool RPC checks, coin selection, publication, address rotation storage, the bundled C4 TEST deployment and `PoolWorkerClient`. No cryptography and no secrets. |
-| `@neuraiproject/neurai-privacy/worker` | A dedicated Web Worker | `startPoolWorker` and the operations it runs: planning, parameter loading, proving and transaction building. |
-| `@neuraiproject/neurai-privacy/browser` | Browser or worker | Everything above plus identities, addresses, the scanner, the transaction builder and the building blocks. |
-| `@neuraiproject/neurai-privacy` | Node | The browser entry plus the Node backend described below. Bundlers resolve it to the browser entry. |
-
-Keep every secret inside the worker. The page only handles public data:
-recipient descriptors, `nzk` addresses, balances and unsigned transactions.
-
-The `client`, `worker` and `browser` entries are ES modules. From CommonJS,
-`require('@neuraiproject/neurai-privacy')` loads the Node build with its own
-declarations. Node 20.19 and later can also `require()` the three ES module
-entries; TypeScript accepts that with `module` set to `node20` or `nodenext`.
-
-## Using it in a web app
-
-The worker file holds the private wallet:
-
-```js
-// pool.worker.js
-import * as snarkjs from 'snarkjs';
-import { startPoolWorker } from '@neuraiproject/neurai-privacy/worker';
-
-startPoolWorker({ scope: self, snarkjs, artifactBaseUrl: new URL('/privacy-c4/', self.location.origin).href });
-```
-
-Without other options the worker uses the bundled C4 XNA TEST pool:
-`C4_TESTNET_MANIFEST`, `C4_TESTNET_ARTIFACTS` and the contract commitment
-`C4_TESTNET_COMMITMENT`. To use another deployment, pass its `manifest`,
-`artifacts` and an independently pinned `expectedCommitment`; the worker
-refuses a manifest whose commitment differs. Keep a deployment in a file that
-ships with the application, never in data received from RPC.
-
-The page talks to it through `PoolWorkerClient`. The client answers the
-worker's RPC requests only for the read-only methods in
-`POOL_READ_RPC_METHODS`, and it runs one operation at a time.
-
-```js
-import { getRPC } from '@neuraiproject/neurai-rpc';
-import {
-  PoolWorkerClient, C4_TESTNET_MANIFEST as manifest, assertPoolChain, confirmedPoolCoins, selectPoolCoins,
-  recheckInputs, admitTransaction, publishTransaction, publicationStatus, rotationStorageKey,
-} from '@neuraiproject/neurai-privacy/client';
-
-const rpc = getRPC(rpcUser, rpcPassword, rpcUrl);
-await assertPoolChain(rpc, manifest);
-const pool = new PoolWorkerClient({
-  worker: new Worker(new URL('./pool.worker.js', import.meta.url), { type: 'module' }),
-  rpc,
-  onStage: text => showProgress(text),
-  onCrash: () => showLocked(), // the worker lost its keys; the next call needs a new client
-});
-
-// Private wallet from the open wallet's words.
-const { addresses } = await pool.derive({ mnemonic, passphrase, zkPassphrase: '', family: 'legacy', account: 0 });
-showReceivingAddress(addresses.current.address); // tnzk1...
-const { result, checkpoint } = await pool.scan(); // balanceAtomic, notes, transitions
-// Save checkpoint in the app's local storage for the next session.
-
-// Assign 2 XNA from a note to another person's address.
-const coins = await confirmedPoolCoins(rpc, walletUtxos, { baseCurrency: 'XNA' });
-const { sponsor } = selectPoolCoins(coins, { action: 'transfer', amountAtomic: 200000000n, feeAtomic: 10000000n });
-const prepared = await pool.prepare({
-  action: 'transfer', amountAtomic: '200000000', feeAtomic: '10000000',
-  sponsor, note: result.notes[0].cm, recipient: 'tnzk1...',
-});
-const signedRaw = signFundingInputs(prepared.raw, [sponsor]); // your transparent signer
-await recheckInputs(rpc, manifest, prepared.inputPoints);
-const { txid } = await admitTransaction(rpc, signedRaw); // testmempoolaccept, nothing is sent
-await publishTransaction(rpc, manifest, { raw: signedRaw, txid, points: prepared.inputPoints });
-```
-
-To pay several people from one note, replace `recipient` with
-`recipients: [{ recipient, amountAtomic }, …]`. A note can be split into up
-to four notes, change included.
-
-### Resume a scan after restarting the app
-
-The worker can return an encrypted `checkpoint` with every scan. Save it in
-IndexedDB or the mobile app's local storage, under a key specific to the
-wallet and network. The storage adapter below is supplied by the application:
-
-```js
-const { addresses } = await pool.derive({ mnemonic, family: 'legacy', account: 0 });
-const key = rotationStorageKey({
-  network: 'testnet', derivation: addresses.derivation, family: addresses.family,
-  storageId: addresses.storageId, account: 0,
-}) + ':scan';
-let previous;
-try { previous = await storage.get(key); } catch { /* storage unavailable */ }
-const scan = await pool.scan({ checkpoint: previous ?? undefined });
-if (scan.checkpoint) {
-  try { await storage.set(key, scan.checkpoint); } catch { /* storage full or unavailable */ }
-}
-showBalance(scan.result.balanceAtomic);
-```
-
-The checkpoint contains the reconstructed public pool state and the wallet's
-found notes, encrypted and authenticated with a key derived inside the worker.
-The page receives only the encrypted string. On the next scan, the worker
-checks the saved block against the active chain and processes subsequent pool
-transactions. If the cache is corrupt, belongs to another wallet or pool, or
-points to a block lost in a reorganization, it rebuilds from the pool birth.
-A wider address gap also makes it search old records again. The first scan
-still processes the full pool history; storage size grows with that history.
-Do not upload checkpoints to a server. Direct callers of `scanBrowserPool`
-receive a plaintext checkpoint containing owned notes; they must encrypt and
-authenticate it before storing it. The worker API performs this step. If
-storage is unavailable or full, scanning continues without a saved checkpoint.
-
-`create({ password })` and `restore({ backup, password })` open a random
-identity kept in an encrypted JSON file instead of a derived one. An
-application that does not use `PoolWorkerClient` can post the same messages
-itself. The protocol is described at the top of `src/pool-worker.js`.
-
-The application provides these parts:
-
-- **Proving parameters.** Serve the 24 files listed in `C4_TESTNET_ARTIFACTS`,
-  about 691 MiB, under `artifactBaseUrl`. The worker checks each size and
-  SHA-256 before use.
-- **A node with indexes.** The scanner follows the pool state with
-  `getspentinfo`, so the node needs `-spentindex` and `-txindex`.
-- **Transparent signing.** The worker returns funding inputs unsigned and
-  never sees transparent keys. Funding and fee coins must be confirmed Legacy
-  P2PKH, strict PQ (`OP_2`) or strict ECDSA (`OP_3`) outputs, and withdrawals
-  can pay to any of those address types.
-  `@neuraiproject/neurai-sign-transaction` can sign them.
-- **Deposit coins.** A deposit spends one confirmed coin of exactly the
-  deposited amount and a separate coin for the fee. `inspectFundingTransaction`
-  checks a transaction that creates such a coin.
-- **Publication state.** `publishTransaction` rejects with `uncertain: true`
-  when the node call fails after sending. Keep the transaction ID and call
-  `publicationStatus` later. It answers confirmed, mempool or retryable.
-- **Rotation state.** `rotationStorageKey`, `loadRotation` and `saveRotation`
-  store the last issued address and the gap in any `localStorage`-like
-  object. This state is not secret, and a scan rebuilds it if it is lost.
-
-Amounts are atomic units, as bigint or decimal strings.
-`rpcAmountToSatoshis` converts node amounts without floating-point
-arithmetic. `parseXna` and `formatXna` handle user input and display.
+The pool still checks the pinned instance and the node's portable
+public-tree rules; the handshake does not prove that the service's node
+supports C7.
 
 ## Receiving addresses
 
-The derivation scheme is [NeuraiZK/v2](docs/nzk-v2-derivation.md). The
-mandatory `family` is `legacy`, `ecdsa` or `pq`.
-The same wallet words produce separate private keys for each family. Argon2id
-with 64 MiB derives a root from the BIP39 seed and optional ZK passphrase;
-HKDF-SHA256 binds address keys to family, account, branch, index and pool.
-This replaces v1 without automatic migration. Old TEST notes need their old
-keys. Receiving descriptors keep format version 1 and work across families.
-`fromMnemonic` validates English BIP39 words; other BIP39 wordlists can use
-`fromSeed` with their independently validated 64-byte seed.
+C7 addresses use the NeuraiZK/v3 derivation on top of the
+[NeuraiZK/v2 wallet root](docs/nzk-v2-derivation.md). The mandatory
+`family` is `legacy`, `ecdsa` or `pq`; the same words give a separate
+private wallet for each family.
 
-- **Format.** An address is bech32m. Its 69-byte payload holds a version
-  byte, the owner, the viewing public key and a 4-byte tag of the pool. It is
-  a wallet format only; the node's rules do not change.
-- **Rotation.** `issueNext()` hands out a fresh receiving address. It refuses
-  to go more than `gap` unused addresses past the last used one unless
-  `force` is set. The default gap is 20 and the maximum 1000.
-- **Recovery.** A scan tries every receiving address up to the last used
-  index plus the gap. Change goes to a separate internal address and never
-  uses receiving indexes.
+- **Format.** Bech32m with HRP `nzk`, `tnzk` or `rnzk`. The 80-byte payload
+  is `03 || owner || d || pk_d || tag`: the address version, the owner, an
+  11-byte diversifier, the diversified transmission key and a 4-byte tag of
+  the pool instance.
+- **Unlinkable.** Every address of an account has its own diversifier and
+  owner. An observer cannot tell that two addresses belong to one wallet.
+- **No gap.** One ristretto255 multiplication per record finds the wallet's
+  notes at any address, so recovery needs no address window.
+  `issueNext()` only moves the receiving index forward.
+- **Change.** Deposits and change go to chain 1, index 0 (`selfRecipient()`).
 - **Wallet check.** `fingerprint` is 8 hex characters. It lets the user
   confirm that the same words and passphrases open the same private wallet.
-- **Recipients.** `parseRecipient(text, scope)` accepts an `nzk` address or a
-  JSON descriptor. It rejects addresses of another network or pool.
+- **Recipients.** `decodeC7Address(text, scope)` rejects addresses of another
+  network or pool instance. The worker also accepts a descriptor as JSON.
 
 ```js
-import { ZkWalletIdentity, decodeNzkAddress } from '@neuraiproject/neurai-privacy/browser';
+import { C7WalletIdentity, decodeC7Address } from '@neuraiproject/neurai-privacy/browser';
 
-const scope = { network: 'testnet', domain: manifest.domain, assetId: manifest.assetId };
-const wallet = await ZkWalletIdentity.fromMnemonic({ mnemonic, passphrase: '', zkPassphrase: '', family: 'legacy', account: 0, ...scope });
+const scope = { network: 'testnet', domain: config.domain, assetId: config.assetId };
+const wallet = await C7WalletIdentity.fromMnemonic({ mnemonic, passphrase: '', zkPassphrase: '', family: 'legacy', account: 0, ...scope });
 const address = wallet.addressAt(0, wallet.currentIndex()); // tnzk1...
 const next = wallet.addressAt(0, wallet.issueNext());
-const descriptor = decodeNzkAddress(next, scope);
+const descriptor = decodeC7Address(next, scope);
 wallet.lock();
 ```
 
 Run this code inside the worker, because the identity holds spending keys.
-The test vectors are in `test/fixtures/nzk-vectors.json`.
+In the worker, `describeReceiving(identity, scan)` gives the public receiving
+data that the `identity` and `addresses` messages carry.
+`test/fixtures/c7-vectors.json` is the same vector file as the node's
+(`src/test/data/privacy_c7_vectors.json`); the byte-level specification is in
+Neurai-DePIN, `contrib/privacypool/privacy-c7`.
 
 ## Networks
 
-The package includes the public C4 XNA TEST pool on Neurai testnet,
-`C4TESTX260930A#POOL`: its manifest, its proving parameter list and its
-pinned contract commitment. The worker uses them by default. Their
-verification keys come from a public setup, so they are meant for testnet
-only. Another network or pool needs its own manifest, parameters and pinned
-commitment, passed to `startPoolWorker`. The pool contract accepts deposits
-up to the XNA money range; `startPoolWorker({ depositLimitAtomic })` sets a
-lower limit for an application.
+The worker accepts `testnet` and `regtest` only. The package bundles no
+deployment: each pool needs its own reviewed manifest, deployment and proving
+files, and the application pins the genesis and the contract commitment.
+`RESET_TESTNET_GENESIS` is the genesis of the testnet of 2026-11-05, in RPC
+order.
 
 ## What stays public
 
-The fee is paid from a transparent coin, so it shows which transparent wallet
-paid for each pool transaction. Deposits and withdrawals also show their
-amounts and transparent addresses. Assignments inside the pool hide the
-receiver and the amount. The time of each transaction and the node the
-application talks to remain visible. See the
+Deposits show their amount and funding coin, and withdrawals their amount
+and destination. Every operation shows its fee level and form, so a transfer
+shows how many outputs it created. Transfers and joins hide the sender, the
+receiver and the amounts. The reserve held by the pool, the time of each
+transaction and the node the application talks to remain visible. See the
 [security and privacy model](docs/security-model.md).
 
 ## Documentation
@@ -305,20 +357,12 @@ work:
 - [How the privacy pool works](docs/privacy-pool.md)
 - [Library architecture](docs/architecture.md)
 - [Transaction lifecycle](docs/transaction-lifecycle.md)
-- [Chain scanning and checkpoints](docs/chain-scanning.md)
-- [NeuraiZK/v2 derivation](docs/nzk-v2-derivation.md)
+- [Chain scanning](docs/chain-scanning.md)
+- [C7 operations reference](docs/C7-OPERATIONS.md)
+- [C7 J2 (join) reference](docs/C7-JOIN.md)
+- [NeuraiZK/v2 wallet root](docs/nzk-v2-derivation.md)
 - [Data formats](docs/data-formats.md)
 - [Security and privacy model](docs/security-model.md)
-
-## Node backend
-
-`NeuraiPrivacy` with `CliTestBackend` drives the Python privacy wallet of the
-Neurai node repository from Node. It keeps the spending key in an encrypted
-vault, scans, proves with a Docker prover and publishes. It needs Python 3,
-Docker, the proving parameters and a local Neurai node. Passwords go over
-stdin, never on the command line or in environment variables. Its methods
-are listed in `src/index.d.ts`, and `integration/` has scripts that exercise
-it against a node.
 
 ## Development
 
@@ -327,165 +371,23 @@ npm ci              # Install the locked development dependencies
 npm run build       # Generate Node and browser bundles in dist/
 npm test            # Node test runner
 npm run test:types  # TypeScript declarations
-npm run test:build  # Check bundled entry points
+npm run test:build  # Check the bundled entry points
 ```
 
-The build writes ESM files for the browser, client and worker, which share their common code through `dist/chunks`, and ESM/CJS files for Node. It also writes ESM and CommonJS declarations and the bundled dependency licenses into `dist/`. `npm pack` builds these files automatically. `npm run test:types` checks the published declarations with TypeScript `NodeNext` and `Node16` settings.
+The build writes ESM files for the browser, client and worker, which share
+their common code through `dist/chunks`, and ESM/CJS files for Node. It also
+writes ESM and CommonJS declarations and the bundled dependency licenses into
+`dist/`. `npm pack` builds these files automatically. `npm run test:types`
+checks the published declarations with TypeScript `NodeNext` and `Node16`
+settings. `npm run test:build` checks that every entry exposes the C7 API,
+that the C6 aliases are the same objects, that nothing of C4 to C6 is left and
+that the client entry loads no key or note cryptography.
 
-The browser pages in `test/` load the library without a bundler. Run
+`test/browser-smoke.html` loads the browser entry without a bundler. Run
 `npm install` first, then serve the package root with any static server,
-because their import maps point to `node_modules/@noble`.
-`test/browser-smoke.html` shows PASS when the browser entry works.
+because its import map points to `node_modules`. It shows PASS when Poseidon,
+the vault and a C7 note round trip work.
 
 ## License
 
 MIT. See [LICENSE](./LICENSE).
-
-## Experimental C5 profile (isolated tests)
-
-C4 remains the bundled public TEST deployment. C5 is an explicit alternative
-for native XNA only; it requires the node's profile-2 public-transition rules.
-Do not send C5 transactions to a node where those rules are inactive.
-
-Configure `startPoolWorker` with a reviewed C5 manifest (schema
-`neurai-c5-xna-test-v1`, `zkProfile: 2`), its own artifacts, and independently
-pinned `expectedGenesis` and `expectedCommitment`. The library never substitutes
-C4 parameters or accepts a relabeled C4 leaf: each C5 leaf must explicitly
-select profile 2. The commitment pin authenticates the reviewed scripts;
-structural manifest validation does not audit arbitrary contracts.
-
-The worker supports D0/D1, T1/T2/T3/T4, and partial/full reserve withdrawals.
-`prepareC5`, `finishC5` and `buildC5Transaction` are available for explicit
-integration. Private ownership, note membership, hidden amounts and
-conservation remain in the ZK circuit. The public transition carries append
-and indexed insertion paths. Its five canonical chunks precede the proof and
-verification key in the MAST witness. The scanner checks these paths against
-the state and commitments reconstructed from the confirmed transaction.
-
-`verifyC5Transition` only validates public paths and their supplied binding;
-it does not verify Groth16, authorize spending, validate a block, or replace
-the node. Never accept a binding chosen by an untrusted transcript producer.
-Deposit amount/digest binding and the complete conjunction of proof, paths
-and contract rules are additionally enforced by profile 2 in the node.
-
-C4 and C5 share private-wallet derivation, note encryption, address rotation
-and local signing, but have distinct manifests, commitments, proving keys
-and scanner checkpoints. The browser does not invoke Python or Node for C5
-operations. The current JS adapter does not implement asset pools.
-
-The checked-in public vectors exercise all eight transitions and malformed
-paths. The isolated browser review generated and confirmed all eight forms
-with local Legacy, PQ and ECDSA signatures, recovery, parameter integrity and
-cancellation checks. The parameters used for those tests are PUBLIC TEST keys,
-not keys for valuable funds. They are not shipped inside the npm package.
-
-C5 clients additionally require
-`getblockchaininfo.zk_public_tree.active_for_next_block === true` before
-funding/publication. An old RPC node with a matching genesis is rejected;
-C4 retains its existing RPC behavior. This response is a capability check,
-not a proof that an untrusted server validates consensus.
-
-### C6 TEST sponsor authorization management
-
-The opt-in `SponsorJournal` and `IndexedDbSponsorStore` APIs persist authorization
-exposure, enforce cumulative wallet/operation budgets and prepare `SIGHASH_ALL`
-sponsor sweeps. A private payment confirmed with a different sponsor does not
-revoke older 0x83 signatures. Pending sweeps do not cancel them.
-See [C6-SPONSOR-JOURNAL.md](docs/C6-SPONSOR-JOURNAL.md) for storage, chain
-authentication, recovery and integration requirements. C4/C5 signing defaults
-remain unchanged; this does not switch the webwallet to C6.
-
-The opt-in C6 TEST lifecycle is documented in
-[docs/C6-SPONSOR-FLOW.md](docs/C6-SPONSOR-FLOW.md). It adds active-chain observation,
-persisted reviewed publication and ALL recovery to `SponsorJournal`. It is not
-an implementation/activation of the public C6 pool or its proving worker.
-
-### C6 TEST local J2 preparation and proving
-
-`createC6JoinWallet` is an opt-in XNA J2 2-to-1 builder/prover for Node, browser
-and worker entries. It requires independently pinned genesis/commitment and
-local note secrets and paths. It preserves the first note's owner and viewing
-key, validates exact conservation and instance context, and checks a private
-intent snapshot across asynchronous proving. See [C6-JOIN.md](docs/C6-JOIN.md).
-
-Real TEST proofs from the compiled API have been verified with C++ and confirmed
-in isolated regtest; Chromium covers cancellation and mixed J2/T1 workers.
-This is not the complete C6 deposit/transfer/withdraw worker, a chain scanner,
-public deployment or a production-security claim. Application-pinned TEST
-parameters and a separate public relocator are still required.
-
-### C6 XNA TEST portable-operation API
-
-`createC6OperationWallet` now constructs D/T1/T2/T3/W witnesses locally;
-`scanC6Pool` recovers confirmed private notes from an independently pinned
-birth using a trusted validating RPC. It follows confirmed state spends by
-index when available, falls back to checked block replay, and tolerates ordinary
-chain growth while rejecting reorganizations of the captured prefix. C6 has no
-persistent incremental scan checkpoint yet. `startC6PoolWorker` keeps identity,
-note paths and proving inputs in a dedicated browser worker and emits public
-portable packets. Explicit deployment/artifact pins and restored reservation
-journals are required. This is separate from the asset sponsor-flow API;
-XNA D funding must not be treated as an exposed asset `0x83` sponsorship.
-See [C6 operation, recovery and worker protocol](docs/C6-OPERATIONS.md) for
-byte order, TEST scope, cancellation and outstanding integration.
-
-### C7 XNA TEST pool (NeuraiZK/v3)
-
-C7 is the successor of the C6 XNA pool. It keeps the C6 circuits, proving
-files, contract structure and worker. What changes is how notes are addressed,
-encrypted and found:
-
-- **One private wallet, many addresses.** An account has one viewing key and
-  any number of unlinkable `nzk` version 3 addresses, derived from the wallet
-  words on top of the NeuraiZK/v2 root.
-- **Fast recovery.** Each published record costs one ristretto255
-  multiplication, whatever the number of addresses. There is no address gap.
-- **Records.** Note records are 230 bytes, with a one-byte view tag.
-- **Verifiable birth.** `c7PoolDomain` derives the instance domain from the
-  genesis, the UNIQUE emission and the pool name. The scanner checks that the
-  birth burned the owner token `NAME!`.
-
-The worker selects C7 from the manifest profile `C7-XNA-TEST-v1`. Pass the C7
-pool config like the C6 one; recipients are `nzk` v3 addresses.
-`C7WalletIdentity` replaces `ZkWalletIdentity` for C7 pools, with the same
-methods. The C7 helpers are exported from every entry point:
-- `C7Account` and `C7WalletIdentity`;
-- `sealC7Note`;
-- `encodeC7Address` and `decodeC7Address`;
-- `c7PoolDomain`, `c7XnaAssetId`, `c7Context` and `c7InstanceTag`.
-
-```js
-import { C7WalletIdentity } from '@neuraiproject/neurai-privacy/browser';
-
-const wallet = await C7WalletIdentity.fromMnemonic({ mnemonic, family: 'legacy', network: 'testnet', domain, assetId });
-const address = wallet.addressAt(0, wallet.currentIndex()); // tnzk1q...
-```
-
-The byte-level specification and the reference implementation are in
-Neurai-DePIN, `contrib/privacypool/privacy-c7`. `test/fixtures/c7-vectors.json`
-is the same vector file as the node's (`src/test/data/privacy_c7_vectors.json`).
-`test/c7.test.js` checks every intermediate value, both scanners and the
-negative cases. TEST deployments only; not audited.
-
-### C6 ordinary assets (TEST)
-
-The browser worker now supports an independently pinned pool per ordinary asset,
-with exact units, D/T/J2/W, encrypted recovery and external XNA sponsorship.
-See [C6-ASSETS.md](docs/C6-ASSETS.md) for the API and authorization sequence.
-
-#### C6 completed scan checkpoints
-
-The C6 worker automatically saves completed scans in an authenticated encrypted
-checkpoint, in addition to its bounded transaction prefix. This stores tree
-nodes and recovered records privately inside the worker. Reopening verifies the
-captured block and pinned deployment, follows only new confirmed state spends,
-and rechecks current reservations. A receiving-window change repeats note
-recovery. A reorganization or corrupt checkpoint falls back to validated replay.
-The completed snapshot is bounded to 3 MiB serialized plaintext and is disposable;
-it never replaces the durable pending-operation journal. Storage read/write or
-CAS failures remain errors, rather than returning an unchecked balance.
-
-The webwallet saves its encrypted operation journal automatically. Exporting a
-backup is optional; mnemonic scanning recovers confirmed notes, not necessarily
-unpublished portable packets or exposed sponsor authorizations. Keep a current
-backup when transferring pending operations between browsers or devices.

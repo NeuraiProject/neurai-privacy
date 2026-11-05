@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as sdk from '../src/index.js';
-import { decodeC4Publication, encodeC4Publication } from '../src/c4-publication.js';
+import { decodeC7Publication, encodeC7Publication } from '../src/c7-publication.js';
 
 const v = JSON.parse(readFileSync(new URL('./fixtures/c7-vectors.json', import.meta.url)));
 const hex = b => Buffer.from(b).toString('hex');
@@ -80,12 +80,14 @@ test('C7 publications carry 230-byte records', () => {
   const nf = new Uint8Array(32); nf[31] = 7;
   for (const [form, count] of [['D0', 1], ['T2', 2], ['T3', 3]]) {
     const publication = { cms: cms.slice(0, count), records: records.slice(0, count), ...(form === 'D0' ? {} : { nf }) };
-    const blob = encodeC4Publication(form, publication, { format: 'c7' });
+    const blob = encodeC7Publication(form, publication);
     for (let i = 0; i < count; i++) assert.equal(blob[34 + 32 * count + 230 * i], 2);
     assert.ok(blob.slice(34 + 262 * count).every(b => b === 0));
-    const decoded = decodeC4Publication(form, blob, { format: 'c7' });
+    const decoded = decodeC7Publication(form, blob);
     assert.deepEqual(decoded.records.map(hex), publication.records.map(hex));
-    assert.throws(() => decodeC4Publication(form, blob));
+    // A record that does not start with 0x02 is not a C7 record.
+    const other = blob.slice(); other[34 + 32 * count] = 1;
+    assert.throws(() => decodeC7Publication(form, other), /Noncanonical C7 record/);
   }
 });
 
@@ -105,15 +107,15 @@ test('C7 wallet identity recovers its notes and prepares operations', async () =
   const ctx = sdk.c7Context(inst.domain, inst.asset_id);
   const manifest = { profile: sdk.C7_PROFILE, network: '11'.repeat(32), commitment: '22'.repeat(32), context: hex(ctx),
     fees: Object.fromEntries(['D', 'T1', 'T2', 'T3', 'W'].map(op => [op, ['10000000']])) };
-  const wallet = sdk.createC6OperationWallet({ expectedGenesis: manifest.network, expectedCommitment: manifest.commitment });
+  const wallet = sdk.createC7OperationWallet({ expectedGenesis: manifest.network, expectedCommitment: manifest.commitment });
   const D = unhex(inst.domain), AID = unhex(inst.asset_id);
-  const deposit = identity.prepareC6Deposit(wallet, { manifest, fee: 10000000n, amountAtomic: 20000000000n,
+  const deposit = identity.prepareC7Deposit(wallet, { manifest, fee: 10000000n, amountAtomic: 20000000000n,
     funding: new Uint8Array(36).fill(5), fundingValue: 20010000000n });
-  const record = decodeC4Publication('D0', deposit.blob, { format: 'c7' }).records[0];
+  const record = decodeC7Publication('D0', deposit.blob).records[0];
   assert.equal(record.length, 230);
   const self = accounts.A.scan(record, deposit.created[0].cm);
   assert.deepEqual([self.chain, self.index, self.amountAtomic], [1, 0, 20000000000n]);
-  assert.throws(() => identity.prepareC6Deposit(wallet, { manifest, fee: 10000000n, amountAtomic: 20000000000n,
+  assert.throws(() => identity.prepareC7Deposit(wallet, { manifest, fee: 10000000n, amountAtomic: 20000000000n,
     funding: new Uint8Array(36).fill(5), fundingValue: 20010000000n,
     recipient: { domain: inst.domain, asset_id: inst.asset_id, owner: a.R.slice(0, 64), view_pub: '09' + '00'.repeat(31) } }), /version 3/);
 
@@ -124,15 +126,15 @@ test('C7 wallet identity recovers its notes and prepares operations', async () =
   for (let i = 0; i < 32; i++) { path.push(zero); root = pair(root, zero); zero = pair(zero, zero); }
   const consumed = { note: unhex(n3.note), index: 0, path, root, address: { chain: 1, index: 0 } };
   const bob = sdk.decodeC7Address(v.addresses.find(x => x.account === 'B').text, scope);
-  const transfer = identity.prepareC6Transfer(wallet, { manifest, fee: 10000000n, consumed, operation: 'T2',
+  const transfer = identity.prepareC7Transfer(wallet, { manifest, fee: 10000000n, consumed, operation: 'T2',
     outputs: [{ recipient: bob, amountAtomic: 30000000000n }, { isChange: true, amountAtomic: total - 30010000000n }] });
-  const records = decodeC4Publication('T2', transfer.blob, { format: 'c7' }).records;
+  const records = decodeC7Publication('T2', transfer.blob).records;
   assert.equal(accounts.B.scan(records[0], transfer.created[0].cm).amountAtomic, 30000000000n);
   const change = accounts.A.scan(records[1], transfer.created[1].cm);
   assert.deepEqual([change.chain, change.index, change.amountAtomic], [1, 0, total - 30010000000n]);
-  const withdrawal = identity.prepareC6Withdrawal(wallet, { manifest, fee: 10000000n, consumed, amountAtomic: 20000000000n,
+  const withdrawal = identity.prepareC7Withdrawal(wallet, { manifest, fee: 10000000n, consumed, amountAtomic: 20000000000n,
     payoutScript: unhex('76a914' + '33'.repeat(20) + '88ac') });
-  const left = decodeC4Publication('T1', withdrawal.blob, { format: 'c7' }).records[0];
+  const left = decodeC7Publication('T1', withdrawal.blob).records[0];
   assert.equal(accounts.A.scan(left, withdrawal.created[0].cm).amountAtomic, total - 20010000000n);
   // Without the wallet's change address a C7 transfer cannot place its change.
   const keys = accounts.A.spendKeys(1, 0);

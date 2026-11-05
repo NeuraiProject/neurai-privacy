@@ -1,172 +1,161 @@
 # Transaction lifecycle
 
-This document follows one pool transaction from the user's request to its
-confirmation. The [privacy pool overview](privacy-pool.md) explains the forms
-and the transaction layout used below.
+This document follows one pool operation from the user's request to its
+confirmation, with the durable worker (`buildTransactions: true`,
+`durableJournal: true`) and `C7WorkerClient`. The
+[privacy pool overview](privacy-pool.md) explains the forms and the
+transaction layout used below.
 
 ```text
- page                         worker                           page
- ────                         ──────                           ────
- pick coins ──▶ prepare ──▶ rescan ─▶ check coins ─▶ plan form
-                             ─▶ build witness ─▶ prove ─▶ verify ─▶ serialize
-                                                                    │
- confirm ◀─ publish ◀─ admit ◀─ recheck inputs ◀─ sign funding/fee ◀┘
+ page                        worker                                           page
+ ────                        ──────                                           ────
+ prepare ──▶ rescan ─▶ plan ─▶ reserve (draft) ─▶ load files ─▶ prove ─▶ verify
+                    ─▶ rescan ─▶ relocate (build tx) ─▶ save (prepared) ──▶ sign funding (deposits)
+ confirm ◀─ scan/reconcile ◀─ publish ◀─ broadcastAttempt ◀─ admit ◀─ recordSigned ◀┘
 ```
 
-## 1. Choose the transparent coins
+## 0. Open the wallet
 
-Every pool transaction spends a **sponsor coin** that pays the miner fee and
-receives the change. A deposit also spends a **funding coin** whose value is
-exactly the deposited amount. Both must be confirmed coins of the base
-currency (XNA) with one of these scripts:
+```js
+await pool.derive({ mnemonic, passphrase, zkPassphrase, family: 'legacy', account: 0 });
+await pool.openJournal();          // or { create: true } on first use, or { backup }
+const { scan } = await pool.scan();
+```
 
-| Script | Minimum sponsor change |
-| --- | --- |
-| Legacy P2PKH (`76a914…88ac`) | 546 satoshis |
-| Strict PQ, `OP_2 <32 bytes>` | 3060 satoshis |
-| Strict ECDSA, `OP_3 <32 bytes>` | 336 satoshis |
+`openJournal()` fails with `C6 private journal missing: restore the encrypted
+backup or explicitly create a new history` when the store has no history for
+this wallet and pool. Create a new history only for genuinely new use. If the
+wallet was used on another device, restore its latest backup with
+`openJournal({ backup })` there instead; a restore never overwrites existing
+history. Without a journal the worker can still scan (`historyReady: false`)
+but reports no spendable balance and cannot prepare.
 
-The minimum is the dust threshold for the script, computed by
-`c4DustAtomic(script, feePerKb)` with the default dust relay fee of 3000
-satoshis per kB. The same rule applies to the new reserve output and to a
-withdrawal payment.
+## 1. Request the operation
 
-Helpers in the `client` entry:
+The fee must be one of the manifest's levels for the operation
+(`manifest.fees`). Amounts are exact atomic decimal strings.
 
-- `confirmedPoolCoins(rpc, utxos, { baseCurrency })` keeps the
-  wallet rows with an accepted script and asks the node (`gettxout`) that
-  each one is unspent and confirmed.
-- `selectPoolCoins(coins, { action, amountAtomic, feeAtomic })`
-  returns `funding` (deposits only: the first coin of exactly the amount) and
-  `sponsor` (the first other coin that covers the fee plus the minimum
-  change). An application may choose its own coins instead.
+```js
+// Deposit 500 XNA. The funding coin is worth exactly the amount plus the fee.
+await pool.prepare({ action: 'deposit', amountAtomic: '50000000000', fee: '10000000',
+  funding: outpointHex, fundingValue: '50010000000', fundingPoint: 'txid:vout' });
 
-The fee is set by the application. It must be positive, at most 1 XNA and
-accepted by the node's relay policy. Pool transactions carry a large witness,
-so their fee is higher than that of an ordinary payment.
+// Pay one to three recipients from one note; the worker adds the change.
+await pool.prepare({ action: 'transfer', note: cm, fee: '10000000',
+  recipients: [{ recipient: 'tnzk1…bob', amountAtomic: '20000000000' }] });
+
+// Withdraw to a transparent address.
+const payoutScript = await withdrawalScript(rpc, 'tXYZ…');
+await pool.prepare({ action: 'withdraw', note: cm, amountAtomic: '10000000000', fee: '10000000', payoutScript });
+
+// Join two notes into one.
+await pool.prepare({ action: 'join', notes: [cm0, cm1], fee: '10000000' });
+```
+
+- `note` is the commitment of a spendable note from the last scan; `join`
+  needs two distinct spendable notes under the same root.
+- A deposit's `funding` is the 36-byte outpoint in hex (txid in internal
+  order, then `u32le(vout)`), and an optional `recipient` sends the new note
+  to another address; by default it goes to the wallet's own address.
+- A recipient is an nzk v3 address of the same network and pool, or a C7
+  descriptor as JSON.
+- Deposits, payments to recipients and withdrawals are multiples of 100 XNA.
+  A smaller withdrawal is allowed only when it takes the whole note after the
+  fee. Change can be any amount.
 
 ### Creating an exact deposit coin
 
-A wallet rarely holds a coin of exactly the deposit amount. Create one first
-with an ordinary self-payment. `inspectFundingTransaction(rpc, raw)` checks
-that transaction before it is sent: the node accepts it, its inputs are
-unspent, and it reports the fee it pays. Broadcast it, wait for a
-confirmation, then prepare the deposit.
+A wallet rarely holds a coin worth exactly the amount plus the fee. Create
+one first with an ordinary self-payment to a Legacy, strict PQ or strict
+ECDSA address. `inspectFundingTransaction(rpc, raw)` checks that transaction
+before it is sent: the node accepts it, its inputs are unspent, and it
+reports the fee it pays. Broadcast it, wait for a confirmation, then prepare
+the deposit. `confirmedPoolCoins(rpc, utxos, { baseCurrency: 'XNA' })` lists
+the wallet's confirmed coins with an accepted script.
 
-### Withdrawal destination
-
-`withdrawalScript(rpc, address)` asks the node to validate the address and
-returns its output script, which becomes the `payout` field. Legacy, strict
-PQ and strict ECDSA addresses are accepted.
-
-## 2. Request the transaction from the worker
-
-```js
-// Deposit 5 XNA.
-const { funding, sponsor } = selectPoolCoins(coins, { action: 'deposit', amountAtomic: 500000000n, feeAtomic: 10000000n });
-await pool.prepare({ action: 'deposit', amountAtomic: '500000000', feeAtomic: '10000000', funding, sponsor });
-
-// Assign 2 XNA from a note to one recipient (T1, or T2 with change).
-await pool.prepare({ action: 'transfer', amountAtomic: '200000000', feeAtomic: '10000000', sponsor,
-  note: note.cm, recipient: 'tnzk1…' });
-
-// Assign one note to several recipients (T2–T4, change included).
-await pool.prepare({ action: 'transfer', amountAtomic: '700000000', feeAtomic: '10000000', sponsor, note: note.cm,
-  recipients: [{ recipient: 'tnzk1…bob', amountAtomic: '400000000' }, { recipient: 'tnzk1…carol', amountAtomic: '300000000' }] });
-
-// Withdraw a whole note to a transparent address.
-const payout = await withdrawalScript(rpc, 'tXYZ…');
-await pool.prepare({ action: 'withdraw', amountAtomic: note.amountAtomic, feeAtomic: '10000000', sponsor, note: note.cm, payout });
-```
-
-`note` is the commitment (`cm`) of an unspent note from the last scan.
-A recipient is an `nzk` address, a JSON descriptor string or a descriptor
-object. It must belong to the same network and pool instance.
-
-## 3. Inside the worker
+## 2. Inside the worker
 
 `prepare` runs these steps. Any failure stops the request with an error and
 nothing leaves the worker.
 
-1. **Rescan.** The worker rebuilds the pool state from the node, continuing
-   from its last scan, so the transaction is built on the latest confirmed
-   state.
-2. **Check coins.** The sponsor and funding coins must still be unspent and
-   confirmed, with the expected script and exact value.
-3. **Plan.** The worker picks the form and creates the new notes:
-   - deposit: `D0` if the reserve is 0, otherwise `D1`; one note to the
-     wallet's own internal address;
-   - transfer: one note per recipient, plus a change note to the wallet's
-     internal address when the amount is less than the note; the form is
-     `T` followed by the number of created notes;
-   - withdraw: `W_full` if the note holds the whole reserve, otherwise
-     `W_partial`.
+1. **Rescan.** The worker reloads the journal, scans the pool and reconciles
+   the journal with the confirmed chain.
+2. **Plan.** The identity passes the spend secret of the note's address and
+   the change address to the operation or J2 wallet, which checks the
+   instance, the fee level, ownership, membership under the note's root,
+   conservation and the amount rules, seals the new notes to their addresses
+   and builds the publication and the public inputs.
+3. **Reserve.** The journal saves a draft that reserves the spent notes (and
+   the funding coin) before any proving starts. Another tab that tries the
+   same note or coin gets `C7 private journal: note or funding coin already
+   reserved`.
+4. **Load the proving files.** The form's `.wasm`, `.zkey` and `vk.json`
+   must match their pinned size and SHA-256. Progress is reported through
+   `stage` messages. The C7 TEST deployment of 2026-09-26 pins 18 files,
+   about 88 MiB.
+5. **Prove and verify.** snarkjs computes the witness and a Groth16 proof on
+   one thread. The wallet checks that the public signals equal the prepared
+   ones, verifies the proof against the pinned key and fails if it does not
+   verify. It also checks, after every asynchronous step, that nothing
+   changed the prepared intent.
+6. **Rescan and relocate.** Proving can take minutes, so the worker scans
+   again and builds the transaction against the latest confirmed state
+   (`buildC7Transaction`). For a deposit it reads the funding coin with
+   `gettxout`; it must be confirmed and match the packet.
+7. **Save.** The journal saves the packet, the proof and the transaction
+   before the worker returns them.
 
-   Each new note gets a fresh random `rho` and is encrypted to its
-   recipient's viewing key.
-4. **Build the witness.** With the spend key of the address that received
-   the note, the worker computes the nullifier and the Merkle paths and
-   inserts the new commitments and nullifier into a copy of the trees. It
-   then builds the transaction template, the anchor and the public inputs.
-   It checks value conservation, the reserve range, the fee limit, dust
-   rules, duplicate inputs and that every note belongs to this pool.
-5. **Load artifacts.** It downloads the form's `.wasm`, `.zkey` and `vk.json`.
-   Each file must match its pinned size and SHA-256. Download progress is
-   reported through `stage` messages.
-6. **Prove and verify.** snarkjs computes the witness and a Groth16 proof on
-   one thread. The worker then verifies the proof against the pinned
-   verification key and fails if verification fails.
-7. **Serialize.** The worker checks that the proof's public inputs equal the
-   prepared ones, compresses the proof to 128 bytes, assembles the witnesses
-   and serializes the transaction.
-
-The reply contains public data only:
+The `prepared` reply contains public data only:
 
 | Field | Meaning |
 | --- | --- |
-| `raw` | Transaction hex with the pool inputs complete and the funding and sponsor inputs unsigned. |
-| `form` | Form used. |
-| `feeAtomic`, `amountAtomic` | Fee and operation amount. |
-| `stateOutpoint` | The state output this transaction spends. |
-| `inputPoints` | All outpoints spent, for the publication checks. |
+| `operationId` | The journal's identifier of this operation. |
+| `packet`, `packetId`, `proof`, `publicSignals` | The portable proof. |
+| `transaction.raw`, `transaction.txid` | The transaction, complete except the funding signature of a deposit. |
+| `transaction.form` | The form used, for example `D1` or `W_partial_change`. |
+| `transaction.feeAtomic`, `amountAtomic`, `reserveAtomic` | Fee, operation amount and the reserve after it. |
+| `transaction.inputPoints` | All outpoints spent, for the publication checks. |
+| `transaction.funding` | For deposits, `{index, point, valueAtomic, script}` of the funding input. |
+| `transaction.intent` | `c7Intent` of the transaction. |
 
-The bundled C4 TEST artifacts total about 691 MiB (24 files). The largest
-single file is the `T4` proving key, about 192 MiB, which is why
-`maxArtifactBytes` defaults to 256 MiB. Whether a later operation
-downloads them again depends on the HTTP cache headers of the server that
-hosts them. Proving time and memory depend on the device and the form;
-assignments with more notes take longer.
+## 3. Sign and record
 
-## 4. Sign the transparent inputs
-
-The worker never sees transparent keys. Sign the funding and sponsor inputs
-with the wallet's own signer, for example
-`@neuraiproject/neurai-sign-transaction`. The proof does not cover
-signatures, so signing does not invalidate it. Changing any input or output
-does.
-
-## 5. Publish
+Only a deposit has a transparent input: sign `transaction.funding.index`
+with the wallet's own signer and `SIGHASH_ALL`, for example
+`@neuraiproject/neurai-sign-transaction`. Then record the signed bytes:
 
 ```js
-await recheckInputs(rpc, manifest, prepared.inputPoints);        // still unspent?
-const { txid } = await admitTransaction(rpc, signedRaw);         // testmempoolaccept only
+const signed = await pool.recordSigned(prepared.operationId, signedRaw);   // deposits
+const signed = await pool.recordSigned(prepared.operationId, prepared.transaction.raw); // other forms
+```
+
+`recordSigned` requires the same version, locktime, outputs, inputs and
+witnesses as the saved transaction, apart from the funding input's signature,
+and the same intent. A Legacy funding signature must end with sighash `01`;
+a witness signature must end with `01` and use a strict witness version. Any
+other form must be recorded byte for byte. The reply carries the final
+`txid`, which differs from the unsigned one for a Legacy funding coin.
+
+## 4. Publish
+
+```js
+const { txid } = await admitTransaction(rpc, signed.raw);   // testmempoolaccept only
+await pool.broadcastAttempt(prepared.operationId);          // record before sending
 try {
-  await publishTransaction(rpc, manifest, { raw: signedRaw, txid, points: prepared.inputPoints },
-    { onBroadcast: id => journal.save({ txid: id, raw: signedRaw, points: prepared.inputPoints }) });
+  await publishTransaction(rpc, { genesis: deployment.genesis }, { raw: signed.raw, txid, points: signed.inputPoints });
 } catch (error) {
   if (!error.uncertain) throw error;
-  // Keep the journal entry and check later with publicationStatus.
+  // The node may or may not have the transaction: check later with publicationStatus.
 }
 ```
 
-`publishTransaction` checks the genesis and the inputs again, runs
-`testmempoolaccept`, confirms that the decoded transaction has the expected
-ID, calls `onBroadcast(txid)` and then `sendrawtransaction`. Save the
-transaction ID and bytes in `onBroadcast`. If the send call fails or returns
-another ID, the error has `uncertain: true`: the node may or may not have
-received the transaction.
+`publishTransaction` checks the genesis and that the inputs are unspent,
+runs `testmempoolaccept`, confirms that the decoded transaction has the
+expected ID, calls the optional `onBroadcast(txid)` and then
+`sendrawtransaction`. If the send call fails or returns another ID, the error
+has `uncertain: true`.
 
-`publicationStatus(rpc, manifest, { txid, raw, points })` resolves an
+`publicationStatus(rpc, { genesis }, { txid, raw, points })` resolves an
 uncertain publication:
 
 | Result | Meaning |
@@ -174,31 +163,69 @@ uncertain publication:
 | `'confirmed'` | In a block. |
 | `'mempool'` | Waiting in the node's mempool. |
 | `'retryable'` | The node does not know it, its inputs are unspent and the same bytes are still accepted. Send the same bytes again. |
-| throws | Still uncertain. Do not build a replacement yet. |
+| throws | Still uncertain. Keep the operation reserved. |
 
-Never rebuild an operation while its earlier transaction might still
-confirm. If the earlier one confirms, a rebuilt transfer or withdrawal built
-on the new state would run the operation a second time.
+A transport failure or an empty mempool is not evidence that an operation
+was cancelled. The journal keeps it reserved until the chain decides.
 
-## 6. After confirmation
+## 5. After confirmation
 
-Scan again to see the new balance. The recipient of an assignment finds the
-note in its own scan; no message has to be sent. Wait for the confirmation
-before preparing another pool operation, because each one must build on a
-confirmed state.
+Scan again. The journal closes an operation as `confirmed` when the scan
+finds a transaction with its intent, and as `conflicted` when another
+confirmed transaction spent one of its nullifiers. A reorganization reopens
+both. The recipient of a transfer finds the note in its own scan; no message
+has to be sent. A new note becomes spendable when its publication has two
+confirmations.
+
+## 6. When the state moved first
+
+There is one pool state, so another pool transaction can confirm while an
+operation is being signed or published. Its transaction then spends an input
+that no longer exists, and admission fails. Do not prove again:
+
+```js
+const again = await pool.rebuild(prepared.operationId);   // same proof, current state
+```
+
+`rebuild` checks the saved proof against its pinned verification key, scans,
+and relocates the same packet against the current state. Record and publish
+the new transaction as above; a deposit must be signed again with its
+original funding coin. Both versions spend the same nullifiers or the same
+funding coin, so at most one of them can confirm.
+
+An operation that stopped before its packet existed (for example a cancelled
+proof) is a draft. `releaseDraft(id)` frees its reservation. A prepared
+packet cannot be cancelled locally (`An exposed C7 packet cannot be cancelled
+locally`): only a confirmed spend or a confirmed conflict closes it.
+
+## 7. Backups
+
+`pool.backup()` returns the encrypted history
+(`{ type, genesis, commitment, cipher }`). It contains no words or keys and
+opens only with the same words, BIP-39 passphrase, ZK passphrase, family and
+account. Keep a current backup when pending operations must move to another
+browser or device. Confirmed notes do not need it: a scan finds them from the
+words.
 
 ## Failures and what to do
 
 | Error | Cause | Action |
 | --- | --- | --- |
-| `Pool state changed: rescan required` | The reserve no longer matches the planned form. | Prepare again. |
-| `Selected note is no longer spendable` | The note was spent or is not in the last scan. | Scan and choose another note. |
-| `No confirmed coin matches this deposit…` | No funding coin of the exact amount. | Create one and wait for its confirmation. |
-| `A separate confirmed supported XNA coin is needed for the fee` | No suitable sponsor coin. | Add a confirmed coin of an accepted script type. |
-| `Funding coin is spent, unconfirmed or unsupported` | A coin changed after it was selected. | Select coins again. |
-| `Fee must be at most 1 XNA and leave non-dust sponsor change` | Fee too high or sponsor too small. | Lower the fee or use a larger sponsor. |
-| `… would be dust under the selected policy` | Reserve or withdrawal below the dust threshold. | Use larger amounts. |
-| `Pool artifact integrity mismatch`, `Artifact exceeds pinned size` | A downloaded artifact differs from the pinned one. | Fix the artifact server. Never skip the check. |
-| `Local proof verification failed` | The proof does not verify. | Report it; do not publish. |
-| `An input was spent while preparing…` | Another pool transaction or a coin spend got there first. | Scan and prepare again. |
+| `C6 private journal missing: …` | No history for this wallet in this store. | Restore a backup, or create a history for new use. |
+| `C7 operation history required before preparing; restore or explicitly create it` | The journal is not open. | Call `openJournal`. |
+| `C7 worker: selected note is unavailable, immature or reserved` | The note was spent, is too recent or is held by a pending operation. | Scan; wait for two confirmations or choose another note. |
+| `C7 worker: insufficient selected note` | Payments plus fee exceed the note. | Choose a larger note or join two notes. |
+| `C7 worker: maximum three outputs including change` | Three recipients plus change. | Pay at most two recipients when there is change. |
+| `C7: unapproved fee` | The fee is not one of the manifest's levels. | Use a listed fee level. |
+| `C7: deposit must be a multiple of 100 XNA`, `C7: recipient amount must be a multiple of 100 XNA`, `C7: withdrawal must be a multiple of 100 XNA` | Amount outside the quantum. | Round the amount. |
+| `C7: small recovery must consume the entire note` | A withdrawal below 100 XNA that leaves change. | Withdraw the whole note. |
+| `C7: funding must equal amount plus fee` | `fundingValue` differs. | Create an exact funding coin. |
+| `C7 confirmed funding coin unavailable` | The funding coin is spent or unconfirmed. | Wait for its confirmation or create another. |
+| `C7 private journal: note or funding coin already reserved` | Another pending operation holds it. | Finish or release that operation. |
+| `C7 private journal changed in another tab; rescan before retrying` | Two tabs wrote the journal. | Scan and retry. |
+| `Pool artifact integrity mismatch`, `Artifact exceeds pinned size` | A downloaded file differs from its pin. | Fix the file server. Never skip the check. |
+| `C7: invalid generated proof`, `Invalid generated proof` | The proof does not verify. | Report it; do not publish. |
+| `C7 funding must use SIGHASH_ALL` | The funding input was signed with another sighash. | Sign it again with `SIGHASH_ALL`. |
+| `C7 signed transaction changed private intent` | The signed bytes differ from the saved transaction. | Sign the saved transaction without changing it. |
+| `An input was spent while preparing. Refresh and rebuild the transaction.` | Another pool transaction or a coin spend got there first. | `rebuild` the operation; no new proof is needed. |
 | Error with `uncertain: true` | Unknown publication outcome. | Use `publicationStatus` before doing anything else. |

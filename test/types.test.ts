@@ -1,110 +1,56 @@
 import {
-  CliTestBackend, NeuraiPrivacy, BrowserTestIdentity, type NeuraiRpc, type RecipientDescriptor
+  C7WalletIdentity, C7_PROFILE, decodeC7Address, type RecipientDescriptor, type NzkPoolScope, type NzkAddressRef, type C7Descriptor,
 } from '../src/index.js';
-import { scanBrowserPool, C4_TESTNET_MANIFEST, C4_TESTNET_COMMITMENT, type C4Manifest } from '../src/browser.js';
+import { createWalletServiceRpc, type WalletServiceHello, type WalletServiceReply, type PoolRpc } from '../src/client.js';
+import { C7WorkerClient, C6WorkerClient, IndexedDbJournalStore, IndexedDbSponsorStore, confirmedPoolCoins, publishTransaction,
+  validateC7Deployment, c7Intent, type ReceivingInfo, type C7Deployment, type JournalStore } from '../src/client.js';
+import { startC7PoolWorker, scanC7Pool, buildC7Transaction, readC7Packet, describeReceiving, loadVerifiedArtifact,
+  createC7OperationWallet, type SnarkjsLike, type C7PoolManifest, type C7PoolScan, type C6PoolScan } from '../src/worker.js';
 
-const rpc: NeuraiRpc = async () => '0'.repeat(64);
-const backend = new CliTestBackend({
-  repository: '/tmp/source',
-  wallet: '/tmp/wallet',
-  artifacts: '/tmp/artifacts',
-  node: 'test-node',
-  getPassword: async () => Buffer.from('long-test-password')
-});
-const wallet = new NeuraiPrivacy({ rpc, backend });
-const recipient: RecipientDescriptor = {
-  domain: '1'.repeat(64),
-  asset_id: '2'.repeat(64),
-  owner: '3'.repeat(64),
-  view_pub: '4'.repeat(64)
-};
-async function compileOnly(): Promise<void> {
-  const balance = await wallet.scan();
-  const units: bigint = balance.balanceAtomic;
-  await wallet.transfer({ recipients: [recipient] });
-  await wallet.deposit({ amountUnits: 1 });
-  await wallet.withdraw({ recipient: 'test-transparent-address' });
-  const xna = new NeuraiPrivacy({ rpc, backend: new CliTestBackend({
-    repository: '/tmp/source', wallet: '/tmp/xna', artifacts: '/tmp/xna-artifacts',
-    node: 'test-node', profile: 'xna', manifestSha256: 'f'.repeat(64),
-    getPassword: () => 'long-test-password'
-  }) });
-  await xna.deposit({ amountSats: 1_000_000_000_000_000n });
-  await xna.transfer({ recipients: [recipient, recipient],
-    splitSats: [600_000_000_000_000n, 400_000_000_000_000n] });
-  const manifest: C4Manifest = C4_TESTNET_MANIFEST;
-  const browserScan = await scanBrowserPool({ rpc, manifest, expectedCommitment: C4_TESTNET_COMMITMENT });
-  // @ts-expect-error The manifest must be checked against an independently pinned commitment.
-  await scanBrowserPool({ rpc, manifest });
-  const browserBalance: bigint = browserScan.balanceAtomic;
-  void browserBalance;
-  void units;
-}
-void compileOnly;
-
-import { createWalletServiceRpc, type WalletServiceHello, type WalletServiceReply } from '../src/client.js';
 const serviceHello: WalletServiceHello = {protocol: 'wss/2', exact_amounts: true, genesis_hash: 'a'.repeat(64),
   wallet_rpc: {methods: ['getblock'], amounts: 'rpc-native-units', numeric_encoding: 'safe-number-or-string'}};
-const serviceRpc: import('../src/client.js').PoolRpc = createWalletServiceRpc({hello: serviceHello, expectedGenesis: 'a'.repeat(64),
+const serviceRpc: PoolRpc = createWalletServiceRpc({hello: serviceHello, expectedGenesis: 'a'.repeat(64),
   request: async (_method, _params): Promise<WalletServiceReply> => ({result: null})});
 // @ts-expect-error The expected chain must be independently pinned.
 createWalletServiceRpc({hello: serviceHello, request: async () => ({result: null})});
 void serviceRpc;
 
-import { ZkWalletIdentity, decodeNzkAddress, parseRecipient, type NzkPoolScope, type NzkAddressRef } from '../src/browser.js';
-async function zkCompileOnly() {
+async function c7CompileOnly(deployment: C7Deployment, manifest: C7PoolManifest, snarkjs: SnarkjsLike, worker: Worker) {
   const scope: NzkPoolScope = { network: 'testnet', domain: '00'.repeat(32), assetId: '11'.repeat(32) };
-  const wallet = await ZkWalletIdentity.fromMnemonic({ family: 'legacy', mnemonic: 'words', passphrase: '', zkPassphrase: '',
-    account: 0, domain: scope.domain, assetId: scope.assetId, network: scope.network, gap: 20 });
-  const address: string = wallet.addressAt(0, wallet.currentIndex());
-  const descriptor: RecipientDescriptor = decodeNzkAddress(address, scope);
-  const again: RecipientDescriptor = parseRecipient(JSON.stringify(descriptor), scope);
-  const fromObject: RecipientDescriptor = parseRecipient(descriptor, scope);
-  // @ts-expect-error A numeric recipient is never a descriptor.
-  parseRecipient(42, scope);
-  void fromObject;
-  const found = wallet.scanRecords([]);
-  const where: NzkAddressRef | undefined = found[0]?.address;
-  const scan = await scanBrowserPool({ rpc, manifest: C4_TESTNET_MANIFEST, expectedCommitment: C4_TESTNET_COMMITMENT,
-    identity: wallet, strategy: 'spent-index' });
-  const noteAddress: NzkAddressRef | undefined = scan.notes[0]?.address;
-  void again; void where; void noteAddress; wallet.lock();
-}
-void zkCompileOnly;
-
-import { PoolWorkerClient, confirmedPoolCoins, selectPoolCoins, publishTransaction, rotationStorageKey, loadRotation,
-  C4_TESTNET_MANIFEST as poolManifest, C4_TESTNET_ARTIFACTS, type PoolRpc, type ReceivingInfo, type PreparedPoolTransaction } from '../src/client.js';
-import { startPoolWorker, planC4Operation, loadVerifiedArtifact, type SnarkjsLike } from '../src/worker.js';
-async function poolCompileOnly(identity: BrowserTestIdentity, worker: { postMessage(m: unknown): void; onmessage: ((e: { data: any }) => void) | null }, snarkjs: SnarkjsLike) {
-  const poolRpc: PoolRpc = async () => null;
-  const client = new PoolWorkerClient({ worker, rpc: poolRpc, onStage: (m: string) => void m });
-  const derived = await client.derive({ family: 'legacy', mnemonic: 'words', zkPassphrase: '', account: 0 });
-  const receiving: ReceivingInfo = derived.addresses;
-  const coins = await confirmedPoolCoins(poolRpc, [], { baseCurrency: 'XNA' });
-  const { sponsor } = selectPoolCoins(coins, { action: 'transfer', amountAtomic: 1n, feeAtomic: 1n });
-  const prepared: PreparedPoolTransaction = await client.prepare({ action: 'transfer', amountAtomic: '1', feeAtomic: '1', sponsor, note: 'cm', recipient: receiving.current.address });
-  await client.prepare({ action: 'transfer', amountAtomic: '3', feeAtomic: '1', sponsor, note: 'cm',
-    recipients: [{ recipient: receiving.current.address, amountAtomic: '1' }, { recipient: receiving.current.address, amountAtomic: '2' }] });
-  const txid: string = await publishTransaction(poolRpc, poolManifest, { raw: prepared.raw, txid: 'x', points: prepared.inputPoints });
-  const key = rotationStorageKey({ network: 'testnet', derivation: 'NeuraiZK/v2', family: 'legacy', storageId: 'ab'.repeat(32), account: 0 });
-  const state = loadRotation(null, key);
-  startPoolWorker({ scope: { postMessage() {}, onmessage: null }, snarkjs, artifactBaseUrl: 'https://example.test/' }).stop();
-  const zkey = await loadVerifiedArtifact({ path: 'a', artifacts: C4_TESTNET_ARTIFACTS, fetchArtifact: p => fetch(p) });
-  const file = new File([zkey], 'final.zkey');
-  const opened = identity.openRecord(zkey, zkey);
-  const nf: Uint8Array = opened.nf;
-  void planC4Operation; void txid; void state; void file; void nf;
-}
-void poolCompileOnly;
-
-// Family selection is mandatory at both identity and worker boundaries.
-function rejectedV2Calls(client: PoolWorkerClient) {
+  const identity = await C7WalletIdentity.fromMnemonic({ family: 'legacy', mnemonic: 'words', passphrase: '', zkPassphrase: '',
+    account: 0, domain: scope.domain, assetId: scope.assetId, network: scope.network });
+  const address: string = identity.addressAt(0, identity.currentIndex());
+  const descriptor: C7Descriptor = decodeC7Address(address, scope);
+  const plain: RecipientDescriptor = descriptor;
+  const scan: C7PoolScan = await scanC7Pool({ rpc: serviceRpc, deployment: validateC7Deployment(deployment), identity, strategy: 'spent-index' });
+  const old: C6PoolScan = scan;
+  const where: NzkAddressRef | undefined = scan.notes[0]?.address;
+  const receiving: ReceivingInfo = describeReceiving(identity, scan);
+  const wallet = createC7OperationWallet({ expectedGenesis: manifest.network, expectedCommitment: manifest.commitment });
+  const plan = identity.prepareC7Transfer(wallet, { manifest, fee: '10000000', consumed: scan.notes[0]!, operation: 'T1',
+    outputs: [{ isChange: true, amountAtomic: '1' }] });
+  const proved = await wallet.prove(plan, { api: snarkjs, wasm: new Uint8Array(), zkey: new Uint8Array(), vk: {} });
+  const built = buildC7Transaction({ packet: proved.packet, scan, manifest, deployment });
+  const intent: string = c7Intent(built.raw, deployment).operationId;
+  if (readC7Packet(proved.packet, { manifest }).operation !== 'T1') throw new Error('operation');
+  // @ts-expect-error The scanner needs a C7 wallet identity.
+  await scanC7Pool({ rpc: serviceRpc, deployment, identity: {} });
+  const store: JournalStore = new IndexedDbJournalStore({ name: 'neurai-c7-private-journal-v1' });
+  const legacyStore: IndexedDbJournalStore = new IndexedDbSponsorStore();
+  const client = new C7WorkerClient({ worker, rpc: serviceRpc, store });
+  const legacyClient: C6WorkerClient = client;
+  await client.derive({ family: 'ecdsa', mnemonic: 'words' });
   // @ts-expect-error Missing explicit family.
-  client.derive({ mnemonic: 'words' });
-  // @ts-expect-error AuthScript is not a transparent wallet family.
-  client.derive({ mnemonic: 'words', family: 'authscript' });
-  // @ts-expect-error Missing explicit family.
-  ZkWalletIdentity.fromRoot({ root: new Uint8Array(64), account: 0, domain: '', assetId: '', network: 'testnet' });
+  await client.derive({ mnemonic: 'words' });
+  const coins = await confirmedPoolCoins(serviceRpc, [], { baseCurrency: 'XNA' });
+  const txid: string = await publishTransaction(serviceRpc, { genesis: 'a'.repeat(64) }, { raw: built.raw, txid: built.txid, points: built.inputPoints });
+  const bytes = await loadVerifiedArtifact({ path: 'D.zkey', artifacts: { files: {} }, fetchArtifact: p => fetch(p) });
+  startC7PoolWorker({ manifest, deployment, domain: scope.domain, assetId: scope.assetId, expectedGenesis: manifest.network,
+    expectedCommitment: manifest.commitment, artifacts: { files: {}, forms: {} as any }, artifactBaseUrl: '/privacy-c7/', reservations: [] }).stop();
+  if (manifest.profile !== C7_PROFILE) throw new Error('profile');
+  void [plain, old, where, receiving, intent, legacyStore, legacyClient, coins, txid, bytes];
 }
+void c7CompileOnly;
 
-import './sponsor-types.test.js';
+import './c7-join-types.test.js';
+import './c7-operation-types.test.js';

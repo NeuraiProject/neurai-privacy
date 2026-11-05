@@ -1,21 +1,13 @@
-/* Main-thread entry: public hashes only, no private data. Safe to load in any page. */
+/* Main-thread entry: public data only, no private keys or notes. Safe to load in any page. */
 export { createWalletServiceRpc } from './wallet-service-rpc.js';
 export { ATOMIC_PER_XNA, MAX_ATOMIC, rpcAmountToSatoshis, parseXna, formatXna } from './amounts.js';
-export { LEGACY_P2PKH, MIN_SPONSOR_CHANGE_ATOMIC, POOL_READ_RPC_METHODS, isPoolReadRpc, assertPoolChain, confirmedPoolCoins,
-  selectPoolCoins, checkPoolCoin, withdrawalScript, recheckInputs, admitTransaction, inspectFundingTransaction,
-  publishTransaction, publicationStatus } from './pool-client.js';
-export { ROTATION_MAX_GAP, rotationStorageKey, loadRotation, saveRotation } from './rotation-store.js';
-export { C4_TESTNET_NETWORK, C4_TESTNET_COMMITMENT, C4_TESTNET_MANIFEST, C4_TESTNET_ARTIFACTS } from './c4-testnet.js';
-export { PoolWorkerClient } from './pool-worker-client.js';
+export { LEGACY_P2PKH, POOL_READ_RPC_METHODS, isPoolReadRpc, assertPoolChain, confirmedPoolCoins, checkPoolCoin,
+  withdrawalScript, recheckInputs, admitTransaction, inspectFundingTransaction, publishTransaction,
+  publicationStatus } from './pool-client.js';
+export { validateC7Deployment, c7Intent } from './c7-deployment.js';
+export { IndexedDbJournalStore } from './journal-store.js';
+export { C7WorkerClient } from './c7-worker-client.js';
 
-// Opt-in C6 TEST sponsor management; C4/C5 signing defaults are unchanged.
-export { SponsorJournal } from './sponsor-journal.js';
-export { IndexedDbSponsorStore } from './sponsor-store.js';
-export { prepareSponsorSweep, validateSponsorSignature } from './sponsor-sweep.js';
-
-export { C6SponsorFlow } from './c6-sponsor-flow.js';
-export { c6SponsorIntent, scanC6SponsorChain, validateC6SponsorDeployment } from './c6-sponsor-chain.js';
-
-export {C6WorkerClient} from './c6-worker-client.js';
-
-export {c6AssetMetadata,c6AssetTransferScript,c6ReadAssetTransfer,parseAssetAmount} from './c6-assets.js';
+// Deprecated names, kept for one release: they are the same objects as their C7 names.
+export { IndexedDbJournalStore as IndexedDbSponsorStore } from './journal-store.js';
+export { C7WorkerClient as C6WorkerClient } from './c7-worker-client.js';

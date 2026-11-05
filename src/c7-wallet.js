@@ -1,6 +1,5 @@
 /** C7 private wallet derived from the wallet words (NeuraiZK/v3 on the v2 root).
- * It exposes the methods the C6/C7 pool worker uses on ZkWalletIdentity, but
- * scanning costs one ristretto255 multiplication per record whatever the
+ * Scanning costs one ristretto255 multiplication per record whatever the
  * number of addresses: there is no address window to search.
  */
 import { sha256 } from '@noble/hashes/sha2.js';
@@ -142,12 +141,12 @@ export class C7WalletIdentity {
   }
 
   /** C7 secrets stay in the proving worker; no spending-key getter is added. */
-  prepareC6Deposit(wallet, options) {
+  prepareC7Deposit(wallet, options) {
     return wallet.prepareDeposit({ ...options, domain: this.#account.domain, assetId: this.#account.assetId,
       recipient: options.recipient ?? this.selfRecipient() });
   }
 
-  prepareC6Transfer(wallet, { consumed, ...options }) {
+  prepareC7Transfer(wallet, { consumed, ...options }) {
     const { spendSecret, change } = this.#spend(consumed);
     try {
       return wallet.prepareTransfer({ ...options, domain: this.#account.domain, assetId: this.#account.assetId, change,
@@ -155,7 +154,7 @@ export class C7WalletIdentity {
     } finally { spendSecret.fill(0); }
   }
 
-  prepareC6Withdrawal(wallet, { consumed, ...options }) {
+  prepareC7Withdrawal(wallet, { consumed, ...options }) {
     const { spendSecret, change } = this.#spend(consumed);
     try {
       return wallet.prepareWithdrawal({ ...options, domain: this.#account.domain, assetId: this.#account.assetId, change,
@@ -164,7 +163,7 @@ export class C7WalletIdentity {
   }
 
   /** J2 joins two owned notes; the new note goes to the address of note 0. */
-  prepareC6Join(wallet, { consumed, ...options }) {
+  prepareC7Join(wallet, { consumed, ...options }) {
     if (!Array.isArray(consumed) || consumed.length !== 2) throw new Error('Two owned notes required');
     const spends = consumed.map(note => this.#spend(note));
     try {
@@ -173,6 +172,15 @@ export class C7WalletIdentity {
         notes: consumed.map((n, i) => ({ note: n.note, index: n.index, path: n.path, spendSecret: spends[i].spendSecret })) });
     } finally { for (const s of spends) s.spendSecret.fill(0); }
   }
+
+  /** @deprecated Renamed to prepareC7Deposit; kept for one release. */
+  prepareC6Deposit(wallet, options) { return this.prepareC7Deposit(wallet, options); }
+  /** @deprecated Renamed to prepareC7Transfer; kept for one release. */
+  prepareC6Transfer(wallet, options) { return this.prepareC7Transfer(wallet, options); }
+  /** @deprecated Renamed to prepareC7Withdrawal; kept for one release. */
+  prepareC6Withdrawal(wallet, options) { return this.prepareC7Withdrawal(wallet, options); }
+  /** @deprecated Renamed to prepareC7Join; kept for one release. */
+  prepareC6Join(wallet, options) { return this.prepareC7Join(wallet, options); }
 
   /** Derived identities are recovered from the words; there is no file backup. */
   backupJson() { return null; }
@@ -196,4 +204,23 @@ export class C7WalletIdentity {
   }
 
   lock() { this.#account.lock(); }
+}
+
+/**
+ * Public receiving data of a C7 identity: current nzk v3 address and the used
+ * receiving addresses with the amount each received. No secrets.
+ */
+export function describeReceiving(identity, scan) {
+  if (!(identity instanceof C7WalletIdentity)) throw new Error('C7 wallet identity required');
+  const received = new Map();
+  for (const note of scan?.notes ?? []) {
+    if (note.address?.chain === CHAIN_RECEIVING) received.set(note.address.index, (received.get(note.address.index) ?? 0n) + BigInt(note.amountAtomic));
+  }
+  const current = identity.currentIndex();
+  return {
+    kind: 'derived', derivation: identity.derivation, family: identity.family, storageId: identity.storageId, fingerprint: identity.fingerprint,
+    account: identity.account, gap: identity.gap, issued: identity.issued, maxUsed: identity.maxUsed,
+    current: { index: current, address: identity.addressAt(CHAIN_RECEIVING, current) },
+    used: identity.usedIndexes.map(index => ({ index, address: identity.addressAt(CHAIN_RECEIVING, index), receivedAtomic: String(received.get(index) ?? 0n) })),
+  };
 }
